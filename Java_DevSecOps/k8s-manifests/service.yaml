@@ -1,0 +1,30 @@
+# ==============================================================================
+# Kubernetes Service — Boardgame Application (EKS Production)
+# ==============================================================================
+# ClusterIP service for internal routing within EKS. Traffic from the
+# ALB reaches pods via the AWS Load Balancer Controller's target group
+# binding — no NodePort needed.
+#
+# Traffic flow:
+#   ALB → Target Group (pod IPs) → ClusterIP Service → Pods
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: boardgame-app
+  namespace: boardgame
+  labels:
+    app: boardgame-app
+    managed-by: argocd
+spec:
+  # ClusterIP — internal service (ALB handles external access)
+  type: ClusterIP
+
+  selector:
+    app: boardgame-app
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

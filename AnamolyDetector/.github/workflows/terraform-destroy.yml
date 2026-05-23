@@ -1,0 +1,121 @@
+##############################################################################
+# Workflow: Terraform Destroy (Manual / Emergency)
+# Triggers: workflow_dispatch ONLY (never auto-triggered)
+# Requires manual confirmation string to prevent accidents.
+##############################################################################
+
+name: "Terraform Destroy (Manual)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to destroy"
+        required: true
+        default: "dev"
+        type: choice
+        options: ["dev", "staging", "prod"]
+      confirm:
+        description: "Type 'DESTROY' to confirm you want to destroy all resources"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: tf-destroy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION:       "1.7.5"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  guard:
+    name: "Safety Guard Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify confirmation string
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DESTROY" ]; then
+            echo "❌ Confirmation string mismatch. You must type exactly: DESTROY"
+            echo "Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+          echo "✅ Confirmation accepted. Proceeding with destroy..."
+
+      - name: Warn on production destroy
+        if: github.event.inputs.environment == 'prod'
+        run: |
+          echo "⚠️  WARNING: You are about to DESTROY the PRODUCTION environment!"
+          echo "Triggered by: ${{ github.actor }}"
+
+  destroy:
+    name: "Terraform Destroy — ${{ github.event.inputs.environment }}"
+    runs-on: ubuntu-latest
+    needs: guard
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_region         = "${{ secrets.AWS_REGION }}"
+          environment        = "${{ github.event.inputs.environment }}"
+          alert_email        = "${{ secrets.TF_VAR_ALERT_EMAIL }}"
+          zscore_threshold   = 2.5
+          bedrock_model_id   = "${{ secrets.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0' }}"
+          log_retention_days = 30
+          EOF
+
+      - name: Create Lambda dist directory
+        run: mkdir -p modules/cost_analyzer/lambda/dist
+
+      - name: Terraform Init
+        run: terraform init -no-color
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -no-color 2>&1 | tee destroy_output.txt
+
+      - name: Post destroy summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await core.summary
+              .addHeading('🗑️ Terraform Destroy Complete')
+              .addTable([
+                [{data: 'Detail', header: true}, {data: 'Value', header: true}],
+                ['Environment', '${{ github.event.inputs.environment }}'],
+                ['Triggered by', '@${{ github.actor }}'],
+                ['Commit', '${{ github.sha }}'],
+                ['Time', new Date().toISOString()],
+              ])
+              .addRaw('\n> All AWS resources for the specified environment have been destroyed.')
+              .write();
+
+      - name: Upload destroy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: destroy-log-${{ github.event.inputs.environment }}-${{ github.run_id }}
+          path: destroy_output.txt
+          retention-days: 90

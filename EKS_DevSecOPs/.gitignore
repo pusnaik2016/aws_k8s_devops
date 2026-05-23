@@ -1,0 +1,45 @@
+# ==============================================================================
+# .gitignore — EKS DevSecOps Multi-Region
+# ==============================================================================
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!*.tfvars.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Secrets
+*.pem
+*.key
+*.crt
+.env
+.env.*
+
+# Build
+target/
+*.jar
+*.war
+*.class
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: ecommerce-app
+description: Java ecommerce application Helm chart for multi-region EKS deployment
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - java
+  - ecommerce
+  - eks
+  - multi-region
+maintainers:
+  - name: DevSecOps Team

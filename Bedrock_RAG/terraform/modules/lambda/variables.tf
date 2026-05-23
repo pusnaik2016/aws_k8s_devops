@@ -1,0 +1,10 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "lambda_role_arn" { type = string }
+variable "private_subnet_ids" { type = list(string) }
+variable "lambda_sg_id" { type = string }
+variable "s3_bucket_name" { type = string }
+variable "opensearch_endpoint" { type = string }
+variable "bedrock_model_id" { type = string }
+variable "embedding_model_id" { type = string }
+variable "kms_key_arn" { type = string }

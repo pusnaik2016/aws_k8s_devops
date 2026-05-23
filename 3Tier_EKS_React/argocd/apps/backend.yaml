@@ -1,0 +1,49 @@
+# =============================================================================
+# ArgoCD Child Application — Backend
+# Author: Pushparaj Naik
+# Manages: k8s/backend.yaml (Deployment + Service)
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backend
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: pushparaj
+    app.kubernetes.io/part-of: devops-quiz
+    tier: backend
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/pushparajnaik/3Tier_EKS_React.git
+    targetRevision: main
+    path: k8s
+    directory:
+      include: "{backend.yaml,configmap.yaml,migration_job.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: 3-tier-app-eks
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true    # Drift detection: reverts kubectl edits
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignore HPA-managed replica count

@@ -1,0 +1,22 @@
+# ==============================================================================
+# Region Override — ap-south-1 (Secondary)
+# ==============================================================================
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod,ap-south-1"
+  - name: JAVA_OPTS
+    value: "-XX:+UseG1GC -XX:MaxRAMPercentage=75.0"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: DB_ENDPOINT
+    value: ""  # Set via CI/CD: eks-devsecops-aurora-secondary.cluster-ro-xxxx.ap-south-1.rds.amazonaws.com
+  - name: DB_READ_ENDPOINT
+    value: ""  # Same as DB_ENDPOINT (read-only in secondary)
+  - name: AWS_REGION
+    value: "ap-south-1"
+
+config:
+  DB_PORT: "3306"
+  DB_NAME: "ecommercedb"
+  REGION: "ap-south-1"
+  DB_ROLE: "reader"

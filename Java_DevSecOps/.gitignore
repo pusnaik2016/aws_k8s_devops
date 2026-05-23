@@ -1,0 +1,110 @@
+# ==============================================================================
+# .gitignore — DevSecOps Pipeline Project
+# ==============================================================================
+# Specifies files and directories that should NOT be committed to Git.
+# This prevents sensitive data, build artifacts, and IDE-specific files
+# from being pushed to the repository.
+# ==============================================================================
+
+# ---------------------------------------------------------------------------
+# Terraform
+# ---------------------------------------------------------------------------
+# State files contain sensitive infrastructure details (IPs, resource IDs)
+*.tfstate
+*.tfstate.*
+# Terraform working directory (downloaded providers and modules)
+.terraform/
+# Lock file is committed for reproducibility, but backup files are not
+.terraform.lock.hcl
+# Variable files may contain sensitive values (AWS keys, passwords)
+terraform.tfvars
+*.auto.tfvars
+# Crash logs from Terraform errors
+crash.log
+crash.*.log
+# Plan output files (may contain sensitive data)
+*.tfplan
+# Override files for local development
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ---------------------------------------------------------------------------
+# Java / Maven
+# ---------------------------------------------------------------------------
+# Compiled class files and build output
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven wrapper (if not using system Maven)
+.mvn/
+
+# ---------------------------------------------------------------------------
+# Docker
+# ---------------------------------------------------------------------------
+# Docker Compose override files
+docker-compose.override.yml
+
+# ---------------------------------------------------------------------------
+# IDE Files
+# ---------------------------------------------------------------------------
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# VS Code
+.vscode/
+
+# ---------------------------------------------------------------------------
+# OS Files
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# Security / Secrets
+# ---------------------------------------------------------------------------
+# Private keys — NEVER commit these
+*.pem
+*.key
+*.p12
+*.jks
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+
+# ---------------------------------------------------------------------------
+# Reports (generated during pipeline runs)
+# ---------------------------------------------------------------------------
+# Trivy scan reports
+trivy-*.txt
+trivy-*.html
+trivy-*.json
+
+# OWASP Dependency-Check reports
+dependency-check-report.*
+
+# SonarQube working directory
+.scannerwork/
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+*.log
+logs/

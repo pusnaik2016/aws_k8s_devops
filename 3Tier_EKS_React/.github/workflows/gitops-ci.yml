@@ -1,0 +1,190 @@
+# =============================================================================
+# GitOps CI/CD Pipeline
+# Project: 3-Tier EKS Application
+# Author: Pushparaj Naik
+#
+# GitOps Principle: This pipeline does NOT deploy directly.
+# Instead, it builds images, pushes to ECR, and updates the image tags
+# in k8s manifests. ArgoCD then detects the Git change and syncs.
+# =============================================================================
+
+name: GitOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'k8s/**'
+      - 'argocd/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'infra/**'
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: write   # Required for Git commit (image tag updates)
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+  EKS_CLUSTER: pushparaj-dev-cluster
+  IMAGE_TAG: ${{ github.sha }}
+
+# =============================================================================
+# Job 1: Terraform Validation & Security Scanning
+# =============================================================================
+jobs:
+  terraform-validate:
+    name: 🔍 Terraform Validate & Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        working-directory: infra
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: infra
+        run: terraform validate
+
+      - name: TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Run TFLint
+        working-directory: infra
+        run: |
+          tflint --init
+          tflint --recursive
+
+      - name: tfsec Security Scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: infra
+          soft_fail: true
+
+      - name: YAML Lint (K8s + ArgoCD manifests)
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: |
+            k8s/
+            argocd/
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 200
+              truthy:
+                check-keys: false
+
+  # =============================================================================
+  # Job 2: Build & Push Docker Images to ECR
+  # =============================================================================
+  build-and-push:
+    name: 🏗️ Build & Push to ECR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      frontend_changed: ${{ steps.changes.outputs.frontend }}
+      backend_changed: ${{ steps.changes.outputs.backend }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # For change detection
+
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # --- Frontend Build ---
+      - name: Build & Push Frontend
+        if: steps.changes.outputs.frontend == 'true'
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/frontend:${{ env.IMAGE_TAG }} \
+                        -t ${{ env.ECR_REGISTRY }}/frontend:latest \
+                        ./frontend
+          docker push ${{ env.ECR_REGISTRY }}/frontend:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/frontend:latest
+
+      # --- Backend Build ---
+      - name: Build & Push Backend
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/backend:${{ env.IMAGE_TAG }} \
+                        -t ${{ env.ECR_REGISTRY }}/backend:latest \
+                        ./backend
+          docker push ${{ env.ECR_REGISTRY }}/backend:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/backend:latest
+
+  # =============================================================================
+  # Job 3: Update K8s Manifests with New Image Tags (GitOps Commit)
+  # =============================================================================
+  update-manifests:
+    name: 📝 Update K8s Image Tags
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: needs.build-and-push.outputs.frontend_changed == 'true' || needs.build-and-push.outputs.backend_changed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update frontend image tag in k8s manifest
+      - name: Update Frontend Image Tag
+        if: needs.build-and-push.outputs.frontend_changed == 'true'
+        run: |
+          sed -i "s|image: .*/frontend:.*|image: ${{ env.ECR_REGISTRY }}/frontend:${{ env.IMAGE_TAG }}|g" k8s/frontend.yaml
+
+      # Update backend image tag in k8s manifest
+      - name: Update Backend Image Tag
+        if: needs.build-and-push.outputs.backend_changed == 'true'
+        run: |
+          sed -i "s|image: .*/backend:.*|image: ${{ env.ECR_REGISTRY }}/backend:${{ env.IMAGE_TAG }}|g" k8s/backend.yaml
+
+      # GitOps commit — ArgoCD detects this change and syncs
+      - name: Commit & Push Updated Manifests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/frontend.yaml k8s/backend.yaml
+          git diff --staged --quiet || git commit -m "ci: update image tags to ${{ env.IMAGE_TAG }} [skip ci]"
+          git push

@@ -1,0 +1,128 @@
+# ==============================================================================
+# Kubernetes Deployment — Boardgame Application (EKS Production)
+# ==============================================================================
+# Deployment manifest for the private EKS cluster. The image tag is updated
+# automatically by the GitHub Actions CD workflow, and ArgoCD syncs the change.
+#
+# Production features:
+#   - ECR image reference (private registry via VPC Endpoint)
+#   - Rolling update strategy for zero-downtime deployments
+#   - topologySpreadConstraints for multi-AZ pod distribution
+#   - Liveness/readiness probes on Actuator health endpoint
+#   - Resource limits and requests for QoS
+#   - Security context (non-root, no privilege escalation)
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: boardgame-app
+  namespace: boardgame
+  labels:
+    app: boardgame-app
+    version: v1
+    managed-by: argocd
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: boardgame-app
+
+  # Zero-downtime rolling update strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: boardgame-app
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/metrics"
+    spec:
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+
+      # -----------------------------------------------------------------------
+      # Topology Spread Constraints — Distribute pods across AZs
+      # -----------------------------------------------------------------------
+      # Ensures pods are evenly distributed across availability zones for HA.
+      # If one AZ goes down, the remaining AZs continue serving traffic.
+      # -----------------------------------------------------------------------
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: boardgame-app
+
+      containers:
+        - name: boardgame-app
+          # ===================================================================
+          # Container Image — ECR reference
+          # ===================================================================
+          # This image reference is updated by the GitHub Actions CD workflow.
+          # Format: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>
+          # The CD workflow uses sed to replace the tag after the colon.
+          # ===================================================================
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/java-devsecops/boardgame-app:latest
+
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+
+          # Liveness probe — restart pod if unhealthy
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe — remove from service if not ready
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Resource limits for scheduling and QoS
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          env:
+            - name: APP_ENVIRONMENT
+              value: "production"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+
+          # Container-level security context
+          securityContext:
+            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always

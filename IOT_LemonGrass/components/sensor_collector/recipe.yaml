@@ -1,0 +1,38 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "com.iotgreengrass.SensorCollector"
+ComponentVersion: "1.0.0"
+ComponentDescription: >
+  Simulates IoT sensor readings (temperature, humidity, pressure) from a
+  customer site and publishes telemetry to AWS IoT Core via MQTT.
+ComponentPublisher: "Pushparaj Naik"
+ComponentConfiguration:
+  DefaultConfiguration:
+    SiteName: "site-mumbai"
+    TopicPrefix: "dt/iot-greengrass"
+    PublishIntervalSeconds: "10"
+    TempBase: "28.0"
+    TempVariance: "8.0"
+    HumidityBase: "65.0"
+    HumidityVariance: "20.0"
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      Install: "pip3 install --user -r {artifacts:path}/requirements.txt"
+      Run: |
+        export SITE_NAME="{configuration:/SiteName}"
+        export TOPIC_PREFIX="{configuration:/TopicPrefix}"
+        export PUBLISH_INTERVAL_SECONDS="{configuration:/PublishIntervalSeconds}"
+        export TEMP_BASE="{configuration:/TempBase}"
+        export TEMP_VARIANCE="{configuration:/TempVariance}"
+        export HUMIDITY_BASE="{configuration:/HumidityBase}"
+        export HUMIDITY_VARIANCE="{configuration:/HumidityVariance}"
+        python3 -u {artifacts:path}/main.py
+    Artifacts:
+      - URI: "s3://BUCKET_PLACEHOLDER/artifacts/com.iotgreengrass.SensorCollector/1.0.0/sensor_collector.zip"
+        Unarchive: ZIP
+ComponentDependencies:
+  aws.greengrass.Nucleus:
+    VersionRequirement: ">=2.9.0"
+    DependencyType: HARD

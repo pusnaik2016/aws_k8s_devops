@@ -1,0 +1,17 @@
+# Terraform
+**/.terraform/*
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Sensitive/local
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

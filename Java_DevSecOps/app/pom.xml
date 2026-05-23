@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ==============================================================================
+  Maven Project Object Model (POM) — Boardgame Application
+  ==============================================================================
+  This POM defines the build configuration for the Boardgame Spring Boot app.
+  
+  Key configurations:
+    - Spring Boot 3.2.x with web and actuator starters
+    - JaCoCo plugin for code coverage reporting (SonarQube integration)
+    - OWASP Dependency-Check plugin for SCA scanning
+    - Maven Surefire plugin for unit test execution
+  
+  Build command:    mvn clean package
+  Run tests:        mvn test
+  SonarQube scan:   mvn sonar:sonar -Dsonar.host.url=http://SONAR_IP:9000
+  ==============================================================================
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot parent provides dependency management and plugin defaults -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.4</version>
+        <relativePath/>
+    </parent>
+
+    <!-- Project coordinates — used to identify this artifact in repositories -->
+    <groupId>com.devsecops</groupId>
+    <artifactId>boardgame-app</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Boardgame Application</name>
+    <description>
+        Sample Spring Boot application demonstrating an automated DevSecOps
+        pipeline with SAST, SCA, container scanning, and GitOps deployment.
+    </description>
+
+    <!-- Java version — must match the JDK version in Dockerfile and Jenkins -->
+    <properties>
+        <java.version>17</java.version>
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${project.build.directory}/site/jacoco/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+    </properties>
+
+    <dependencies>
+        <!--
+          Spring Boot Starter Web — provides embedded Tomcat, Spring MVC,
+          and REST controller support for building the API endpoints
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+          Spring Boot Starter Actuator — provides production-ready endpoints:
+            /actuator/health  — used by Kubernetes liveness/readiness probes
+            /actuator/info    — application metadata
+            /actuator/metrics — JVM and app metrics
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!--
+          Spring Boot Starter Test — provides JUnit 5, Mockito, and testing
+          utilities for writing unit and integration tests
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- 
+          Final artifact name without version suffix for simpler Docker COPY.
+          Produces: target/boardgame-app.jar instead of target/boardgame-app-1.0.0.jar
+        -->
+        <finalName>boardgame-app</finalName>
+
+        <plugins>
+            <!--
+              Spring Boot Maven Plugin — packages the app as an executable JAR
+              with embedded Tomcat server. The produced JAR can be run directly
+              with: java -jar boardgame-app.jar
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!--
+              Maven Surefire Plugin — executes unit tests during the 'test' phase.
+              Configured to generate XML reports that Jenkins can parse.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Generate XML reports for Jenkins test result visualization -->
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                </configuration>
+            </plugin>
+
+            <!--
+              JaCoCo Maven Plugin — generates code coverage reports during tests.
+              The coverage data is consumed by SonarQube to display coverage
+              metrics and enforce quality gates (e.g., minimum 80% coverage).
+              
+              Two executions:
+                1. prepare-agent: Instruments the JVM to collect coverage data
+                2. report: Generates XML/HTML reports after tests complete
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <!-- Instrument the JVM before tests run to collect coverage data -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <!-- Generate coverage report after tests complete -->
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              OWASP Dependency-Check Maven Plugin — scans project dependencies
+              for known vulnerabilities (CVEs) from the National Vulnerability
+              Database (NVD). This is the Software Composition Analysis (SCA)
+              component of the DevSecOps pipeline.
+              
+              Run manually: mvn dependency-check:check
+              Report location: target/dependency-check-report.html
+            -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>9.0.9</version>
+                <configuration>
+                    <!-- Output formats: HTML for humans, XML for Jenkins plugin -->
+                    <formats>
+                        <format>HTML</format>
+                        <format>XML</format>
+                    </formats>
+                    <!-- Fail the build if any vulnerability with CVSS >= 7 is found -->
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

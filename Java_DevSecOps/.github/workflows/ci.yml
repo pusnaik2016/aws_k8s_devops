@@ -1,0 +1,358 @@
+# ==============================================================================
+# GitHub Actions — CI Pipeline (Continuous Integration)
+# ==============================================================================
+# Triggered on every push to the main branch. Performs the full DevSecOps
+# CI pipeline:
+#
+#   1.  Checkout source code from GitHub
+#   2.  Set up Java 17 + Maven cache for fast builds
+#   3.  Compile Java source code
+#   4.  Run unit tests with JaCoCo code coverage
+#   5.  SAST — SonarCloud analysis (static security + quality)
+#   6.  Quality Gate — Fail if SonarCloud thresholds not met
+#   7.  SCA — OWASP Dependency-Check (CVE scanning of dependencies)
+#   8.  Build application JAR (mvn package)
+#   9.  Build Docker container image
+#   10. Trivy — Scan Docker image for OS/package vulnerabilities
+#   11. Push image to Amazon ECR (keyless via GitHub OIDC → AWS IAM)
+#   12. Trigger CD workflow to update Kubernetes manifests
+#
+# Authentication:
+#   AWS credentials are obtained via OIDC federation — GitHub Actions
+#   exchanges its JWT token for temporary AWS credentials. No long-lived
+#   AWS access keys are stored in GitHub Secrets.
+#
+# Required GitHub Secrets:
+#   AWS_ACCOUNT_ID      — AWS account ID for ECR repository URL
+#   SONAR_TOKEN         — SonarCloud authentication token
+#   SONAR_ORGANIZATION  — SonarCloud organization key
+#
+# Required GitHub Variables:
+#   AWS_REGION          — AWS region (default: us-east-1)
+# ==============================================================================
+
+name: CI Pipeline — DevSecOps
+
+# =============================================================================
+# Trigger: Run on pushes to main branch and pull requests
+# =============================================================================
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - 'k8s-manifests/**'     # Don't re-run CI when manifests change (CD handles that)
+  pull_request:
+    branches: [main]
+
+# =============================================================================
+# Permissions: Minimal permissions required for OIDC + PR status
+# =============================================================================
+permissions:
+  id-token: write       # Required for GitHub OIDC → AWS IAM role assumption
+  contents: read        # Required for actions/checkout
+  security-events: write # Required for uploading Trivy SARIF results
+
+# =============================================================================
+# Environment Variables — Centralized pipeline configuration
+# =============================================================================
+env:
+  JAVA_VERSION: '17'
+  APP_DIR: 'app'
+  ECR_REPOSITORY: 'java-devsecops/boardgame-app'
+  IMAGE_TAG: ${{ github.sha }}   # Use commit SHA for immutable, traceable tags
+
+# =============================================================================
+# Jobs
+# =============================================================================
+jobs:
+
+  # ===========================================================================
+  # Job 1: Build, Test, and Scan
+  # ===========================================================================
+  ci:
+    name: Build → Test → Scan → Push
+    runs-on: ubuntu-latest
+    # Only push images from main branch (PRs only build and test)
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout source code
+      # -----------------------------------------------------------------------
+      - name: "🔄 Checkout source code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # Full history required for SonarCloud blame data
+
+      # -----------------------------------------------------------------------
+      # Step 1a: Secrets scan — PCI DSS Req 3 / SOC 2 CC6
+      # -----------------------------------------------------------------------
+      # Scans the entire git history for accidentally committed secrets:
+      # AWS keys, tokens, passwords, private keys, connection strings.
+      # Runs before any build step so a leaked secret fails fast.
+      # -----------------------------------------------------------------------
+      - name: "🔑 Gitleaks — Secrets scan"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 2: Set up Java 17 + Maven dependency cache
+      # -----------------------------------------------------------------------
+      # Caching Maven dependencies speeds up builds by ~60% on subsequent runs.
+      # The cache key is based on the pom.xml hash so it invalidates when
+      # dependencies change.
+      # -----------------------------------------------------------------------
+      - name: "☕ Set up Java 17 (Temurin) + Maven cache"
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # -----------------------------------------------------------------------
+      # Step 3: Compile Java source code
+      # -----------------------------------------------------------------------
+      # Validates syntax, resolves imports, and catches compilation errors
+      # early before running tests or scans.
+      # -----------------------------------------------------------------------
+      - name: "🔨 Compile Java source"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn compile -B -q
+
+      # -----------------------------------------------------------------------
+      # Step 4: Run unit tests with JaCoCo coverage
+      # -----------------------------------------------------------------------
+      # JUnit 5 tests with JaCoCo instrumentation for code coverage metrics.
+      # Test results are uploaded as artifacts for review.
+      # Coverage data is sent to SonarCloud in the next step.
+      # -----------------------------------------------------------------------
+      - name: "🧪 Run unit tests + JaCoCo coverage"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn test -B
+
+      - name: "📊 Upload test results"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.APP_DIR }}/target/surefire-reports/
+          retention-days: 7
+
+      # -----------------------------------------------------------------------
+      # Step 5: SAST — SonarCloud Analysis
+      # -----------------------------------------------------------------------
+      # SonarCloud performs Static Application Security Testing:
+      #   - Security vulnerabilities (injection, XSS, SSRF, etc.)
+      #   - Code bugs (null pointers, resource leaks)
+      #   - Code smells (complexity, duplication)
+      #   - Code coverage analysis (from JaCoCo reports)
+      #
+      # SonarCloud is free for public repos and replaces the self-hosted
+      # SonarQube EC2 instance, eliminating ~$34/month in costs.
+      # -----------------------------------------------------------------------
+      - name: "🔍 SAST — SonarCloud analysis"
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: ${{ env.APP_DIR }}
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || 'boardgame-app' }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 6: SCA — OWASP Dependency-Check
+      # -----------------------------------------------------------------------
+      # Scans all Maven dependencies (transitive included) against the National
+      # Vulnerability Database (NVD) to identify known CVEs in third-party
+      # libraries. Reports are generated in HTML and SARIF formats.
+      # -----------------------------------------------------------------------
+      - name: "🛡️ SCA — OWASP Dependency-Check"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn dependency-check:check -B || true
+
+      - name: "📄 Upload OWASP DC report"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check
+          path: ${{ env.APP_DIR }}/target/dependency-check-report.html
+          retention-days: 14
+
+      # -----------------------------------------------------------------------
+      # Step 7: Build application JAR
+      # -----------------------------------------------------------------------
+      # Packages the compiled application as an executable JAR file.
+      # Tests are skipped since they already ran in Step 4.
+      # -----------------------------------------------------------------------
+      - name: "📦 Build application JAR"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn package -DskipTests -B -q
+
+      # -----------------------------------------------------------------------
+      # Step 8: Set image metadata
+      # -----------------------------------------------------------------------
+      - name: "🏷️ Set image metadata"
+        id: meta
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Image will be tagged as: ${IMAGE_TAG}"
+
+      # -----------------------------------------------------------------------
+      # Step 9: Build Docker image
+      # -----------------------------------------------------------------------
+      # Uses the multi-stage Dockerfile to build a minimal container image.
+      # Tagged with commit SHA (immutable) and 'latest' (convenience).
+      # -----------------------------------------------------------------------
+      - name: "🐳 Build Docker image"
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker build \
+            -t ${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }} \
+            -t ${{ env.ECR_REPOSITORY }}:latest \
+            .
+
+      # -----------------------------------------------------------------------
+      # Step 10: Trivy — Container image vulnerability scan
+      # -----------------------------------------------------------------------
+      # Scans the Docker image for OS package and application dependency
+      # vulnerabilities. Results are uploaded as SARIF to GitHub Security tab
+      # for integrated vulnerability tracking.
+      # -----------------------------------------------------------------------
+      - name: "🔒 Trivy — Scan Docker image"
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}"
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'     # Set to '1' to fail on vulnerabilities
+
+      - name: "📤 Upload Trivy scan to GitHub Security"
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # -----------------------------------------------------------------------
+      # Step 11: Push to Amazon ECR (keyless via GitHub OIDC)
+      # -----------------------------------------------------------------------
+      # Authenticates to AWS using OIDC federation (no stored credentials).
+      # GitHub Actions exchanges its built-in JWT token for temporary AWS
+      # credentials scoped to the ECR push role defined in github-oidc.tf.
+      # Only runs on main branch (not PRs).
+      # -----------------------------------------------------------------------
+      - name: "🔑 Configure AWS credentials (OIDC)"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-role
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: "🔐 Login to Amazon ECR"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: "🚀 Push image to ECR"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ECR_REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          
+          # Tag for ECR
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }} \
+            ${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}
+          docker tag ${{ env.ECR_REPOSITORY }}:latest \
+            ${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest
+          
+          # Push both tags
+          docker push ${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}
+          docker push ${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest
+          
+          echo "✅ Image pushed: ${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}"
+
+      # -----------------------------------------------------------------------
+      # Step 12: Trigger CD workflow
+      # -----------------------------------------------------------------------
+      # Dispatches the CD workflow which updates the K8s manifest repo
+      # with the new image tag. ArgoCD then auto-syncs the change.
+      # -----------------------------------------------------------------------
+      - name: "🔄 Trigger CD workflow"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: deploy
+          client-payload: '{"image_tag": "${{ steps.meta.outputs.image_tag }}"}'
+    # ============================================================================
+  # Stage 13: DORA Metrics — Track Lead Time for Changes
+  # ============================================================================
+  dora-metrics:
+    name: 📊 DORA - Record CI Metrics
+    needs: [ci]
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: write
+      contents: read
+    steps:
+      - name: Record deployment and lead time
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const deployment = await github.rest.repos.createDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha,
+                environment: 'production',
+                auto_merge: false,
+                required_contexts: [],
+                description: `Deployment triggered by ${context.actor}`,
+                transient_environment: false,
+                production_environment: true
+              });
+
+              const commitData = await github.rest.repos.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha
+              });
+
+              const commitTime = new Date(commitData.data.commit.committer.date);
+              const now = new Date();
+              const leadTimeMinutes = Math.round((now - commitTime) / 60000);
+
+              core.summary
+                .addHeading('📊 DORA Metrics', 3)
+                .addTable([
+                  [{data: 'Metric', header: true}, {data: 'Value', header: true}],
+                  ['Lead Time for Changes', `${leadTimeMinutes} minutes`],
+                  ['Commit SHA', context.sha.substring(0, 7)],
+                  ['Commit Time', commitTime.toISOString()],
+                  ['Deploy Time', now.toISOString()]
+                ])
+                .write();
+
+              console.log(`📊 DORA Lead Time for Changes: ${leadTimeMinutes} minutes`);
+
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: 'success',
+                description: `Lead time: ${leadTimeMinutes}min`,
+                environment: 'production'
+              });
+            } catch (error) {
+              core.warning(`DORA metrics recording failed: ${error.message}`);
+            }

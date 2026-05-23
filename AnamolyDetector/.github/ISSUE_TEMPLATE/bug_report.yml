@@ -1,0 +1,108 @@
+name: "🐛 Bug Report"
+description: "Report a bug with the cost anomaly detector or CI/CD pipeline"
+labels: ["bug", "triage"]
+assignees:
+  - pushparajnaik
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in as much detail as possible.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Affected Component"
+      multiple: false
+      options:
+        - "Cost Fetcher Lambda (cost_fetcher.py)"
+        - "Anomaly Detector Lambda (anomaly_detector.py)"
+        - "DynamoDB / Storage module"
+        - "Bedrock integration"
+        - "SNS / Email delivery"
+        - "EventBridge Scheduler"
+        - "Terraform module"
+        - "CI/CD GitHub Actions workflow"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "Lambda invoked at 08:10 UTC but DynamoDB was still empty — no anomaly report sent."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "How can we reproduce the issue?"
+      value: |
+        1. Deploy with `./deploy.sh`
+        2. Wait for Cost Fetcher to run at 08:00 UTC
+        3. Check DynamoDB — table is empty
+        4. Anomaly Detector runs at 08:10 UTC — no alert sent
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behaviour"
+      placeholder: "DynamoDB should contain 90 days of cost data after Fetcher runs."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual Behaviour"
+      placeholder: "DynamoDB table is empty. Lambda logs show a ClientError from Cost Explorer."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Relevant Logs"
+      description: "Paste CloudWatch Lambda logs or Terraform error output here."
+      render: shell
+
+  - type: input
+    id: environment
+    attributes:
+      label: "Environment"
+      placeholder: "prod | staging | dev"
+    validations:
+      required: true
+
+  - type: input
+    id: tf_version
+    attributes:
+      label: "Terraform Version"
+      placeholder: "1.7.5"
+
+  - type: input
+    id: aws_region
+    attributes:
+      label: "AWS Region"
+      placeholder: "us-east-1"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Pre-submission Checklist"
+      options:
+        - label: "I have checked CloudWatch logs for the Lambda function"
+          required: false
+        - label: "I have confirmed the SNS subscription is active in my email"
+          required: false
+        - label: "I have confirmed Bedrock model access is enabled in the AWS Console"
+          required: false
+        - label: "I have searched existing issues and this is not a duplicate"
+          required: true

@@ -1,0 +1,38 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "com.iotgreengrass.TelemetryProcessor"
+ComponentVersion: "1.0.0"
+ComponentDescription: >
+  Edge-side telemetry processor that aggregates sensor readings, filters
+  noise, detects anomalies locally, and forwards processed data to IoT Core.
+  Reduces cloud data transfer by up to 80%.
+ComponentPublisher: "Pushparaj Naik"
+ComponentConfiguration:
+  DefaultConfiguration:
+    SiteName: "site-mumbai"
+    TopicPrefix: "dt/iot-greengrass"
+    AggregationWindowSeconds: "60"
+    TempAlertThreshold: "35.0"
+    HumidityAlertThreshold: "85.0"
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      Install: "pip3 install --user -r {artifacts:path}/requirements.txt"
+      Run: |
+        export SITE_NAME="{configuration:/SiteName}"
+        export TOPIC_PREFIX="{configuration:/TopicPrefix}"
+        export AGGREGATION_WINDOW_SECONDS="{configuration:/AggregationWindowSeconds}"
+        export TEMP_ALERT_THRESHOLD="{configuration:/TempAlertThreshold}"
+        export HUMIDITY_ALERT_THRESHOLD="{configuration:/HumidityAlertThreshold}"
+        python3 -u {artifacts:path}/main.py
+    Artifacts:
+      - URI: "s3://BUCKET_PLACEHOLDER/artifacts/com.iotgreengrass.TelemetryProcessor/1.0.0/telemetry_processor.zip"
+        Unarchive: ZIP
+ComponentDependencies:
+  aws.greengrass.Nucleus:
+    VersionRequirement: ">=2.9.0"
+    DependencyType: HARD
+  com.iotgreengrass.SensorCollector:
+    VersionRequirement: ">=1.0.0"
+    DependencyType: SOFT

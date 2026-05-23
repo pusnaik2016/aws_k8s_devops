@@ -1,0 +1,64 @@
+# =============================================================================
+# ArgoCD Helm Values Override
+# Project: 3-Tier EKS Application
+# Author: Pushparaj Naik
+#
+# These values can be referenced via a Terraform `values` block or applied
+# independently with: helm upgrade argocd argo/argo-cd -f argocd-values.yaml
+# =============================================================================
+
+global:
+  additionalLabels:
+    app.kubernetes.io/managed-by: terraform
+    Owner: pushparaj
+
+server:
+  # TLS terminated at ALB, ArgoCD runs HTTP internally
+  insecure: true
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+controller:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+
+configs:
+  params:
+    # Self-healing reconciliation interval (seconds)
+    timeout.reconciliation: 180
+  repositories:
+    3tier-eks-react:
+      url: https://github.com/pushparajnaik/3Tier_EKS_React.git
+      name: 3tier-app
+      type: git

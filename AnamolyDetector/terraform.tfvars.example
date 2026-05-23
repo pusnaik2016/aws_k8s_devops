@@ -1,0 +1,21 @@
+###############################################################################
+# Example terraform.tfvars — copy to terraform.tfvars and fill in your values
+###############################################################################
+
+aws_region       = "us-east-1"
+environment      = "prod"
+alert_email      = "your@email.com"
+zscore_threshold = 2.5
+
+# Bedrock model — must be enabled in your account first via AWS Console
+# Go to: Bedrock Console → Model access → Enable Claude 3.5 Sonnet
+bedrock_model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+
+# EventBridge schedules (UTC)
+# Fetcher runs at 08:00 UTC to ensure yesterday's full-day data is available
+# (Cost Explorer has a ~24h data lag)
+fetcher_schedule  = "cron(0 8 * * ? *)"
+detector_schedule = "cron(10 8 * * ? *)"
+
+# CloudWatch log retention
+log_retention_days = 30

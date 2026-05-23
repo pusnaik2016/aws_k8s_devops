@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 3-tier-app-eks
+  labels:
+    app.kubernetes.io/managed-by: pushparaj
+    app.kubernetes.io/part-of: devops-quiz

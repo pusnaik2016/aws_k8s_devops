@@ -1,0 +1,22 @@
+# ==============================================================================
+# Kubernetes Namespace — Boardgame Application
+# ==============================================================================
+# Creates a dedicated namespace for the Boardgame application.
+# Namespaces provide logical isolation between applications in the cluster,
+# allowing separate RBAC policies, resource quotas, and network policies.
+#
+# This namespace is referenced by:
+#   - deployment.yaml (pod placement)
+#   - service.yaml (service discovery)
+#   - ArgoCD application.yaml (target namespace)
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  # Namespace name — all boardgame resources are deployed here
+  name: boardgame
+  labels:
+    # Labels for resource identification and ArgoCD management
+    app: boardgame-app
+    managed-by: argocd
+    project: java-devsecops

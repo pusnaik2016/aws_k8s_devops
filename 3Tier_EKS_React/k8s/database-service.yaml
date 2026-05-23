@@ -1,0 +1,11 @@
+# ExternalName service pointing to RDS endpoint
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+  namespace: 3-tier-app-eks
+  labels:
+    app.kubernetes.io/managed-by: pushparaj
+spec:
+  type: ExternalName
+  externalName: your-rds-endpoint.region.rds.amazonaws.com  # Replace with terraform output

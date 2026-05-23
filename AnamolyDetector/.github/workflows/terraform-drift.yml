@@ -1,0 +1,255 @@
+##############################################################################
+# Workflow: Terraform Drift Detection
+# Triggers: Daily schedule + manual dispatch
+# Purpose: Detects when real AWS infrastructure has drifted from Terraform state
+#          (i.e. someone made manual changes in the console)
+##############################################################################
+
+name: "Terraform Drift Detection"
+
+on:
+  schedule:
+    # Run at 09:00 UTC every day — after the anomaly alerts have fired (08:10 UTC)
+    - cron: "0 9 * * *"
+
+  # Allow manual trigger for on-demand drift checks
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to check for drift"
+        required: true
+        default: "prod"
+        type: choice
+        options: ["prod", "staging", "dev"]
+
+permissions:
+  contents: read
+  issues:   write    # for creating drift alert issues
+  id-token: write
+
+concurrency:
+  group: tf-drift
+  cancel-in-progress: false
+
+env:
+  TF_VERSION:       "1.7.5"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  drift:
+    name: "Drift Detection"
+    runs-on: ubuntu-latest
+    env:
+      # Resolve the environment once here — avoids || inside ${{ }} which is invalid YAML
+      DEPLOY_ENV: ${{ github.event.inputs.environment || 'prod' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_region         = "${{ secrets.AWS_REGION }}"
+          environment        = "${DEPLOY_ENV}"
+          alert_email        = "${{ secrets.TF_VAR_ALERT_EMAIL }}"
+          zscore_threshold   = 2.5
+          bedrock_model_id   = "${{ secrets.BEDROCK_MODEL_ID }}"
+          log_retention_days = 30
+          EOF
+
+      - name: Create Lambda dist directory
+        run: mkdir -p modules/cost_analyzer/lambda/dist
+
+      - name: Terraform Init
+        run: terraform init -no-color
+
+      - name: Terraform Plan (detect drift)
+        id: plan
+        run: |
+          # -detailed-exitcode:
+          #   0 = no changes (no drift)
+          #   1 = error
+          #   2 = changes detected (drift!)
+          terraform plan \
+            -detailed-exitcode \
+            -no-color \
+            -refresh=true \
+            2>&1 | tee drift_output.txt
+
+          EXITCODE=${PIPESTATUS[0]}
+          echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
+
+          case $EXITCODE in
+            0) echo "drift_status=clean"   >> $GITHUB_OUTPUT ;;
+            2) echo "drift_status=drifted" >> $GITHUB_OUTPUT ;;
+            *) echo "drift_status=error"   >> $GITHUB_OUTPUT ;;
+          esac
+        continue-on-error: true
+
+      - name: Truncate drift output
+        id: truncate
+        run: |
+          PLAN=$(cat drift_output.txt)
+          MAX=10000
+          if [ ${#PLAN} -gt $MAX ]; then
+            PLAN="${PLAN:0:$MAX}
+          ... (output truncated — see Actions run for full output)"
+          fi
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "drift_output<<$EOF" >> $GITHUB_OUTPUT
+          echo "$PLAN"              >> $GITHUB_OUTPUT
+          echo "$EOF"               >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Issue on drift detected
+        if: steps.plan.outputs.drift_status == 'drifted'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const driftOutput = `${{ steps.truncate.outputs.drift_output }}`;
+            const env = process.env.DEPLOY_ENV || 'prod';
+
+            // Check if a drift issue already exists to avoid duplicates
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'terraform-drift',
+            });
+
+            const existingIssue = issues.find(i =>
+              i.title.includes(`Terraform Drift Detected — ${env}`)
+            );
+
+            const body = `## ⚠️ Terraform Infrastructure Drift Detected
+
+            **Environment:** \`${env}\`
+            **Detected at:** ${new Date().toISOString()}
+            **Workflow run:** [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            The real AWS infrastructure no longer matches the Terraform state file.
+            This usually means someone made **manual changes in the AWS Console**.
+
+            ### What to do:
+            1. Review the plan output below to understand what changed
+            2. Either:
+               - **Re-apply Terraform** to restore the desired state: \`./deploy.sh apply\`
+               - **Import the change** into Terraform state if the manual change was intentional
+               - **Update the Terraform code** to reflect the intended configuration
+
+            ### Plan Output (diff)
+            <details>
+            <summary>Click to expand</summary>
+
+            \`\`\`hcl
+            ${driftOutput}
+            \`\`\`
+            </details>`;
+
+            if (existingIssue) {
+              // Update existing issue with latest drift info
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: existingIssue.number,
+                body:         `🔄 **Drift still detected** as of ${new Date().toISOString()}\n\n${body}`,
+              });
+              core.warning(`Drift issue already open: #${existingIssue.number}`);
+            } else {
+              await github.rest.issues.create({
+                owner:  context.repo.owner,
+                repo:   context.repo.repo,
+                title:  `⚠️ Terraform Drift Detected — ${env} — ${new Date().toISOString().split('T')[0]}`,
+                body:   body,
+                labels: ['terraform-drift', 'infrastructure', 'urgent'],
+              });
+            }
+
+      - name: Close drift issue if clean
+        if: steps.plan.outputs.drift_status == 'clean'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const env = process.env.DEPLOY_ENV || 'prod';
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'terraform-drift',
+            });
+
+            const driftIssues = issues.filter(i =>
+              i.title.includes(`Terraform Drift Detected — ${env}`)
+            );
+
+            for (const issue of driftIssues) {
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: issue.number,
+                body:         `✅ Drift resolved as of ${new Date().toISOString()}. Infrastructure matches Terraform state. Closing.`,
+              });
+              await github.rest.issues.update({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: issue.number,
+                state:        'closed',
+              });
+            }
+
+      - name: Post drift summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.plan.outputs.drift_status }}';
+            const icons  = { clean: '✅', drifted: '⚠️', error: '❌' };
+            const labels = {
+              clean:   'No drift — infrastructure matches Terraform state',
+              drifted: 'DRIFT DETECTED — manual changes found in AWS',
+              error:   'Plan failed — check credentials and state',
+            };
+
+            await core.summary
+              .addHeading(`${icons[status] || '❓'} Terraform Drift Detection`)
+              .addTable([
+                [{data: 'Field',       header: true}, {data: 'Value',          header: true}],
+                ['Status',   labels[status] || 'Unknown'],
+                ['Environment', process.env.DEPLOY_ENV || 'prod'],
+                ['Checked at',  new Date().toISOString()],
+                ['Run',         '${{ github.run_id }}'],
+              ])
+              .write();
+
+      - name: Fail if drift detected
+        if: steps.plan.outputs.drift_status == 'drifted'
+        run: |
+          echo "::error::Infrastructure drift detected! See GitHub Issues for details."
+          exit 1
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.drift_status == 'error'
+        run: |
+          echo "::error::Terraform plan failed. Check logs above."
+          exit 1
+
+      - name: Upload drift artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-${{ github.run_id }}
+          path: drift_output.txt
+          retention-days: 14

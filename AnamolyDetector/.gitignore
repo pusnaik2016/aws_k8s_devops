@@ -1,0 +1,55 @@
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform/
+.terraform.lock.hcl
+
+# Variable files (may contain sensitive values)
+terraform.tfvars
+*.auto.tfvars
+
+# Lambda build artifacts
+modules/cost_analyzer/lambda/dist/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Sensitive credentials
+*.pem
+*.key
+*.crt
+credentials
+
+# Terraform plan output
+tfplan

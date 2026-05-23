@@ -1,0 +1,74 @@
+name: "✨ Feature Request"
+description: "Suggest a new feature or enhancement for the anomaly detector"
+labels: ["enhancement"]
+assignees:
+  - pushparajnaik
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make the cost anomaly detector smarter or more useful? Share it below!
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Feature Area"
+      options:
+        - "Detection algorithm (Z-score / statistics)"
+        - "Bedrock prompt / AI analysis quality"
+        - "Alert format / email content"
+        - "New AWS service support"
+        - "Dashboard / visualisation"
+        - "Slack / Teams / PagerDuty integration"
+        - "Cost forecasting"
+        - "Multi-account support"
+        - "CI/CD pipeline improvement"
+        - "Infrastructure / Terraform"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem Statement"
+      description: "What problem does this feature solve? What's the current limitation?"
+      placeholder: "Currently, the detector only alerts on cost spikes. It doesn't catch slow-burn increases that stay below the Z-score threshold but compound over weeks."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed Solution"
+      description: "Describe the feature you'd like to see."
+      placeholder: |
+        Add a week-over-week trend analysis alongside Z-score. If the 7-day average is consistently rising by >10% week-over-week for 3+ consecutive weeks, treat that as a MEDIUM severity anomaly even if daily Z-scores are low.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: "Have you considered any alternative approaches?"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "Nice to have"
+        - "Would significantly improve my workflow"
+        - "Blocking — I can't use this system without it"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Pre-submission Checklist"
+      options:
+        - label: "I have searched existing issues and this feature hasn't been requested"
+          required: true
+        - label: "This feature stays within the ~$2/month cost target"
+          required: false

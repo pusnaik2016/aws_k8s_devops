@@ -1,0 +1,101 @@
+# ==============================================================================
+# Kubernetes Security Manifests
+# ==============================================================================
+# Apply these after EKS cluster is ready and Helm charts are deployed.
+# ==============================================================================
+
+# --- Namespace ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce
+  labels:
+    app.kubernetes.io/managed-by: terraform
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# --- Default Deny All NetworkPolicy ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ecommerce
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# --- Allow ALB → App on 8080 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-to-app
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: ecommerce-app
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+---
+# --- Allow App → Aurora on 3306 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-to-aurora
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: ecommerce-app
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 3306
+    - ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+---
+# --- ResourceQuota ---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ecommerce-quota
+  namespace: ecommerce
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "50"
+    services: "10"
+---
+# --- LimitRange ---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ecommerce-limits
+  namespace: ecommerce
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container

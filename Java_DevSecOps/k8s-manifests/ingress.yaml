@@ -1,0 +1,64 @@
+# ==============================================================================
+# Kubernetes Ingress — ALB Integration for Boardgame Application
+# ==============================================================================
+# Defines an Ingress resource that the AWS Load Balancer Controller uses
+# to configure the Application Load Balancer (ALB) for routing traffic
+# to the Boardgame application pods.
+#
+# The ALB Controller watches for Ingress resources with the 'alb' class
+# and automatically:
+#   - Registers pod IPs in the ALB target group
+#   - Configures health checks based on annotations
+#   - Manages listener rules for path-based routing
+#
+# This Ingress creates an internet-facing ALB in public subnets that
+# forwards HTTPS traffic to pods in private subnets.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: boardgame-app-ingress
+  namespace: boardgame
+  labels:
+    app: boardgame-app
+    managed-by: argocd
+  annotations:
+    # Use the AWS ALB Ingress Controller
+    kubernetes.io/ingress.class: alb
+
+    # ALB scheme — internet-facing means placed in public subnets
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # Target type — 'ip' registers pod IPs directly (not node IPs)
+    # Required for pods in private subnets with VPC CNI
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # Listen on HTTPS (port 443) — ALB handles TLS termination
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+
+    # Health check configuration — matches Spring Boot Actuator
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/healthcheck-port: "8080"
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+
+    # Tags for the ALB created by the controller
+    alb.ingress.kubernetes.io/tags: "Project=java-devsecops,ManagedBy=argocd"
+
+    # Group name — multiple Ingress resources can share the same ALB
+    alb.ingress.kubernetes.io/group.name: boardgame-app
+
+spec:
+  # Routing rules — forward all traffic to the boardgame-app service
+  rules:
+    - http:
+        paths:
+          # Catch-all path — routes all requests to the app
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: boardgame-app
+                port:
+                  number: 80

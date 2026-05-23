@@ -1,0 +1,45 @@
+# ==============================================================================
+# Example tfvars — Primary Region (us-east-1)
+# ==============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to Git (it may contain secrets).
+# ==============================================================================
+
+aws_region   = "us-east-1"
+project_name = "eks-devsecops"
+environment  = "prod"
+owner_email  = "devops@example.com"
+cost_center  = "engineering"
+
+# --- Networking ---
+vpc_cidr              = "10.0.0.0/16"
+availability_zones    = ["us-east-1a", "us-east-1b", "us-east-1c"]
+public_subnet_cidrs   = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+private_subnet_cidrs  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+database_subnet_cidrs = ["10.0.201.0/24", "10.0.202.0/24", "10.0.203.0/24"]
+
+# --- Access ---
+key_pair_name    = "my-key-pair"
+allowed_ssh_cidr = "203.0.113.0/32"  # Replace with your IP
+
+# --- EKS ---
+eks_cluster_version     = "1.31"
+bootstrap_instance_type = "t3.medium"
+
+# --- Aurora ---
+aurora_engine_version    = "8.0.mysql_aurora.3.07.1"
+aurora_instance_class    = "db.r6g.large"
+aurora_master_username   = "admin"
+aurora_master_password   = "CHANGE_ME_USE_SECRETS_MANAGER"
+aurora_global_cluster_id = "eks-devsecops-global-aurora"
+
+# --- GitHub ---
+github_org  = "your-github-org"
+github_repo = "EKS_DevSecOPs"
+
+# --- Domain ---
+domain_name = "example.com"
+
+# --- Monitoring ---
+security_alert_email = "alerts@example.com"
+waf_rate_limit       = 2000

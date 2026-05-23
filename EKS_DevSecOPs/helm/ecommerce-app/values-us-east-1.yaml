@@ -1,0 +1,22 @@
+# ==============================================================================
+# Region Override — us-east-1 (Primary)
+# ==============================================================================
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod,us-east-1"
+  - name: JAVA_OPTS
+    value: "-XX:+UseG1GC -XX:MaxRAMPercentage=75.0"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: DB_ENDPOINT
+    value: ""  # Set via CI/CD: eks-devsecops-aurora.cluster-xxxx.us-east-1.rds.amazonaws.com
+  - name: DB_READ_ENDPOINT
+    value: ""  # Set via CI/CD: eks-devsecops-aurora.cluster-ro-xxxx.us-east-1.rds.amazonaws.com
+  - name: AWS_REGION
+    value: "us-east-1"
+
+config:
+  DB_PORT: "3306"
+  DB_NAME: "ecommercedb"
+  REGION: "us-east-1"
+  DB_ROLE: "writer"

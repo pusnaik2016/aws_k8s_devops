@@ -1,0 +1,172 @@
+# ==============================================================================
+# GitHub Actions — Java Application CI Pipeline
+# ==============================================================================
+# Full DevSecOps pipeline: Build → Test → SAST → SCA → Container Scan → Push
+# ==============================================================================
+
+name: "🔄 App CI — DevSecOps"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'helm/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+env:
+  JAVA_VERSION: '17'
+  APP_DIR: 'app'
+  ECR_REPOSITORY: 'eks-devsecops/ecommerce-app'
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  ci:
+    name: "Build → Test → Scan → Push"
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      # --- Checkout ---
+      - name: "🔄 Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --- Secrets Scan ---
+      - name: "🔑 Gitleaks — Secrets scan"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Java Setup ---
+      - name: "☕ Setup Java 17 + Maven cache"
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # --- Compile ---
+      - name: "🔨 Compile"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn compile -B -q
+
+      # --- Unit Tests + JaCoCo ---
+      - name: "🧪 Unit tests + JaCoCo coverage"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn test -B
+
+      - name: "📊 Upload test results"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.APP_DIR }}/target/surefire-reports/
+          retention-days: 7
+
+      # --- SAST: SonarCloud ---
+      - name: "🔍 SonarCloud Analysis"
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: ${{ env.APP_DIR }}
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || 'ecommerce-app' }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- SCA: OWASP Dependency-Check ---
+      - name: "🛡️ OWASP Dependency-Check"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn dependency-check:check -B || true
+
+      - name: "📄 Upload OWASP report"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: ${{ env.APP_DIR }}/target/dependency-check-report.html
+          retention-days: 14
+
+      # --- Package ---
+      - name: "📦 Build JAR"
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn package -DskipTests -B -q
+
+      # --- Image Metadata ---
+      - name: "🏷️ Image metadata"
+        id: meta
+        run: |
+          echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      # --- Docker Build ---
+      - name: "🐳 Build Docker image"
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker build \
+            -t ${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }} \
+            -t ${{ env.ECR_REPOSITORY }}:latest \
+            .
+
+      # --- Trivy Scan ---
+      - name: "🔒 Trivy — Image scan"
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}"
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+
+      - name: "📤 Upload Trivy to Security tab"
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # --- Push to ECR (main only) ---
+      - name: "🔑 AWS Credentials (OIDC)"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/eks-devsecops-github-actions-role
+          aws-region: us-east-1
+
+      - name: "🔐 ECR Login"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: "🚀 Push to ECR"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ECR="${{ steps.ecr-login.outputs.registry }}"
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }} \
+            ${ECR}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}
+          docker tag ${{ env.ECR_REPOSITORY }}:latest \
+            ${ECR}/${{ env.ECR_REPOSITORY }}:latest
+          docker push ${ECR}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}
+          docker push ${ECR}/${{ env.ECR_REPOSITORY }}:latest
+          echo "✅ Pushed: ${ECR}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.image_tag }}"
+
+      # --- Trigger CD ---
+      - name: "🔄 Trigger CD"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: deploy
+          client-payload: '{"image_tag": "${{ steps.meta.outputs.image_tag }}"}'

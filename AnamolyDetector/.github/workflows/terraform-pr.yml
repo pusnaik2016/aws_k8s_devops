@@ -1,0 +1,477 @@
+##############################################################################
+# Workflow: Terraform PR — Quality, Security & Plan
+#
+# Replaces: terraform-validate.yml + terraform-plan.yml
+#
+# Job dependency graph (every PR to main/master):
+#
+#   fmt ──► validate ──┬──► lint (tflint)  ──┐
+#                      └──► security          ├──► plan ──► pr-comment
+#                           (checkov + tfsec)─┘
+#
+# • All quality/security stages run before plan
+# • Plan only runs if lint AND security stages pass
+# • Every step posts/updates its own labelled PR comment
+# • Security findings are also uploaded to the GitHub Security tab (SARIF)
+##############################################################################
+
+name: "Terraform PR — Quality, Security & Plan"
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - "**.tf"
+      - "**.tfvars*"
+      - "modules/cost_analyzer/lambda/**.py"
+      - ".github/workflows/terraform-pr.yml"
+      - ".tflint.hcl"
+      - ".checkov.yaml"
+
+permissions:
+  contents:        read
+  pull-requests:   write   # post/update PR comments
+  security-events: write   # upload SARIF → Security tab
+  id-token:        write   # OIDC (optional)
+
+concurrency:
+  group: terraform-pr-${{ github.ref }}
+  cancel-in-progress: true   # always use the latest push
+
+env:
+  TF_VERSION:       "1.7.5"
+  TFLINT_VERSION:   "v0.50.3"
+  TF_IN_AUTOMATION: "true"
+
+###############################################################################
+# JOB 1 — fmt
+###############################################################################
+jobs:
+
+  # ---------------------------------------------------------------------------
+  fmt:
+    name: "1 · Format Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform fmt -check
+        id: fmt
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: Comment — fmt failed
+        if: steps.fmt.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- ci:fmt -->';
+            const body   = `${marker}
+            ## ❌ \`terraform fmt\` Check Failed
+
+            Your Terraform code has formatting issues. Fix them locally and push again:
+            \`\`\`bash
+            terraform fmt -recursive
+            \`\`\``;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body });
+            }
+
+      - name: Fail if fmt failed
+        if: steps.fmt.outcome == 'failure'
+        run: exit 1
+
+  # ---------------------------------------------------------------------------
+  # JOB 2 — validate
+  # ---------------------------------------------------------------------------
+  validate:
+    name: "2 · Validate"
+    runs-on: ubuntu-latest
+    needs: fmt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        id: validate
+        run: terraform validate -no-color 2>&1 | tee validate_output.txt
+        continue-on-error: true
+
+      - name: Comment — validate failed
+        if: steps.validate.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs     = require('fs');
+            const out    = fs.readFileSync('validate_output.txt', 'utf8').substring(0, 3000);
+            const marker = '<!-- ci:validate -->';
+            const body   = `${marker}
+            ## ❌ \`terraform validate\` Failed
+
+            \`\`\`
+            ${out}
+            \`\`\``;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body });
+            }
+
+      - name: Fail if validate failed
+        if: steps.validate.outcome == 'failure'
+        run: exit 1
+
+  # ---------------------------------------------------------------------------
+  # JOB 3a — lint (TFLint)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: "3a · Lint (TFLint)"
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: tflint init (downloads AWS ruleset plugin)
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: tflint run
+        id: tflint
+        run: |
+          tflint --recursive --format=compact 2>&1 | tee tflint_output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment — tflint results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs        = require('fs');
+            const out       = fs.readFileSync('tflint_output.txt', 'utf8').trim();
+            const exitCode  = '${{ steps.tflint.outputs.exitcode }}';
+            const icon      = exitCode === '0' ? '✅' : '⚠️';
+            const label     = exitCode === '0' ? 'No issues found' : 'Issues found';
+            const marker    = '<!-- ci:tflint -->';
+
+            const body = `${marker}
+            ## ${icon} TFLint — ${label}
+
+            ${out ? `\`\`\`\n${out.substring(0, 6000)}\n\`\`\`` : '_All clear — no linting issues!_'}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body });
+            }
+
+      - name: Fail if tflint found errors
+        if: steps.tflint.outputs.exitcode != '0'
+        run: exit 1
+
+  # ---------------------------------------------------------------------------
+  # JOB 3b — security (Checkov + tfsec)
+  # ---------------------------------------------------------------------------
+  security:
+    name: "3b · Security (Checkov + tfsec)"
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Checkov ────────────────────────────────────────────────────────────
+      - name: Checkov — Terraform SAST (CLI output)
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory:        .
+          framework:        terraform
+          config_file:      .checkov.yaml
+          output_format:    cli
+          output_file_path: console
+          soft_fail:        true
+        continue-on-error: true
+
+      - name: Checkov — SARIF upload
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory:        .
+          framework:        terraform
+          config_file:      .checkov.yaml
+          output_format:    sarif
+          output_file_path: reports/checkov.sarif
+          soft_fail:        true
+        continue-on-error: true
+
+      - name: Upload Checkov SARIF → GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/checkov.sarif
+          category:   checkov
+        continue-on-error: true
+
+      # ── tfsec ──────────────────────────────────────────────────────────────
+      - name: tfsec — Infrastructure security scan
+        id: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          version:           latest
+          working_directory: .
+          format:            lovely
+          additional_args: >-
+            --exclude-downloaded-modules
+            --minimum-severity MEDIUM
+            --soft-fail
+        continue-on-error: true
+
+      - name: tfsec — SARIF upload
+        uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        with:
+          sarif_file:        tfsec.sarif
+          working_directory: .
+        continue-on-error: true
+
+      - name: Upload tfsec SARIF → GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec.sarif
+          category:   tfsec
+        continue-on-error: true
+
+      # ── Collate both scanners into one PR comment ──────────────────────────
+      - name: Comment — security scan summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const checkovResult = '${{ steps.checkov.outcome }}';
+            const tfsecResult   = '${{ steps.tfsec.outcome }}';
+            const icon          = r => r === 'success' ? '✅' : (r === 'skipped' ? '⏭️' : '⚠️');
+            const marker        = '<!-- ci:security -->';
+
+            const body = `${marker}
+            ## 🔒 Security Scan Results
+
+            | Scanner | Status | Scope |
+            |---------|--------|-------|
+            | **Checkov** | ${icon(checkovResult)} \`${checkovResult}\` | Misconfigurations, compliance, CIS benchmarks |
+            | **tfsec** | ${icon(tfsecResult)} \`${tfsecResult}\` | Security best-practices, IAM, encryption |
+
+            Full findings → [Security tab](${{ github.server_url }}/${{ github.repository }}/security/code-scanning)
+
+            **Intentional suppressions** (see \`.checkov.yaml\` for justifications):
+            | Check | Reason |
+            |---|---|
+            | \`CKV_AWS_50\` | X-Ray not needed — public-API Lambdas |
+            | \`CKV2_AWS_38\` | No VPC by design — avoiding NAT cost |
+            | \`CKV2_AWS_39\` / \`CKV_AWS_116\` | EventBridge retries used instead of DLQ |
+            | \`CKV_AWS_272\` | Code signing not required for internal tooling |`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body });
+            }
+
+  # ---------------------------------------------------------------------------
+  # JOB 4 — plan (runs only after BOTH lint + security pass)
+  # ---------------------------------------------------------------------------
+  plan:
+    name: "4 · Terraform Plan"
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - security
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Option A: OIDC (recommended — no long-lived keys) ─────────────────
+      # - uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region:     ${{ secrets.AWS_REGION }}
+
+      # ── Option B: IAM Access Keys ──────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_region         = "${{ secrets.AWS_REGION }}"
+          environment        = "prod"
+          alert_email        = "${{ secrets.TF_VAR_ALERT_EMAIL }}"
+          zscore_threshold   = 2.5
+          bedrock_model_id   = "${{ secrets.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0' }}"
+          log_retention_days = 30
+          EOF
+
+      - name: Create Lambda dist directory
+        run: mkdir -p modules/cost_analyzer/lambda/dist
+
+      - name: terraform init
+        run: terraform init -no-color
+
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          set -e
+        continue-on-error: true
+
+      - name: Parse plan statistics
+        id: stats
+        run: |
+          PLAN=$(cat plan_output.txt)
+
+          ADD=$(echo     "$PLAN" | grep -oP '\d+(?= to add)'     | tail -1 || echo "0")
+          CHANGE=$(echo  "$PLAN" | grep -oP '\d+(?= to change)'  | tail -1 || echo "0")
+          DESTROY=$(echo "$PLAN" | grep -oP '\d+(?= to destroy)' | tail -1 || echo "0")
+          ADD=${ADD:-0}; CHANGE=${CHANGE:-0}; DESTROY=${DESTROY:-0}
+
+          echo "add=$ADD"         >> $GITHUB_OUTPUT
+          echo "change=$CHANGE"   >> $GITHUB_OUTPUT
+          echo "destroy=$DESTROY" >> $GITHUB_OUTPUT
+
+          # Truncate for PR comment (65535 char limit)
+          if [ ${#PLAN} -gt 50000 ]; then
+            PLAN="${PLAN:0:50000}
+          ... (truncated — view full output in Actions run)"
+          fi
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "plan_text<<$EOF" >> $GITHUB_OUTPUT
+          echo "$PLAN"           >> $GITHUB_OUTPUT
+          echo "$EOF"            >> $GITHUB_OUTPUT
+
+      - name: Comment — plan results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const exitCode = '${{ steps.plan.outputs.exitcode }}';
+            const add      = '${{ steps.stats.outputs.add }}';
+            const change   = '${{ steps.stats.outputs.change }}';
+            const destroy  = '${{ steps.stats.outputs.destroy }}';
+            const planText = `${{ steps.stats.outputs.plan_text }}`;
+            const marker   = '<!-- ci:plan -->';
+
+            const ok          = exitCode === '0';
+            const statusIcon  = ok ? '✅' : '❌';
+            const statusLabel = ok ? 'Success' : 'FAILED';
+
+            const destroyBanner = parseInt(destroy) > 0
+              ? `\n> ⚠️ **WARNING: This plan will DESTROY ${destroy} resource(s). Review carefully before merging!**\n`
+              : '';
+
+            const lintStatus     = '${{ needs.lint.result }}';
+            const securityStatus = '${{ needs.security.result }}';
+            const statusDot = r => r === 'success' ? '✅' : (r === 'failure' ? '❌' : '⚠️');
+
+            const body = `${marker}
+            ## ${statusIcon} Terraform Plan — ${statusLabel}
+            ${destroyBanner}
+            ### Pipeline Summary
+            | Stage | Result |
+            |-------|--------|
+            | 1 · fmt | ✅ passed |
+            | 2 · validate | ✅ passed |
+            | 3a · lint (TFLint) | ${statusDot(lintStatus)} ${lintStatus} |
+            | 3b · security (Checkov + tfsec) | ${statusDot(securityStatus)} ${securityStatus} |
+            | 4 · plan | ${statusIcon} **${statusLabel}** |
+
+            ### Resource Change Summary
+            | Added | Changed | Destroyed |
+            |-------|---------|-----------|
+            | +${add} | ~${change} | -${destroy} |
+
+            <details>
+            <summary>📋 Full Plan Output — click to expand</summary>
+
+            \`\`\`hcl
+            ${planText}
+            \`\`\`
+            </details>
+
+            ---
+            > Triggered by @${{ github.actor }} · \`${{ github.sha }})\`
+            > [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Merge to deploy.`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body });
+            }
+
+      - name: Fail if plan failed
+        if: steps.plan.outputs.exitcode != '0'
+        run: exit 1
+
+      - name: Upload plan artifact
+        if: steps.plan.outputs.exitcode == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: tfplan
+          retention-days: 5

@@ -1,0 +1,45 @@
+# =============================================================================
+# ArgoCD Child Application — Platform / Shared Resources
+# Author: Pushparaj Naik
+# Manages: namespace, network-policies, rbac, hpa, pdb, database-service,
+#          external-secret, certificate, cluster-issuer
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: pushparaj
+    app.kubernetes.io/part-of: devops-quiz
+    tier: platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/pushparajnaik/3Tier_EKS_React.git
+    targetRevision: main
+    path: k8s
+    directory:
+      include: "{namespace.yaml,database-service.yaml,network-policies.yaml,rbac.yaml,hpa.yaml,pdb.yaml,external-secret.yaml,certificate.yaml,cluster-issuer.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: 3-tier-app-eks
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true  # Avoid conflicts with HPA controller
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

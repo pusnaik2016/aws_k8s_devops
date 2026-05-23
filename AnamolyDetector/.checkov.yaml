@@ -1,0 +1,43 @@
+##############################################################################
+# .checkov.yaml — Checkov security scanner configuration
+# Skips checks that are known false-positives for this project
+##############################################################################
+
+# Output format for CI
+compact: true
+output: sarif
+
+# Frameworks to scan
+framework:
+  - terraform
+
+# Checks to skip (false positives / intentional design decisions)
+skip-check:
+  # CKV_AWS_50: Lambda functions should have X-Ray tracing enabled
+  # → Not required for this cost-monitoring use case (adds latency & cost)
+  - CKV_AWS_50
+
+  # CKV2_AWS_38: Lambda should be in a VPC
+  # → These Lambdas call public APIs (Cost Explorer, Bedrock, SNS) — VPC adds
+  #   complexity and NAT Gateway cost, defeating the purpose of this project
+  - CKV2_AWS_38
+
+  # CKV2_AWS_39: Lambda should have Dead Letter Queue configured
+  # → We use EventBridge retry policies instead; DLQ adds unnecessary SNS cost
+  - CKV2_AWS_39
+
+  # CKV_AWS_116: Lambda DLQ check (same reason as above)
+  - CKV_AWS_116
+
+  # CKV_AWS_272: Lambda code signing not required for internal tooling
+  - CKV_AWS_272
+
+# Directories to scan
+directory:
+  - .
+
+# Exclude directories
+exclude-path:
+  - .terraform
+  - modules/cost_analyzer/lambda/dist
+  - .github

@@ -1,0 +1,27 @@
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths       = ["tests"]
+python_files    = ["test_*.py"]
+python_classes  = ["Test*"]
+python_functions= ["test_*"]
+addopts         = "-v --tb=short"
+filterwarnings  = ["ignore::DeprecationWarning"]
+
+# Coverage configuration
+[tool.coverage.run]
+source    = ["modules/cost_analyzer/lambda"]
+omit      = ["*/dist/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing   = true
+skip_covered   = false
+fail_under     = 70
+
+# Ruff (Python linter) configuration
+[tool.ruff]
+line-length    = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select  = ["E", "F", "W", "I", "N", "UP", "B"]
+ignore  = ["E501"]

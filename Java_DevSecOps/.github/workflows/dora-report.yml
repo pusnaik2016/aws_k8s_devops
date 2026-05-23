@@ -1,0 +1,155 @@
+# ==============================================================================
+# DORA Metrics Weekly Report
+# ==============================================================================
+# Generates a weekly GitHub Issue with all 4 DORA metrics:
+#   1. Deployment Frequency — how often code is deployed to production
+#   2. Lead Time for Changes — commit to production deploy duration
+#   3. Change Failure Rate — percentage of deployments causing failures
+#   4. Mean Time to Recovery — tracked manually via incident labels
+#
+# Data source: GitHub Deployments API (zero extra infrastructure)
+# Schedule: Every Monday at 9:00 AM UTC
+# ==============================================================================
+name: 📊 DORA Metrics Report
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  deployments: read
+  issues: write
+
+jobs:
+  dora-report:
+    name: Generate DORA Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate DORA metrics and create report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+            // Fetch production deployments (last 30 days)
+            const deployments = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: 'production',
+              per_page: 100
+            });
+
+            const last30d = deployments.data.filter(
+              d => new Date(d.created_at) > thirtyDaysAgo
+            );
+
+            // ── 1. Deployment Frequency ──
+            const freqDaily = (last30d.length / 30).toFixed(1);
+
+            // ── 2. Lead Time for Changes (avg from deployment descriptions) ──
+            let totalLeadTime = 0;
+            let leadTimeCount = 0;
+            let failures = 0;
+
+            for (const dep of last30d) {
+              const statuses = await github.rest.repos.listDeploymentStatuses({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: dep.id,
+                per_page: 1
+              });
+
+              const latest = statuses.data[0];
+              if (!latest) continue;
+
+              // Extract lead time from description
+              const match = (latest.description || '').match(/Lead time: (\d+)min/);
+              if (match) {
+                totalLeadTime += parseInt(match[1]);
+                leadTimeCount++;
+              }
+
+              // ── 3. Change Failure Rate ──
+              if (latest.state === 'failure') failures++;
+            }
+
+            const avgLeadTime = leadTimeCount > 0
+              ? Math.round(totalLeadTime / leadTimeCount)
+              : 'N/A';
+            const cfr = last30d.length > 0
+              ? ((failures / last30d.length) * 100).toFixed(1)
+              : '0.0';
+
+            // ── 4. MTTR (from closed incident issues) ──
+            const incidents = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'incident',
+              state: 'closed',
+              since: thirtyDaysAgo.toISOString(),
+              per_page: 50
+            });
+
+            let totalMTTR = 0;
+            let mttrCount = 0;
+            for (const issue of incidents.data) {
+              if (issue.closed_at) {
+                const created = new Date(issue.created_at);
+                const closed = new Date(issue.closed_at);
+                totalMTTR += (closed - created) / 3600000; // hours
+                mttrCount++;
+              }
+            }
+            const avgMTTR = mttrCount > 0
+              ? (totalMTTR / mttrCount).toFixed(1)
+              : 'No incidents';
+
+            // ── DORA Performance Level ──
+            const leadTimeNum = typeof avgLeadTime === 'number' ? avgLeadTime : 999;
+            const cfrNum = parseFloat(cfr);
+            let level = '🔴 Low';
+            if (freqDaily >= 1 && leadTimeNum < 60 && cfrNum < 15) level = '🟢 Elite';
+            else if (freqDaily >= 0.14 && cfrNum < 30) level = '🟡 High';
+            else if (freqDaily >= 0.03) level = '🟠 Medium';
+
+            // ── Generate Report ──
+            const report = `## 📊 DORA Metrics Report — ${now.toISOString().split('T')[0]}
+
+            | Metric | Value | DORA Level |
+            |:-------|:------|:-----------|
+            | **Deployment Frequency** | ${freqDaily}/day (${last30d.length} in 30d) | ${freqDaily >= 1 ? '🟢 Elite' : freqDaily >= 0.14 ? '🟡 High' : '🟠 Medium'} |
+            | **Lead Time for Changes** | ${avgLeadTime}${typeof avgLeadTime === 'number' ? ' min' : ''} | ${leadTimeNum < 60 ? '🟢 Elite' : leadTimeNum < 1440 ? '🟡 High' : '🟠 Medium'} |
+            | **Change Failure Rate** | ${cfr}% | ${cfrNum < 15 ? '🟢 Elite' : cfrNum < 30 ? '🟡 High' : '🟠 Medium'} |
+            | **MTTR** | ${avgMTTR}${typeof avgMTTR === 'string' ? '' : ' hours'} | ${avgMTTR === 'No incidents' ? '⚪ N/A' : avgMTTR < 1 ? '🟢 Elite' : '🟡 High'} |
+
+            ### Overall Performance: ${level}
+
+            ---
+
+            <details>
+            <summary>📖 DORA Level Definitions</summary>
+
+            | Level | Deploy Freq | Lead Time | CFR | MTTR |
+            |:------|:-----------|:----------|:----|:-----|
+            | 🟢 Elite | On-demand (1+/day) | < 1 hour | < 15% | < 1 hour |
+            | 🟡 High | 1/week–1/month | 1 day–1 week | 16–30% | < 1 day |
+            | 🟠 Medium | 1/month–6/month | 1 week–1 month | 31–45% | 1 day–1 week |
+            | 🔴 Low | < 1/6 months | > 1 month | > 45% | > 1 week |
+
+            </details>
+
+            > **Data source:** GitHub Deployments API + Issues (label: \`incident\`)
+            > **Period:** Last 30 days | **Generated:** ${now.toISOString()}
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 DORA Metrics Report — ${now.toISOString().split('T')[0]}`,
+              body: report,
+              labels: ['dora-metrics', 'automated']
+            });
+
+            console.log('📊 DORA Report created as GitHub Issue');

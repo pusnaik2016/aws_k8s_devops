@@ -1,0 +1,28 @@
+##############################################################################
+# CODEOWNERS — Defines who reviews what
+# Syntax: <path pattern>   <GitHub username(s) or team(s)>
+#
+# The last matching rule wins.
+# All paths are relative to repo root.
+##############################################################################
+
+# Default: repo owner reviews everything
+*                                           @pushparajnaik
+
+# Terraform infrastructure — requires infra review
+*.tf                                        @pushparajnaik
+*.tfvars*                                   @pushparajnaik
+modules/                                    @pushparajnaik
+
+# Lambda source code — requires Python review
+modules/cost_analyzer/lambda/               @pushparajnaik
+
+# Unit tests — required alongside Lambda changes
+tests/                                      @pushparajnaik
+
+# CI/CD pipeline changes — always require owner review
+.github/                                    @pushparajnaik
+
+# Security-sensitive files
+modules/cost_analyzer/iam.tf                @pushparajnaik
+modules/notifications/main.tf               @pushparajnaik

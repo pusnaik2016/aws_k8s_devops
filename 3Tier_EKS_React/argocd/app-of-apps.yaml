@@ -1,0 +1,46 @@
+# =============================================================================
+# ArgoCD App-of-Apps — Parent Application
+# Project: 3-Tier EKS Application
+# Author: Pushparaj Naik
+# GitOps: This parent app manages all child applications declaratively
+#
+# ArgoCD monitors this manifest and auto-syncs child apps from the
+# argocd/apps/ directory. Any manual drift is automatically reverted.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: 3tier-app-of-apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: pushparaj
+    app.kubernetes.io/part-of: devops-quiz
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/pushparajnaik/3Tier_EKS_React.git
+    targetRevision: main
+    path: argocd/apps  # Directory containing child Application manifests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true       # Remove resources deleted from Git
+      selfHeal: true    # Revert manual changes (drift detection)
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

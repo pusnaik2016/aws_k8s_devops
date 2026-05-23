@@ -1,0 +1,27 @@
+# Database Migration Job | Author: Pushparaj Naik
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: 3-tier-app-eks
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-db
+          image: postgres:13-alpine
+          command: ['sh', '-c', 'until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do echo "Waiting..."; sleep 2; done']
+          envFrom:
+            - secretRef:
+                name: app-secrets
+      containers:
+        - name: migrate
+          image: your-ecr-repo/backend:latest
+          command: ['bash', '-c', 'flask db upgrade && python seed_data.py']
+          envFrom:
+            - secretRef:
+                name: app-secrets
+            - configMapRef:
+                name: app-config

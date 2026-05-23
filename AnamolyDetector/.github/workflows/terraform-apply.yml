@@ -1,0 +1,189 @@
+##############################################################################
+# Workflow: Terraform Apply
+# Triggers: Push to main/master (after PR is merged)
+# Steps: init → plan → apply → post deployment summary
+# Requires secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+#                   AWS_REGION, TF_VAR_ALERT_EMAIL
+#
+# NOTE: Apply only runs on the default branch. PRs only get a plan.
+##############################################################################
+
+name: "Terraform Apply"
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "**.tf"
+      - "**.tfvars*"
+      - "modules/cost_analyzer/lambda/**.py"
+      - ".github/workflows/terraform-*.yml"
+
+  # Allow manual trigger for emergency deploys
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "prod"
+        type: choice
+        options: ["prod", "staging", "dev"]
+      dry_run:
+        description: "Dry run (plan only, no apply)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
+
+concurrency:
+  group: tf-apply-production
+  cancel-in-progress: false   # Never cancel an in-progress apply
+
+env:
+  TF_VERSION:       "1.7.5"
+  TF_IN_AUTOMATION: "true"
+  AWS_REGION:       ${{ secrets.AWS_REGION }}
+
+jobs:
+  ##########################################################################
+  # JOB 1 — Apply
+  ##########################################################################
+  apply:
+    name: "Terraform Apply"
+    runs-on: ubuntu-latest
+    environment: production   # Requires environment approval if configured
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Option A: OIDC (recommended — no long-lived keys) ──────────────
+      # - name: Configure AWS credentials (OIDC)
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      # ── Option B: IAM Access Keys ────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        run: |
+          ENV="${{ github.event.inputs.environment || 'prod' }}"
+          cat > terraform.tfvars <<EOF
+          aws_region         = "${{ secrets.AWS_REGION }}"
+          environment        = "${ENV}"
+          alert_email        = "${{ secrets.TF_VAR_ALERT_EMAIL }}"
+          zscore_threshold   = 2.5
+          bedrock_model_id   = "${{ secrets.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0' }}"
+          log_retention_days = 30
+          EOF
+
+      - name: Create Lambda dist directory
+        run: mkdir -p modules/cost_analyzer/lambda/dist
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -no-color
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        id: apply
+        run: terraform apply -no-color -auto-approve tfplan 2>&1 | tee apply_output.txt
+
+      - name: Capture outputs
+        id: tf_outputs
+        if: steps.apply.outcome == 'success'
+        run: |
+          FETCHER_ARN=$(terraform output -raw cost_fetcher_lambda_arn 2>/dev/null || echo "N/A")
+          DETECTOR_ARN=$(terraform output -raw anomaly_detector_lambda_arn 2>/dev/null || echo "N/A")
+          SNS_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "N/A")
+          DYNAMO_TABLE=$(terraform output -raw dynamodb_table_name 2>/dev/null || echo "N/A")
+          echo "fetcher_arn=$FETCHER_ARN"    >> $GITHUB_OUTPUT
+          echo "detector_arn=$DETECTOR_ARN"  >> $GITHUB_OUTPUT
+          echo "sns_arn=$SNS_ARN"            >> $GITHUB_OUTPUT
+          echo "dynamo_table=$DYNAMO_TABLE"  >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Deployment (success)
+        if: steps.apply.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              ref:   context.sha,
+              environment: 'production',
+              description: 'Terraform apply succeeded',
+              auto_merge: false,
+              required_contexts: [],
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner:         context.repo.owner,
+              repo:          context.repo.repo,
+              deployment_id: deployment.id,
+              state:         'success',
+              description:   'Infrastructure deployed successfully',
+              log_url: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+            });
+
+      - name: Post deployment summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const applyOutcome = '${{ steps.apply.outcome }}';
+            const isDryRun     = '${{ github.event.inputs.dry_run }}' === 'true';
+            const icon = applyOutcome === 'success' ? '✅' : (isDryRun ? '🔍' : '❌');
+            const label = isDryRun ? 'Dry Run (Plan Only)' :
+                          (applyOutcome === 'success' ? 'Applied Successfully' : 'Apply FAILED');
+
+            await core.summary
+              .addHeading(`${icon} Terraform Deploy — ${label}`)
+              .addTable([
+                [{data: 'Resource', header: true}, {data: 'Value', header: true}],
+                ['Fetcher Lambda',   '${{ steps.tf_outputs.outputs.fetcher_arn }}'],
+                ['Detector Lambda',  '${{ steps.tf_outputs.outputs.detector_arn }}'],
+                ['SNS Topic',        '${{ steps.tf_outputs.outputs.sns_arn }}'],
+                ['DynamoDB Table',   '${{ steps.tf_outputs.outputs.dynamo_table }}'],
+                ['Commit',           '${{ github.sha }}'],
+                ['Triggered by',     '@${{ github.actor }}'],
+              ])
+              .addRaw('\n> ⚠️ **Remember:** Confirm the SNS subscription in your email inbox!')
+              .write();
+
+      - name: Upload apply artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-apply-${{ github.sha }}
+          path: |
+            plan_output.txt
+            apply_output.txt
+          retention-days: 30

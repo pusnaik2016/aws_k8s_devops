@@ -1,0 +1,23 @@
+# Pod Disruption Budgets | Author: Pushparaj Naik
+# Well-Architected: Reliability - Ensure minimum availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: 3-tier-app-eks
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: 3-tier-app-eks
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend

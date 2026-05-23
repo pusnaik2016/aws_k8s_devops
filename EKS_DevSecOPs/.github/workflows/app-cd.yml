@@ -1,0 +1,274 @@
+# ==============================================================================
+# GitHub Actions — ArgoCD GitOps CD Pipeline (Multi-Region)
+# ==============================================================================
+# GitOps Deployment Pattern:
+#   1. CI pipeline pushes image to ECR and triggers this workflow
+#   2. This workflow updates the Helm values in Git with the new image tag
+#   3. ArgoCD (running inside each EKS cluster) detects the Git change
+#   4. ArgoCD auto-syncs the Kubernetes cluster state in both regions
+#
+# Why GitOps over direct Helm:
+#   - Git is the single source of truth (full audit trail)
+#   - No kubectl/Helm credentials needed in CI
+#   - ArgoCD handles rollback, drift detection, and self-healing
+#   - Declarative — desired state is always in Git
+# ==============================================================================
+
+name: "🚀 App CD — ArgoCD GitOps Deploy"
+
+on:
+  repository_dispatch:
+    types: [deploy]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (commit SHA)'
+        required: true
+        default: 'latest'
+
+permissions:
+  contents: write       # Required to push updated Helm values back to Git
+  id-token: write       # Required for OIDC (if ArgoCD sync is triggered via API)
+
+env:
+  ECR_REPOSITORY: 'eks-devsecops/ecommerce-app'
+  HELM_VALUES_PATH: 'helm/ecommerce-app'
+
+jobs:
+
+  # ===========================================================================
+  # Job 1: Update Helm Values in Git — ArgoCD auto-syncs from here
+  # ===========================================================================
+  update-manifests:
+    name: "✏️ Update Helm Values → ArgoCD Auto-Sync"
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # -----------------------------------------------------------------------
+      # Step 1: Determine image tag
+      # -----------------------------------------------------------------------
+      - name: "🏷️ Determine image tag"
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.image_tag }}"
+          else
+            TAG="${{ github.event.inputs.image_tag }}"
+          fi
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Deploying image tag: ${TAG}"
+
+      # -----------------------------------------------------------------------
+      # Step 2: Checkout this repository
+      # -----------------------------------------------------------------------
+      - name: "🔄 Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 3: Update Helm values with new image tag for BOTH regions
+      # -----------------------------------------------------------------------
+      # Uses yq to safely update YAML values without breaking structure.
+      # Both region-specific values files get the same image tag but point
+      # to their respective regional ECR endpoints.
+      # -----------------------------------------------------------------------
+      - name: "📝 Install yq"
+        uses: mikefarah/yq@master
+
+      - name: "✏️ Update image tag in Helm values (us-east-1)"
+        run: |
+          ECR_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ env.ECR_REPOSITORY }}"
+
+          # Update the base values.yaml with image repo and tag
+          yq -i '.image.repository = "'"${ECR_IMAGE}"'"' ${{ env.HELM_VALUES_PATH }}/values.yaml
+          yq -i '.image.tag = "${{ steps.tag.outputs.image_tag }}"' ${{ env.HELM_VALUES_PATH }}/values.yaml
+
+          echo "✅ Updated values.yaml:"
+          yq '.image' ${{ env.HELM_VALUES_PATH }}/values.yaml
+
+      - name: "✏️ Update image tag in Helm values (ap-south-1)"
+        run: |
+          ECR_IMAGE_AP="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/${{ env.ECR_REPOSITORY }}"
+
+          # Create/update ap-south-1 image override
+          yq -i '.image.repository = "'"${ECR_IMAGE_AP}"'"' ${{ env.HELM_VALUES_PATH }}/values-ap-south-1.yaml
+          yq -i '.image.tag = "${{ steps.tag.outputs.image_tag }}"' ${{ env.HELM_VALUES_PATH }}/values-ap-south-1.yaml
+
+          echo "✅ Updated values-ap-south-1.yaml:"
+          yq '.image' ${{ env.HELM_VALUES_PATH }}/values-ap-south-1.yaml
+
+      # -----------------------------------------------------------------------
+      # Step 4: Commit and push — ArgoCD detects this change
+      # -----------------------------------------------------------------------
+      # ArgoCD polls the Git repo (default: every 3 minutes) or receives a
+      # webhook notification. On detecting the values change, it performs
+      # a Helm template diff and auto-syncs the cluster to match.
+      # -----------------------------------------------------------------------
+      - name: "📤 Commit and push updated values"
+        run: |
+          git config user.name "GitHub Actions CD"
+          git config user.email "github-actions-cd@devsecops.local"
+
+          git add ${{ env.HELM_VALUES_PATH }}/values.yaml
+          git add ${{ env.HELM_VALUES_PATH }}/values-ap-south-1.yaml
+
+          # Check if there are actual changes
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes — image tag already up to date"
+            exit 0
+          fi
+
+          git commit -m "chore(deploy): update ecommerce-app to ${{ steps.tag.outputs.image_tag }} [skip ci]
+
+          ArgoCD will auto-sync this change to both EKS clusters.
+          Triggered by: ${{ github.event_name }}
+          Source commit: ${{ github.sha }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          git push origin main
+
+      # -----------------------------------------------------------------------
+      # Step 5: Deployment summary
+      # -----------------------------------------------------------------------
+      - name: "🚀 GitOps Deployment Summary"
+        run: |
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║  🚀 ArgoCD GitOps Deployment Initiated                      ║"
+          echo "║                                                              ║"
+          echo "║  Image Tag:  ${{ steps.tag.outputs.image_tag }}              ║"
+          echo "║  Method:     ArgoCD auto-sync (polling ~3 min)               ║"
+          echo "║                                                              ║"
+          echo "║  🌎 us-east-1:  ArgoCD syncing from values.yaml             ║"
+          echo "║  🌏 ap-south-1: ArgoCD syncing from values-ap-south-1.yaml  ║"
+          echo "║                                                              ║"
+          echo "║  Monitor:                                                    ║"
+          echo "║  → ArgoCD UI: https://argocd.<your-domain>                  ║"
+          echo "║  → kubectl get app -n argocd (from bastion)                  ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+
+  # ===========================================================================
+  # Job 2: Verify ArgoCD Sync Status (optional — requires cluster access)
+  # ===========================================================================
+  verify-sync:
+    name: "✅ Verify ArgoCD Sync"
+    runs-on: ubuntu-latest
+    needs: update-manifests
+    # Only verify on main branch pushes (not manual triggers without cluster access)
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: "🔑 AWS Credentials (OIDC)"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/eks-devsecops-github-actions-role
+          aws-region: us-east-1
+
+      - name: "🔧 Setup kubectl"
+        uses: azure/setup-kubectl@v4
+
+      - name: "📡 Connect to primary EKS"
+        run: |
+          aws eks update-kubeconfig \
+            --name eks-devsecops-eks \
+            --region us-east-1
+
+      # Wait for ArgoCD to detect and sync the change
+      - name: "⏳ Wait for ArgoCD sync (us-east-1)"
+        run: |
+          echo "Waiting 60s for ArgoCD to detect the Git change..."
+          sleep 60
+
+          # Check ArgoCD Application sync status
+          for i in {1..20}; do
+            SYNC_STATUS=$(kubectl get application ecommerce-app-us-east-1 -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+            HEALTH_STATUS=$(kubectl get application ecommerce-app-us-east-1 -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+
+            echo "Attempt $i/20 — Sync: ${SYNC_STATUS} | Health: ${HEALTH_STATUS}"
+
+            if [ "$SYNC_STATUS" == "Synced" ] && [ "$HEALTH_STATUS" == "Healthy" ]; then
+              echo "✅ ArgoCD sync complete — application is healthy!"
+              break
+            fi
+
+            if [ $i -eq 20 ]; then
+              echo "⚠️ Timed out waiting for ArgoCD sync. Check ArgoCD UI."
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+      - name: "📊 Deployment Status"
+        if: always()
+        run: |
+          echo "=== ArgoCD Applications ==="
+          kubectl get applications -n argocd 2>/dev/null || echo "Cannot access ArgoCD"
+          echo ""
+          echo "=== Pods in ecommerce namespace ==="
+          kubectl get pods -n ecommerce -l app=ecommerce-app 2>/dev/null || echo "Cannot access namespace"
+
+  # ===========================================================================
+  # Job 3: DORA Metrics
+  # ===========================================================================
+  dora-metrics:
+    name: "📊 DORA — Record Deployment"
+    needs: [update-manifests]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: write
+      contents: read
+    steps:
+      - name: "📊 Track deployment"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const deployment = await github.rest.repos.createDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha,
+                environment: 'production',
+                auto_merge: false,
+                required_contexts: [],
+                description: `ArgoCD GitOps deploy by ${context.actor}`,
+                transient_environment: false,
+                production_environment: true
+              });
+
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: '${{ needs.update-manifests.result }}' === 'success' ? 'success' : 'failure',
+                description: 'ArgoCD GitOps deployment',
+                environment: 'production'
+              });
+
+              const commitData = await github.rest.repos.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha
+              });
+
+              const commitTime = new Date(commitData.data.commit.committer.date);
+              const now = new Date();
+              const leadTimeMinutes = Math.round((now - commitTime) / 60000);
+
+              core.summary
+                .addHeading('📊 DORA Metrics', 3)
+                .addTable([
+                  [{data: 'Metric', header: true}, {data: 'Value', header: true}],
+                  ['Deployment Method', 'ArgoCD GitOps'],
+                  ['Lead Time for Changes', `${leadTimeMinutes} minutes`],
+                  ['Commit SHA', context.sha.substring(0, 7)],
+                  ['Regions', 'us-east-1, ap-south-1'],
+                  ['Status', '${{ needs.update-manifests.result }}']
+                ])
+                .write();
+            } catch (error) {
+              core.warning(`DORA metrics failed: ${error.message}`);
+            }

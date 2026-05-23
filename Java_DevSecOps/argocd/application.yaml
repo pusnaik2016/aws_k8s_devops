@@ -1,0 +1,93 @@
+# ==============================================================================
+# ArgoCD Application — Boardgame App GitOps Configuration
+# ==============================================================================
+# This ArgoCD Application Custom Resource defines how ArgoCD should manage
+# the Boardgame application deployment. It connects:
+#
+#   Source:      Git repository containing Kubernetes manifests
+#   Destination: The target Kubernetes cluster and namespace
+#
+# ArgoCD continuously monitors the source repository for changes. When the
+# GitHub Actions CD pipeline pushes an updated deployment.yaml with a new
+# image tag, ArgoCD detects the change and automatically syncs the cluster
+# to match the desired state defined in Git.
+#
+# Sync Policy:
+#   - Automated: Syncs automatically when Git changes are detected
+#   - Self-Heal: Corrects any manual changes (drift) in the cluster
+#   - Prune: Removes resources deleted from Git
+#
+# Apply this with: kubectl apply -f application.yaml -n argocd
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  # Application name — displayed in the ArgoCD dashboard
+  name: boardgame-app
+  # ArgoCD applications must be created in the argocd namespace
+  namespace: argocd
+  labels:
+    project: java-devsecops
+  # Finalizer ensures ArgoCD cleans up K8s resources when the Application is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # ---------------------------------------------------------------------------
+  # ArgoCD Project — groups related applications for RBAC and policies
+  # Using 'default' project which has no restrictions (suitable for demo)
+  # In production, create a dedicated project with restricted permissions
+  # ---------------------------------------------------------------------------
+  project: default
+
+  # ---------------------------------------------------------------------------
+  # Source Repository — where the Kubernetes manifests live
+  # This is the GitOps repository that the GitHub Actions CD workflow updates
+  # ---------------------------------------------------------------------------
+  source:
+    # Git repository URL containing the K8s manifests
+    repoURL: https://github.com/your-org/boardgame-k8s-manifests.git
+    # Branch to track — ArgoCD polls this branch for changes
+    targetRevision: main
+    # Path within the repository containing the manifests
+    # ArgoCD will apply all YAML files found in this directory
+    path: .
+
+  # ---------------------------------------------------------------------------
+  # Destination — target Kubernetes cluster and namespace
+  # ---------------------------------------------------------------------------
+  destination:
+    # Target cluster — 'https://kubernetes.default.svc' means the cluster
+    # where ArgoCD itself is running (in-cluster deployment)
+    server: https://kubernetes.default.svc
+    # Target namespace — where the application pods will be deployed
+    namespace: boardgame
+
+  # ---------------------------------------------------------------------------
+  # Sync Policy — governs how ArgoCD keeps the cluster in sync with Git
+  # ---------------------------------------------------------------------------
+  syncPolicy:
+    # Automated sync — ArgoCD syncs automatically without manual intervention
+    automated:
+      # Self-heal: If someone manually changes a resource in the cluster,
+      # ArgoCD detects the drift and reverts it to match Git (source of truth)
+      selfHeal: true
+      # Prune: If a resource is removed from Git, ArgoCD deletes it from
+      # the cluster (prevents orphaned resources)
+      prune: true
+
+    # Sync options — additional sync behavior configuration
+    syncOptions:
+      # Create the namespace if it doesn't exist in the cluster
+      - CreateNamespace=true
+      # Validate manifests against the Kubernetes API before applying
+      - Validate=true
+      # Apply resources out of order if needed (handles dependencies)
+      - ApplyOutOfSyncOnly=true
+
+    # Retry policy — retry failed syncs with exponential backoff
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
