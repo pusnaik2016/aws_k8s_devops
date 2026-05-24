@@ -1,4 +1,5 @@
 # Data Engineer Comprehensive Guide — Part 1
+
 ## GCP · Python · Kafka
 
 > **Target Role**: Data Engineer  
@@ -363,6 +364,7 @@ Topic: "order-events" (3 partitions)
 ```
 
 **Key rules**:
+
 - Messages within a partition are **strictly ordered**
 - Messages across partitions have **no ordering guarantee**
 - A **key** determines which partition a message goes to (same key = same partition = order preserved)
@@ -370,6 +372,7 @@ Topic: "order-events" (3 partitions)
 ### 4.2.3 Producers
 
 Producers **write** data to topics. They decide:
+
 - Which topic to write to
 - Which partition (via a key or round-robin)
 - Acknowledgment level (acks)
@@ -601,13 +604,17 @@ def process_message(msg):
 ## 4.7 Kafka Interview Questions & Answers
 
 ### Q1: How does Kafka ensure message ordering?
+
 **A**: Ordering is guaranteed **within a single partition only**. Messages with the same key always go to the same partition (via hash), so per-key ordering is guaranteed. Across partitions, there is no global order. If you need global ordering, use a single partition (but this limits throughput).
 
 ### Q2: What happens when a consumer in a group dies?
+
 **A**: Kafka triggers a **rebalance**. The partitions assigned to the dead consumer are redistributed among the remaining consumers in the group. This happens automatically via the **Group Coordinator** (a designated broker).
 
 ### Q3: How is Kafka different from a traditional message queue (RabbitMQ)?
-**A**: 
+
+**A**:
+
 - Kafka **retains messages** after consumption; queues delete them
 - Kafka supports **multiple consumer groups** reading independently
 - Kafka is designed for **high throughput** (millions/sec)
@@ -615,9 +622,11 @@ def process_message(msg):
 - Kafka is a **distributed commit log**; queues are message routers
 
 ### Q4: What is the ISR (In-Sync Replicas)?
+
 **A**: ISR is the set of replicas that are fully caught up with the leader. When `acks=all`, the producer waits for ALL replicas in the ISR to confirm. If a follower falls behind, it's removed from ISR. The `min.insync.replicas` setting controls the minimum ISR size for writes to succeed.
 
 ### Q5: How would you handle schema evolution in Kafka?
+
 **A**: Use **Schema Registry** (Confluent). It stores Avro/Protobuf/JSON schemas and enforces compatibility rules (backward, forward, full). Producers register schemas, consumers fetch them. This prevents breaking changes from crashing consumers.
 
 ```
@@ -626,7 +635,9 @@ Consumer → Schema Registry → fetches schema → deserializes
 ```
 
 ### Q6: Kafka vs Pub/Sub — when would you choose each?
+
 **A**:
+
 - **Kafka**: Need ordering guarantees, replay, exactly-once, complex event processing, multi-cloud
 - **Pub/Sub**: GCP-native, serverless (no infra management), simpler use cases, automatic scaling
 

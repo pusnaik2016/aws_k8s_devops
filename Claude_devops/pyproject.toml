@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "security: Security scanning tests",
+    "terraform: Terraform validation tests",
+    "kubernetes: Kubernetes diagnostics tests",
+    "docker: Docker security tests",
+    "cicd: CI/CD pipeline tests",
+    "integration: End-to-end integration tests",
+    "pr: Pull request analysis tests",
+]

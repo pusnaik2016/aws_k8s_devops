@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 Claude DevOps — Test Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg-primary: #0a0a1a;
+    --bg-card: #12122a;
+    --bg-card-hover: #1a1a3e;
+    --border: #2a2a5a;
+    --text-primary: #e8e8f0;
+    --text-secondary: #9898b8;
+    --accent-green: #00e676;
+    --accent-red: #ff5252;
+    --accent-yellow: #ffd740;
+    --accent-blue: #448aff;
+    --accent-purple: #b388ff;
+    --accent-cyan: #18ffff;
+    --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 0 40px rgba(102, 126, 234, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .bg-grid {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-image:
+      linear-gradient(rgba(102,126,234,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(102,126,234,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 1400px; margin: 0 auto; padding: 24px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center; padding: 48px 24px 36px;
+    background: linear-gradient(180deg, rgba(102,126,234,0.08) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .header h1 {
+    font-size: 2.4rem; font-weight: 800;
+    background: var(--gradient-1); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; margin-bottom: 8px;
+  }
+  .header .subtitle {
+    color: var(--text-secondary); font-size: 1rem; font-weight: 400;
+  }
+  .header .timestamp {
+    color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px;
+    opacity: 0.7;
+  }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px; margin-bottom: 32px;
+  }
+  .kpi-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; text-align: center;
+    box-shadow: var(--shadow); transition: all 0.3s ease;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card:hover {
+    transform: translateY(-4px); box-shadow: var(--shadow-glow);
+    border-color: rgba(102,126,234,0.4);
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; border-radius: 16px 16px 0 0;
+  }
+  .kpi-card.total::before { background: var(--gradient-1); }
+  .kpi-card.passed::before { background: var(--gradient-4); }
+  .kpi-card.failed::before { background: var(--gradient-2); }
+  .kpi-card.xfailed::before { background: var(--gradient-3); }
+  .kpi-card.rate::before { background: linear-gradient(135deg, #ffd740, #ff9100); }
+  .kpi-card.time::before { background: var(--gradient-1); }
+
+  .kpi-value {
+    font-size: 2.8rem; font-weight: 800; line-height: 1;
+    margin-bottom: 8px;
+  }
+  .kpi-card.total .kpi-value { color: var(--accent-blue); }
+  .kpi-card.passed .kpi-value { color: var(--accent-green); }
+  .kpi-card.failed .kpi-value { color: var(--accent-red); }
+  .kpi-card.xfailed .kpi-value { color: var(--accent-yellow); }
+  .kpi-card.rate .kpi-value { color: var(--accent-cyan); }
+  .kpi-card.time .kpi-value { color: var(--accent-purple); }
+
+  .kpi-label { color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── Charts Grid ── */
+  .charts-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;
+  }
+  @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; box-shadow: var(--shadow);
+  }
+  .chart-card h3 {
+    font-size: 1.1rem; font-weight: 600; margin-bottom: 20px;
+    color: var(--text-primary); display: flex; align-items: center; gap: 8px;
+  }
+  .chart-card h3 .icon { font-size: 1.3rem; }
+
+  /* ── Tables ── */
+  .table-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; box-shadow: var(--shadow);
+    margin-bottom: 24px; overflow-x: auto;
+  }
+  .table-card h3 {
+    font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.9rem;
+  }
+  thead th {
+    text-align: left; padding: 12px 16px; border-bottom: 2px solid var(--border);
+    color: var(--text-secondary); font-weight: 600; text-transform: uppercase;
+    font-size: 0.75rem; letter-spacing: 1px;
+  }
+  tbody td {
+    padding: 10px 16px; border-bottom: 1px solid rgba(42,42,90,0.5);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: var(--bg-card-hover); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.passed { background: rgba(0,230,118,0.15); color: var(--accent-green); }
+  .badge.failed { background: rgba(255,82,82,0.15); color: var(--accent-red); }
+  .badge.xfailed { background: rgba(255,215,64,0.15); color: var(--accent-yellow); }
+  .badge.skipped { background: rgba(68,138,255,0.15); color: var(--accent-blue); }
+  .badge.error { background: rgba(255,82,82,0.15); color: var(--accent-red); }
+
+  .duration-bar {
+    height: 6px; border-radius: 3px; background: rgba(102,126,234,0.2);
+    overflow: hidden; min-width: 60px;
+  }
+  .duration-fill {
+    height: 100%; border-radius: 3px;
+    background: var(--gradient-1); transition: width 0.5s ease;
+  }
+
+  .failure-reason {
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem;
+    background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.2);
+    border-radius: 8px; padding: 12px; margin-top: 8px;
+    color: #ff8a80; white-space: pre-wrap; word-break: break-word;
+    max-height: 200px; overflow-y: auto; line-height: 1.5;
+  }
+
+  .xfail-reason {
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem;
+    background: rgba(255,215,64,0.08); border: 1px solid rgba(255,215,64,0.2);
+    border-radius: 8px; padding: 12px; margin-top: 8px;
+    color: #ffe082; white-space: pre-wrap; word-break: break-word;
+    max-height: 150px; overflow-y: auto; line-height: 1.5;
+  }
+
+  .test-name { font-family: 'SF Mono', monospace; font-size: 0.85rem; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center; padding: 32px; color: var(--text-secondary);
+    font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 32px;
+  }
+  .footer a { color: var(--accent-blue); text-decoration: none; }
+
+  /* ── Filter Buttons ── */
+  .filter-bar {
+    display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 6px 16px; border-radius: 20px;
+    cursor: pointer; font-size: 0.85rem; font-weight: 500;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.5);
+    color: var(--text-primary);
+  }
+
+  /* ── Progress Ring ── */
+  .progress-ring-container {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🤖 Claude DevOps — Test Dashboard</h1>
+    <div class="subtitle">Autonomous Infrastructure Scanner Verification Suite</div>
+    <div class="timestamp">Generated: 2026-05-24 15:22:23 &nbsp;|&nbsp; Duration: 0.53s &nbsp;|&nbsp; Python 3.13.7</div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card total">
+      <div class="kpi-value">95</div>
+      <div class="kpi-label">Total Tests</div>
+    </div>
+    <div class="kpi-card passed">
+      <div class="kpi-value">92</div>
+      <div class="kpi-label">Passed ✅</div>
+    </div>
+    <div class="kpi-card failed">
+      <div class="kpi-value">0</div>
+      <div class="kpi-label">Failed ❌</div>
+    </div>
+    <div class="kpi-card xfailed">
+      <div class="kpi-value">3</div>
+      <div class="kpi-label">Expected Fail ⚠️</div>
+    </div>
+    <div class="kpi-card rate">
+      <div class="kpi-value">97%</div>
+      <div class="kpi-label">Pass Rate</div>
+    </div>
+    <div class="kpi-card time">
+      <div class="kpi-value">0.5s</div>
+      <div class="kpi-label">Total Time</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3><span class="icon">🍩</span> Result Distribution</h3>
+      <canvas id="pieChart" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><span class="icon">📊</span> Results by Category</h3>
+      <canvas id="categoryBar" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><span class="icon">📁</span> Results by Test File</h3>
+      <canvas id="fileBar" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><span class="icon">⏱️</span> Top 10 Slowest Tests</h3>
+      <canvas id="slowestBar" height="280"></canvas>
+    </div>
+  </div>
+
+  <!-- Failed Tests Detail -->
+  
+
+  <!-- XFailed Tests Detail -->
+  
+    <div class="table-card">
+      <h3><span class="icon">⚠️</span> Expected Failures — Intentional Demo Issues</h3>
+      <table>
+        <thead>
+          <tr><th>Test</th><th>Class</th><th>Category</th><th>Status</th><th>Duration</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td><span class="test-name">test_dockerfile_has_user_directive</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>0.08ms</td>
+        </tr>
+        <tr>
+          <td colspan="5"><div class="xfail-reason">Expected failure (intentional demo issue)</div></td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dockerignore_exists</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>0.05ms</td>
+        </tr>
+        <tr>
+          <td colspan="5"><div class="xfail-reason">Expected failure (intentional demo issue)</div></td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dockerfile_has_healthcheck</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>0.05ms</td>
+        </tr>
+        <tr>
+          <td colspan="5"><div class="xfail-reason">Expected failure (intentional demo issue)</div></td>
+        </tr></tbody>
+      </table>
+    </div>
+
+  <!-- All Tests Table -->
+  
+    <div class="table-card">
+      <h3><span class="icon">📋</span> All Test Results</h3>
+      <div class="filter-bar">
+        <button class="filter-btn" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="passed">✅ Passed</button>
+        <button class="filter-btn" data-filter="failed">❌ Failed</button>
+        <button class="filter-btn" data-filter="xfailed">⚠️ XFailed</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Test</th><th>Class</th><th>Category</th><th>Status</th><th>Duration</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td><span class="test-name">test_sec_scanner_cli_text</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:47.17980679339359%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">45.42ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_sec_scanner_cli_json</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:49.63124545548977%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">47.78ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_sec_scanner_cli_markdown</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:43.58574841591358%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">41.96ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_k8s_helper_cli_text</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:38.921782486756%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">37.47ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_k8s_helper_cli_json</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:42.598940479900286%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">41.01ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_tf_helper_cli_text</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:39.160693881790806%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">37.7ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_tf_helper_cli_json</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:38.4127973408123%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">36.98ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pr_analyser_cli_with_files</span></td>
+          <td>TestCLIExecution</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:59.96676015373429%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">57.73ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_latest_tag_in_both_scanners</span></td>
+          <td>TestCrossEngineConsistency</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.06232471174820816%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.06ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_security_context_in_both_scanners</span></td>
+          <td>TestCrossEngineConsistency</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_terraform_files</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_k8s_manifests</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_github_actions</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_dockerfiles</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_python_files</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_categorises_markdown_as_docs</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_risk_weights_are_correct</span></td>
+          <td>TestPRAnalyserCategorisation</td>
+          <td>Pr</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_tool_hook_exists</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:1.599667601537343%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">1.54ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_tool_hook_is_executable</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.06232471174820816%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.06ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_commit_hook_exists</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_commit_hook_is_executable</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_tool_blocks_terraform_destroy</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:15.155292406772618%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">14.59ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_pre_tool_allows_safe_command</span></td>
+          <td>TestHooksExist</td>
+          <td>Integration</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:100%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">96.27ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_all_manifests</span></td>
+          <td>TestWorkloadDiscovery</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.06232471174820816%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.06ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_all_workloads</span></td>
+          <td>TestWorkloadDiscovery</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_detects_correct_namespace</span></td>
+          <td>TestWorkloadDiscovery</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_runs_as_non_root</span></td>
+          <td>TestK8sSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_flagged_for_root</span></td>
+          <td>TestK8sSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_disables_privilege_escalation</span></td>
+          <td>TestK8sSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_missing_privilege_escalation_block</span></td>
+          <td>TestK8sSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_has_read_only_root_fs</span></td>
+          <td>TestK8sSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_has_resource_limits</span></td>
+          <td>TestK8sResources</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_has_resource_limits</span></td>
+          <td>TestK8sResources</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_has_readiness_probe</span></td>
+          <td>TestK8sProbes</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_has_liveness_probe</span></td>
+          <td>TestK8sProbes</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_has_readiness_probe</span></td>
+          <td>TestK8sProbes</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_has_liveness_probe</span></td>
+          <td>TestK8sProbes</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_image_is_pinned</span></td>
+          <td>TestK8sImages</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_latest_tag_detected</span></td>
+          <td>TestK8sImages</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_backend_has_minimum_replicas</span></td>
+          <td>TestK8sHA</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_frontend_single_replica_flagged</span></td>
+          <td>TestK8sHA</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_network_policies_exist</span></td>
+          <td>TestK8sHA</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_markdown_output_has_workload_table</span></td>
+          <td>TestK8sReportOutput</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.09348706762231225%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.09ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_json_output_is_valid</span></td>
+          <td>TestK8sReportOutput</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.17658668328658983%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.17ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_verdict_is_needs_work</span></td>
+          <td>TestK8sReportOutput</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_aws_access_keys_in_codebase</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_github_tokens_in_codebase</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_private_keys_committed</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_hardcoded_passwords</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_database_connection_strings</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_terraform_state_in_repo</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_env_files_committed</span></td>
+          <td>TestSecretDetection</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_docker_images_are_pinned</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dockerfile_has_user_directive</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.08309961566427755%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.08ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_secrets_in_docker_args</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dockerignore_exists</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dockerfile_has_healthcheck</span></td>
+          <td>TestDockerSecurity</td>
+          <td>Docker</td>
+          <td><span class="badge xfailed">XFAILED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_iam_wildcard_actions</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_iam_wildcard_resources</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_public_s3_buckets</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_encryption_not_disabled</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_security_groups_flagged</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_tag_compliance_enforcement</span></td>
+          <td>TestTerraformSecurity</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_detects_latest_image_tags</span></td>
+          <td>TestKubernetesSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_detects_missing_security_context</span></td>
+          <td>TestKubernetesSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_detects_privilege_escalation</span></td>
+          <td>TestKubernetesSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_privileged_containers</span></td>
+          <td>TestKubernetesSecurity</td>
+          <td>Kubernetes</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_leaked_secrets_in_echo</span></td>
+          <td>TestCICDSecurity</td>
+          <td>Cicd</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_no_hardcoded_aws_credentials</span></td>
+          <td>TestCICDSecurity</td>
+          <td>Cicd</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_workflow_has_permissions</span></td>
+          <td>TestCICDSecurity</td>
+          <td>Cicd</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_actions_not_pinned_to_branch</span></td>
+          <td>TestCICDSecurity</td>
+          <td>Cicd</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_report_scans_all_files</span></td>
+          <td>TestSecurityReportOutput</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_report_produces_findings</span></td>
+          <td>TestSecurityReportOutput</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.03116235587410408%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.03ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_markdown_formatter_works</span></td>
+          <td>TestSecurityReportOutput</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.09348706762231225%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.09ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_json_formatter_works</span></td>
+          <td>TestSecurityReportOutput</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.21813649111872857%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.21ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_text_formatter_works</span></td>
+          <td>TestSecurityReportOutput</td>
+          <td>Security</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.09348706762231225%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.09ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_terraform_module</span></td>
+          <td>TestModuleDiscovery</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_resources</span></td>
+          <td>TestModuleDiscovery</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_variables</span></td>
+          <td>TestModuleDiscovery</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_outputs</span></td>
+          <td>TestModuleDiscovery</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_discovers_data_sources</span></td>
+          <td>TestModuleDiscovery</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_module_has_main_tf</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_module_has_variables_tf</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_module_has_outputs_tf</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_module_has_provider_config</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_module_has_backend_config</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_structure_completeness_pass</span></td>
+          <td>TestModuleStructure</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_dependency_graph_is_populated</span></td>
+          <td>TestDependencyGraph</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_eks_module_dependency_detected</span></td>
+          <td>TestDependencyGraph</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_environment_variable_exists</span></td>
+          <td>TestVariableAnalysis</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_environment_has_validation</span></td>
+          <td>TestVariableAnalysis</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.07271216370624287%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.07ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_markdown_output_has_structure_table</span></td>
+          <td>TestTfReportOutput</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_markdown_output_has_dependency_section</span></td>
+          <td>TestTfReportOutput</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.05193725979017348%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.05ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_json_output_is_valid</span></td>
+          <td>TestTfReportOutput</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.08309961566427755%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.08ms</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="test-name">test_verdict_is_pass</span></td>
+          <td>TestTfReportOutput</td>
+          <td>Terraform</td>
+          <td><span class="badge passed">PASSED</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="duration-bar"><div class="duration-fill" style="width:0.041549807832138776%"></div></div>
+              <span style="font-size:0.8rem;color:var(--text-secondary);min-width:50px;">0.04ms</span>
+            </div>
+          </td>
+        </tr></tbody>
+      </table>
+    </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Claude DevOps Test Dashboard &nbsp;|&nbsp; Built by <a href="https://github.com/pushparajnaik">Pushparaj Naik</a></p>
+    <p style="margin-top:4px;opacity:0.6;">Powered by pytest + Chart.js &nbsp;|&nbsp; 95 tests across 4 files</p>
+  </div>
+</div>
+
+<script>
+// ── Chart.js Configuration ──
+Chart.defaults.color = '#9898b8';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+// 1. Pie / Doughnut Chart
+new Chart(document.getElementById('pieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Passed', 'Failed', 'XFailed', 'Skipped'],
+    datasets: [{
+      data: [92, 0, 3, 0],
+      backgroundColor: [
+        'rgba(0, 230, 118, 0.8)',
+        'rgba(255, 82, 82, 0.8)',
+        'rgba(255, 215, 64, 0.8)',
+        'rgba(68, 138, 255, 0.8)',
+      ],
+      borderColor: '#12122a',
+      borderWidth: 3,
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '60%',
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle' } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.label}: ${ctx.raw} (${(ctx.raw/95*100).toFixed(1)}%)`
+        }
+      }
+    }
+  }
+});
+
+// 2. Category Stacked Bar
+new Chart(document.getElementById('categoryBar'), {
+  type: 'bar',
+  data: {
+    labels: ["Cicd", "Docker", "Integration", "Kubernetes", "Pr", "Security", "Terraform"],
+    datasets: [
+      { label: 'Passed', data: [4, 2, 16, 26, 7, 12, 25], backgroundColor: 'rgba(0,230,118,0.7)', borderRadius: 4 },
+      { label: 'Failed', data: [0, 0, 0, 0, 0, 0, 0], backgroundColor: 'rgba(255,82,82,0.7)', borderRadius: 4 },
+      { label: 'XFailed', data: [0, 3, 0, 0, 0, 0, 0], backgroundColor: 'rgba(255,215,64,0.7)', borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: { stacked: true, grid: { color: 'rgba(42,42,90,0.3)' } },
+      y: { stacked: true, grid: { color: 'rgba(42,42,90,0.3)' }, beginAtZero: true,
+             ticks: { stepSize: 1 } }
+    },
+    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } }
+  }
+});
+
+// 3. File Stacked Bar
+new Chart(document.getElementById('fileBar'), {
+  type: 'bar',
+  data: {
+    labels: ["integration", "k8s_helper", "sec_scanner", "tf_helper"],
+    datasets: [
+      { label: 'Passed', data: [23, 22, 28, 19], backgroundColor: 'rgba(0,230,118,0.7)', borderRadius: 4 },
+      { label: 'Failed', data: [0, 0, 0, 0], backgroundColor: 'rgba(255,82,82,0.7)', borderRadius: 4 },
+      { label: 'XFailed', data: [0, 0, 3, 0], backgroundColor: 'rgba(255,215,64,0.7)', borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true, indexAxis: 'y',
+    scales: {
+      x: { stacked: true, grid: { color: 'rgba(42,42,90,0.3)' }, beginAtZero: true, ticks: { stepSize: 5 } },
+      y: { stacked: true, grid: { display: false } }
+    },
+    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } }
+  }
+});
+
+// 4. Slowest Tests Horizontal Bar
+new Chart(document.getElementById('slowestBar'), {
+  type: 'bar',
+  data: {
+    labels: ["test_pre_tool_allows_safe_command", "test_pr_analyser_cli_with_files", "test_sec_scanner_cli_json", "test_sec_scanner_cli_text", "test_sec_scanner_cli_markdown", "test_k8s_helper_cli_json", "test_tf_helper_cli_text", "test_k8s_helper_cli_text", "test_tf_helper_cli_json", "test_pre_tool_blocks_terraform_destroy"],
+    datasets: [{
+      label: 'Duration (ms)',
+      data: [96.27, 57.73, 47.78, 45.42, 41.96, 41.01, 37.7, 37.47, 36.98, 14.59],
+      backgroundColor: ["rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)", "rgba(179,136,255,0.7)"],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, indexAxis: 'y',
+    scales: {
+      x: { grid: { color: 'rgba(42,42,90,0.3)' }, beginAtZero: true,
+             title: { display: true, text: 'Milliseconds' } },
+      y: { grid: { display: false } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Filter Logic ──
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    const table = btn.closest('.table-card').querySelector('tbody');
+    const rows = table.querySelectorAll('tr');
+
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+
+    if (filter === 'all') {
+      rows.forEach(r => r.style.display = '');
+    } else {
+      btn.classList.add('active');
+      rows.forEach(r => {
+        const badge = r.querySelector('.badge');
+        r.style.display = badge && badge.classList.contains(filter) ? '' : 'none';
+      });
+    }
+  });
+});
+</script>
+</body>
+</html>

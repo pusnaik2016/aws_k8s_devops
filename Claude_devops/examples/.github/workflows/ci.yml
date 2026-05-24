@@ -1,0 +1,71 @@
+# =============================================================================
+# Sample GitOps CI/CD Pipeline
+# Purpose: Example workflow for Claude DevOps scanner testing
+# =============================================================================
+
+name: Sample CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  validate:
+    name: 🔍 Validate & Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        working-directory: examples/terraform
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform Init
+        working-directory: examples/terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: examples/terraform
+        run: terraform validate
+
+  build:
+    name: 🏗️ Build & Push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push
+        run: |
+          docker build -t ${{ secrets.ECR_REGISTRY }}/backend:${{ env.IMAGE_TAG }} ./examples/docker
+          docker push ${{ secrets.ECR_REGISTRY }}/backend:${{ env.IMAGE_TAG }}
