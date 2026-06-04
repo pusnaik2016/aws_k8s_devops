@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: omni-ai
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/chat-service/deployment.yaml
+  - ../../base/chat-service/service.yaml
+  - ../../base/chat-service/hpa.yaml
+  - ../../base/chat-service/configmap.yaml
+  - ../../base/analytics-service/deployment.yaml
+  - ../../base/analytics-service/service.yaml
+  - ../../base/analytics-service/configmap.yaml
+  - ../../base/keda/scaledobject.yaml
+  - ../../base/ingress.yaml
+  - ../../base/network-policies.yaml
+  - ../../base/pdb.yaml
+commonLabels:
+  environment: production

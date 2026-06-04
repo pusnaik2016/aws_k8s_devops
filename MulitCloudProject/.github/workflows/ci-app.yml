@@ -1,0 +1,207 @@
+# =============================================================================
+# Application CI Pipeline — Build, Test, Scan, Push
+# =============================================================================
+# Triggers on source code changes in src/.
+# Matrix builds all 4 microservices in parallel.
+# Pushes to ECR (AWS) and ACR (Azure) via OIDC — private registries.
+# =============================================================================
+
+name: Application CI — Build & Push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'helm/**'
+      - '.github/workflows/ci-app.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'helm/**'
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  AWS_REGION: us-east-1
+  AZURE_REGION: eastus
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: Lint & Test (Matrix)
+  # ─────────────────────────────────────────────
+  test:
+    name: "🧪 Test — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - transaction-ingestion
+          - clearing-engine
+          - audit-pipeline
+          - notification-service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/${{ matrix.service }}/requirements.txt
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/${{ matrix.service }}/requirements.txt
+          pip install ruff
+
+      - name: Lint with Ruff
+        run: ruff check src/${{ matrix.service }}/
+
+      - name: Run Unit Tests
+        run: |
+          cd src/${{ matrix.service }}
+          python -m pytest tests/ -v --tb=short --junitxml=../../test-results-${{ matrix.service }}.xml
+        continue-on-error: false
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: test-results-${{ matrix.service }}.xml
+
+  # ─────────────────────────────────────────────
+  # Job 2: Security Scan (Matrix)
+  # ─────────────────────────────────────────────
+  security-scan:
+    name: "🛡️ Scan — ${{ matrix.service }}"
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - transaction-ingestion
+          - clearing-engine
+          - audit-pipeline
+          - notification-service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image (local)
+        run: |
+          docker build \
+            -t ${{ matrix.service }}:scan \
+            -f src/${{ matrix.service }}/Dockerfile \
+            src/${{ matrix.service }}/
+
+      - name: Trivy Container Vulnerability Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ matrix.service }}:scan"
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+      - name: TruffleHog Secrets Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: src/${{ matrix.service }}/
+          extra_args: --only-verified
+
+  # ─────────────────────────────────────────────
+  # Job 3: Build & Push to ECR + ACR (Main only)
+  # ─────────────────────────────────────────────
+  build-push:
+    name: "📦 Push — ${{ matrix.service }}"
+    needs: security-scan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - transaction-ingestion
+          - clearing-engine
+          - audit-pipeline
+          - notification-service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ─── AWS ECR Authentication (via OIDC) ───
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ─── Azure ACR Authentication (via OIDC) ───
+      - name: Authenticate to Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      # ─── Build & Push Multi-Arch Image ───
+      - name: Generate Image Tags
+        id: tags
+        run: |
+          SHA_TAG="sha-${GITHUB_SHA::8}"
+          echo "sha_tag=$SHA_TAG" >> $GITHUB_OUTPUT
+          echo "ecr_repo=${{ steps.ecr-login.outputs.registry }}/multicloud-clearing-engine/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          echo "acr_repo=${{ secrets.ACR_NAME }}.azurecr.io/clearing-engine/${{ matrix.service }}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push to ECR + ACR
+        uses: docker/build-push-action@v6
+        with:
+          context: src/${{ matrix.service }}
+          file: src/${{ matrix.service }}/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ steps.tags.outputs.ecr_repo }}:${{ steps.tags.outputs.sha_tag }}
+            ${{ steps.tags.outputs.ecr_repo }}:latest
+            ${{ steps.tags.outputs.acr_repo }}:${{ steps.tags.outputs.sha_tag }}
+            ${{ steps.tags.outputs.acr_repo }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: "${{ steps.tags.outputs.ecr_repo }}:${{ steps.tags.outputs.sha_tag }}"
+          format: spdx-json
+          artifact-name: sbom-${{ matrix.service }}

@@ -28,6 +28,7 @@ Detection → Triage → Respond → Resolve → Post-mortem → Improve
 | **SEV4** | Cosmetic/minor, no customer impact | Next business day | Daily | Dashboard widget broken |
 
 **On-Call Structure:**
+
 ```
 Tier 1: CloudOps engineer (24×7 rotation, weekly shifts)
   └── Handles: alerts, initial triage, runbook execution
@@ -38,6 +39,7 @@ Tier 3: Cloud Architect / Sr. Manager (escalation for SEV1)
 ```
 
 **Tooling Stack:**
+
 - **Alerting:** CloudWatch Alarms → SNS → PagerDuty (on-call routing)
 - **Communication:** Dedicated Slack channel per incident (#inc-YYYYMMDD-brief)
 - **Tracking:** Jira Service Management with SLA tracking
@@ -54,6 +56,7 @@ Tier 3: Cloud Architect / Sr. Manager (escalation for SEV1)
 Runbooks are **living documentation** that enable any on-call engineer to handle incidents without tribal knowledge.
 
 **Runbook Structure (Template I Use):**
+
 ```markdown
 # Runbook: [Service Name] — [Scenario]
 
@@ -91,6 +94,7 @@ Runbooks are **living documentation** that enable any on-call engineer to handle
 ```
 
 **Runbook Governance:**
+
 - Stored in Git (versioned, reviewed, auditable)
 - Every new service MUST have runbooks before production launch
 - Quarterly review and update cycle
@@ -112,6 +116,7 @@ Runbooks are **living documentation** that enable any on-call engineer to handle
 | **Events** | EventBridge + CloudTrail | Change tracking and audit |
 
 **Observability Architecture:**
+
 ```
 Application Pods (OpenTelemetry SDK)
     ├── Metrics → Prometheus → Grafana dashboards
@@ -131,6 +136,7 @@ Alerting
 ```
 
 **Dashboard Hierarchy:**
+
 1. **Executive Dashboard:** SLA compliance, cost trends, incident count, deployment velocity
 2. **Service Health Dashboard:** Per-service availability, latency, error rates (RED metrics)
 3. **Infrastructure Dashboard:** Node CPU/memory, disk, network, EKS cluster health
@@ -154,6 +160,7 @@ Alerting
 | **Production** | Live traffic | Full HA, multi-AZ | Real data | Gated, approved |
 
 **Consistency Enforcement:**
+
 ```hcl
 # Same Terraform modules, different tfvars per environment
 module "application" {
@@ -207,6 +214,7 @@ module "application" {
 ```
 
 **Rules of Engagement:**
+
 - Start in staging, graduate to production
 - Always have a "stop" button (FIS stop conditions)
 - Run during business hours with full team awareness
@@ -246,6 +254,7 @@ hooks   Snyk    ZAP    Trivy   OPA      GuardDuty
 | **Production** | GuardDuty + Security Hub | Alert + auto-remediate |
 
 **Terraform Security Controls (from Rio Tinto):**
+
 ```hcl
 # Every module enforces security by default
 module "s3_bucket" {
@@ -277,6 +286,7 @@ I embedded these controls at Rio Tinto — KMS-backed encryption, managed secret
 | **Identity Hardening** | IAM Identity Center + IAM Access Analyzer | SSO, permission auditing, unused access detection |
 
 **Operational Workflow:**
+
 ```
 Security Hub aggregates findings from:
 ├── Config Rules (200+ managed rules)
@@ -314,6 +324,7 @@ Auto-remediation for known patterns:
 | **Break-glass only** | Emergency admin access requires 2-person approval + CloudTrail alert |
 
 **SCP Enforcement:**
+
 ```json
 {
   "Effect": "Deny",
@@ -328,6 +339,7 @@ Auto-remediation for known patterns:
 ```
 
 **IAM Access Analyzer Workflow:**
+
 - Run monthly analysis: find permissions granted but never used
 - Generate least-privilege policy based on actual usage (last 90 days)
 - Replace broad policies with generated scoped policies
@@ -359,6 +371,7 @@ Corrective (auto-fix)
 ```
 
 **Compliance Dashboard Metrics:**
+
 | Metric | Target | Current |
 |---|---|---|
 | Config compliance % | > 98% | 96.5% |
@@ -383,6 +396,7 @@ Corrective (auto-fix)
 | **Insider threat** | 2-reviewer requirement, audit trails, RBAC separation |
 
 **SLSA Framework Alignment:**
+
 - **Level 1:** Build process documented and automated ✅
 - **Level 2:** Version-controlled build scripts, signed artifacts ✅
 - **Level 3:** Tamper-resistant build service (GitHub-hosted runners) ✅
@@ -407,6 +421,7 @@ Corrective (auto-fix)
 | **Operate** | Budgets, anomaly detection, cost forecasting, architectural governance | Continuous |
 
 **Tagging Strategy (Foundation of FinOps):**
+
 ```
 Required Tags (enforced via SCP):
 ├── CostCenter    → Maps to finance GL code
@@ -417,6 +432,7 @@ Required Tags (enforced via SCP):
 ```
 
 **Organizational Structure:**
+
 - **FinOps Lead:** Dedicated person tracking cloud spend trends
 - **Monthly FinOps Review:** Engineering leads + Finance — review spend vs forecast
 - **Quarterly Optimization Sprint:** Each team gets 2 days to optimize their services
@@ -437,6 +453,7 @@ Required Tags (enforced via SCP):
 | **Automated Cleanup** | Stop dev resources outside business hours | Lambda: stop dev EC2/RDS at 8 PM, start at 8 AM IST |
 
 **Cost Anomaly Detection:**
+
 ```
 AWS Cost Anomaly Detection
   └── Monitors per-service spend patterns
@@ -445,6 +462,7 @@ AWS Cost Anomaly Detection
 ```
 
 **Quick Wins I Always Implement First:**
+
 1. **VPC Endpoints** for S3/DynamoDB/ECR — eliminates NAT Gateway data transfer charges
 2. **Graviton instances** — 20% cheaper, often better performance
 3. **Dev environment auto-shutdown** — saves 60% on non-prod compute
@@ -468,11 +486,13 @@ AWS Cost Anomaly Detection
 | **Dev/Test** | Spot + auto-shutdown | Minimal cost, acceptable interruptions |
 
 **Savings Plans vs Reserved Instances:**
+
 - **Compute Savings Plans:** Flexible across instance families, regions, OS — preferred
 - **EC2 RIs:** Only when you're 100% certain of instance type/AZ
 - **Start conservative:** 1-year no-upfront (easy exit), graduate to 3-year partial-upfront for proven workloads
 
 **Coverage Analysis:**
+
 - Target: 70-80% of steady-state compute covered by commitments
 - Review monthly: are commitments being utilized > 90%?
 - Avoid over-commitment — under-utilized RIs cost more than on-demand
@@ -514,6 +534,7 @@ Executives don't care about instance types or GB-hours. They care about **busine
 | **Cost variance** | Actual vs forecast | ±10% |
 
 **Monthly Report Format:**
+
 ```
 1. Summary: "Cloud spend was $X (3% under budget)"
 2. Trend: 6-month trend chart showing cost per transaction declining

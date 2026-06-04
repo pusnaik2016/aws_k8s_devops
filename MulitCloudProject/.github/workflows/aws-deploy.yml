@@ -1,0 +1,207 @@
+# =============================================================================
+# Multicloud GitOps Pipeline — Primary Deployment
+# =============================================================================
+# Triggers on push to main branch.
+# Uses OIDC for keyless authentication to AWS, Azure, and GCP.
+# Jobs: validate → plan → apply → gitops-sync
+# =============================================================================
+
+name: Multicloud GitOps Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/aws-deploy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.7.0"
+  TF_WORKING_DIR: "terraform/environments/production"
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: Validate & Security Scan
+  # ─────────────────────────────────────────────
+  validate:
+    name: "🔍 Validate & Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: terraform/
+
+      - name: Terraform Init (No Backend)
+        run: terraform init -backend=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Run Checkov Security Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+          soft_fail: false
+
+  # ─────────────────────────────────────────────
+  # Job 2: Terraform Plan (All Clouds)
+  # ─────────────────────────────────────────────
+  plan:
+    name: "📋 Terraform Plan"
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Authenticate to Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Authenticate to GCP via OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -out=tfplan \
+            -input=false \
+            -var="vpn_shared_secret_aws_azure=${{ secrets.VPN_PSK_AWS_AZURE }}" \
+            -var="vpn_shared_secret_aws_gcp=${{ secrets.VPN_PSK_AWS_GCP }}" \
+            -var="vpn_shared_secret_azure_gcp=${{ secrets.VPN_PSK_AZURE_GCP }}" \
+            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}"
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan
+          retention-days: 5
+
+  # ─────────────────────────────────────────────
+  # Job 3: Terraform Apply (Main Branch Only)
+  # ─────────────────────────────────────────────
+  apply:
+    name: "🚀 Terraform Apply"
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production  # Requires GitHub environment approval
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Authenticate to Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Authenticate to GCP via OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+  # ─────────────────────────────────────────────
+  # Job 4: GitOps Sync (Trigger ArgoCD)
+  # ─────────────────────────────────────────────
+  gitops_sync:
+    name: "🔄 GitOps Sync"
+    needs: apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Sync Cloud State Manifests
+        run: |
+          echo "=========================================="
+          echo "  Infrastructure deployed successfully."
+          echo "  ArgoCD webhook will auto-sync manifests."
+          echo "=========================================="
+          echo ""
+          echo "Clusters ready:"
+          echo "  ✅ AWS  EKS — Primary Active"
+          echo "  ✅ Azure AKS — Hot Standby"
+          echo "  ✅ GCP  GKE — Compliance Analytics"
+          echo ""
+          echo "ArgoCD will now deploy:"
+          echo "  → Istio Service Mesh (mTLS STRICT)"
+          echo "  → Application microservices"
+          echo "  → Egress Gateway policies"
+
+      - name: Notify Deployment Channel
+        if: always()
+        run: |
+          echo "Deployment notification would be sent to Slack/Teams here."

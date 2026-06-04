@@ -1,0 +1,42 @@
+# =============================================================================
+# GCP GKE Override Values — Compliance Analytics Only
+# =============================================================================
+# Only audit-pipeline runs on GKE. All other services disabled.
+# Uses Artifact Registry via Private Service Connect.
+# =============================================================================
+
+global:
+  cloudProvider: gcp
+  imageRegistry: "us-central1-docker.pkg.dev/<GCP_PROJECT_ID>/clearing-engine"
+  imageTag: "latest"
+
+  database:
+    host: "<ALLOYDB_PRIVATE_IP>"
+    port: 5432
+    name: clearingdb
+    sslMode: require
+
+# Disable all services except audit-pipeline on GKE
+transaction-ingestion:
+  enabled: false
+
+clearing-engine-core:
+  enabled: false
+
+notification-service:
+  enabled: false
+
+# ─── Audit Pipeline — GCP Workload Identity ───
+audit-pipeline:
+  enabled: true
+  replicaCount: 2
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: "audit-pipeline@<GCP_PROJECT_ID>.iam.gserviceaccount.com"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi

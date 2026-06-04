@@ -1,0 +1,24 @@
+apiVersion: v2
+name: clearing-engine
+description: Multicloud Healthcare & Financial Transaction Clearing Engine
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - healthcare
+  - fintech
+  - clearing-engine
+  - multicloud
+dependencies:
+  - name: transaction-ingestion
+    version: 1.0.0
+    condition: transaction-ingestion.enabled
+  - name: clearing-engine-core
+    version: 1.0.0
+    condition: clearing-engine-core.enabled
+  - name: audit-pipeline
+    version: 1.0.0
+    condition: audit-pipeline.enabled
+  - name: notification-service
+    version: 1.0.0
+    condition: notification-service.enabled

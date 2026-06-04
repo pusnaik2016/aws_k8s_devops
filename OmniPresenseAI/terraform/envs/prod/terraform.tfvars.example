@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────────
+# Terraform Variables — Example Values
+# ─────────────────────────────────────────────────────────────
+# Copy this file to terraform.tfvars and update the values:
+#   cp terraform.tfvars.example terraform.tfvars
+# ─────────────────────────────────────────────────────────────
+
+aws_region      = "us-east-1"
+environment     = "prod"
+project_name    = "omnipresense-ai"
+domain_name     = ""  # Set to your domain, e.g., "omnipresense.ai"
+github_org_repo = "pusnaik2016/OmniPresenseAI"
+
+# Compliance settings
+alert_email          = ""  # Set to your team email, e.g., "devops@example.com"
+monthly_budget_limit = "700"

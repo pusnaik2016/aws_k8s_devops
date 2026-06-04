@@ -1,0 +1,91 @@
+# CI/CD pipeline failure pattern rules
+rules:
+  - id: PIPE001
+    title: Dependency Installation Failed
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:npm ERR!|pip install.*failed|Could not resolve dependencies|ModuleNotFoundError|ERESOLVE)'
+    message: "Dependency installation failed during pipeline execution."
+    recommendation: "Check package.json/requirements.txt for version conflicts. Pin dependency versions."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE002
+    title: Test Suite Failed
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:FAILED|FAILURES|Tests failed|test.*fail|AssertionError|pytest.*failed)'
+    message: "One or more tests failed in the pipeline."
+    recommendation: "Review test output, fix failing tests, and ensure test data is consistent."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE003
+    title: Docker Build Failed
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:failed to build|ERROR.*Dockerfile|docker build.*failed|COPY failed|RUN.*returned a non-zero code)'
+    message: "Docker image build failed."
+    recommendation: "Check Dockerfile syntax, verify base image exists, and ensure COPY sources are correct."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE004
+    title: Authentication/Permission Error
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:403 Forbidden|401 Unauthorized|Access Denied|permission denied|EACCES|not authorized)'
+    message: "Pipeline encountered an authentication or permission error."
+    recommendation: "Check service account credentials, IAM roles, and token expiration."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE005
+    title: Timeout Detected
+    severity: MEDIUM
+    category: Pipeline
+    pattern: '(?i)(?:timed?\s*out|deadline exceeded|execution expired|Job exceeded time limit)'
+    message: "Pipeline step timed out."
+    recommendation: "Increase timeout limits, optimize slow steps, or add caching."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE006
+    title: Out of Memory
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:out of memory|OOMKilled|MemoryError|heap.*exceeded|ENOMEM|Cannot allocate memory)'
+    message: "Pipeline step ran out of memory."
+    recommendation: "Increase memory limits for the runner/container, or optimize memory usage."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE007
+    title: Disk Space Exhausted
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:No space left on device|ENOSPC|disk.*full|insufficient disk)'
+    message: "Pipeline runner ran out of disk space."
+    recommendation: "Clean up artifacts between steps, use smaller base images, or increase disk allocation."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE008
+    title: Network Connectivity Issue
+    severity: MEDIUM
+    category: Pipeline
+    pattern: '(?i)(?:connection refused|ECONNREFUSED|network.*unreachable|DNS resolution failed|getaddrinfo.*failed)'
+    message: "Pipeline encountered a network connectivity issue."
+    recommendation: "Check VPC/firewall rules, DNS configuration, and ensure external services are reachable."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE009
+    title: Terraform Apply Failed
+    severity: HIGH
+    category: Pipeline
+    pattern: '(?i)(?:Error:.*terraform|terraform.*apply.*failed|Error locking state|Error acquiring the state lock)'
+    message: "Terraform apply/plan failed in pipeline."
+    recommendation: "Check state lock (force-unlock if needed), verify provider credentials, review plan output."
+    file_types: [".log", ".txt"]
+
+  - id: PIPE010
+    title: Linting Error
+    severity: LOW
+    category: Pipeline
+    pattern: '(?i)(?:linting error|eslint.*error|flake8.*error|pylint.*error|tflint.*error)'
+    message: "Code linting checks failed."
+    recommendation: "Fix linting errors or update linting configuration if rules are outdated."
+    file_types: [".log", ".txt"]

@@ -1,0 +1,65 @@
+# =============================================================================
+# AWS EKS Override Values — Private Cluster
+# =============================================================================
+# ECR image registry, IRSA annotations, EKS-specific resource tuning.
+# All traffic stays within VPC via PrivateLink endpoints.
+# =============================================================================
+
+global:
+  cloudProvider: aws
+  # ECR registry — images pulled via VPC Interface Endpoint (no internet)
+  imageRegistry: "<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
+  imageTag: "latest"
+
+  database:
+    host: "<AURORA_WRITER_ENDPOINT>"  # e.g., *.cluster-*.us-east-1.rds.amazonaws.com
+    port: 5432
+    name: clearingdb
+    sslMode: require
+
+  redis:
+    host: "<ELASTICACHE_ENDPOINT>"    # e.g., *.cache.amazonaws.com
+    port: 6379
+    ssl: true
+
+# ─── IRSA (IAM Roles for Service Accounts) ───
+# Pods assume IAM roles via STS VPC Endpoint — no internet needed
+transaction-ingestion:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/clearing-engine-transaction-ingestion"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 15
+
+clearing-engine-core:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/clearing-engine-core"
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 2Gi
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 20
+
+audit-pipeline:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/clearing-engine-audit-pipeline"
+
+notification-service:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/clearing-engine-notification"

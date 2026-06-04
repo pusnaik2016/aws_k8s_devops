@@ -21,6 +21,7 @@ Cutover → Phase 1: War Room (72 hours) → Phase 2: Elevated Support (Week 1-2
 #### Phase 1: War Room (First 72 Hours Post-Cutover)
 
 **Structure:**
+
 ```
 War Room (physical or virtual bridge — always open)
 │
@@ -56,6 +57,7 @@ War Room (physical or virtual bridge — always open)
 | CloudWatch alarm count | Any new alarms firing | Triage each alarm |
 
 **Communication Cadence:**
+
 - **Hours 0-12:** Status update every 2 hours to stakeholders
 - **Hours 12-24:** Status update every 4 hours
 - **Hours 24-72:** Status update every 8 hours (morning + evening)
@@ -65,6 +67,7 @@ War Room (physical or virtual bridge — always open)
 #### Phase 2: Elevated Support (Week 1-2)
 
 **Structure:**
+
 - War room closes, normal on-call rotation begins
 - Dedicated migration support engineer available during business hours
 - Daily standup (15 min) — any issues from previous 24 hours?
@@ -80,6 +83,7 @@ War Room (physical or virtual bridge — always open)
 | **P4 — Low** | Cosmetic, enhancement request | Next business day | Next sprint |
 
 **Weekly Activities:**
+
 - Performance comparison: cloud vs. on-prem baseline (response times, throughput)
 - Cost review: actual cloud spend vs. TCO estimate
 - Issue log review: are we seeing patterns?
@@ -177,6 +181,7 @@ RFP Received → EA Reviews → Technical Solution Design → Effort Estimation 
 1. **Reframe the problem:** "It's not 500 server migrations — it's X applications that need to work in cloud. Let's think application-centric, not server-centric."
 
 2. **Propose the 6 R's assessment:** Show the client we won't just lift-and-shift everything — we'll right-size the approach:
+
    ```
    500 servers → Assessment likely shows:
    ├── 100 servers: Retire (20%) — immediate cost saving
@@ -206,6 +211,7 @@ RFP Received → EA Reviews → Technical Solution Design → Effort Estimation 
 > *"A 3-month timeline for 500 servers assumes everything goes perfectly — no dependency delays, no discovery surprises, no business calendar constraints. In my experience, realistic timeline is 6-9 months for quality delivery. I'm happy to propose a 3-month first wave (100 servers) with a phased plan, which gives the client early value while we maintain quality."*
 
 **How I handle it:**
+
 - Present a **risk-adjusted timeline** with explicit assumptions
 - Propose **phased delivery** — client gets value early, we don't over-promise
 - Document assumptions in SOW: "Timeline assumes network connectivity established by Week 4, client UAT resources available as scheduled, no scope changes"
@@ -219,6 +225,7 @@ RFP Received → EA Reviews → Technical Solution Design → Effort Estimation 
 > *"Skipping the landing zone is like building a house without a foundation. We'll migrate 100 servers into a default VPC with no security baseline, no monitoring, and no cost governance. Then we'll spend 3 months fixing it — at 2x the cost. The landing zone is 3 weeks of work that saves 3 months of rework."*
 
 **How I handle it:**
+
 - Show examples of failed migrations that skipped foundation work
 - Calculate the cost of rework vs. doing it right
 - Position the landing zone as a **competitive differentiator** — "Our competitors won't include this. We will."
@@ -232,6 +239,7 @@ RFP Received → EA Reviews → Technical Solution Design → Effort Estimation 
 > *"I understand the desire for speed. Let me show you: if we lift these 500 servers as-is, your monthly cloud bill will be $X. If we right-size based on actual utilization data (which we collect in the first 2 weeks), the bill drops to $0.6X — that's a 40% savings from Day 1. The right-sizing effort adds 1 week per wave but saves $Y per month forever."*
 
 **How I handle it:**
+
 - Present **TCO comparison** with and without right-sizing
 - Propose: "Lift-and-shift first, right-size immediately after — don't delay migration but optimize within the first month"
 - Position right-sizing as part of the service, not an add-on
@@ -244,6 +252,7 @@ RFP Received → EA Reviews → Technical Solution Design → Effort Estimation 
 > *"3 engineers can handle 1 wave per month. For 500 servers, that's 10+ months of migration alone, plus the foundation work. If we want to deliver in 6 months, we need 5-6 engineers with cross-functional coverage: cloud infra, database, application, network. I can optimize by using automation — Terraform modules and migration scripts — to increase throughput per engineer, but not below 5."*
 
 **How I handle it:**
+
 - Bottom-up estimation with task-level detail (not gut feel)
 - Show the math: hours per server × servers per wave × number of waves
 - Propose automation to improve productivity (invest in Terraform templates upfront)

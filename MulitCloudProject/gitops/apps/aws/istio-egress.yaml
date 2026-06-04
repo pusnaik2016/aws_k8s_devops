@@ -1,0 +1,82 @@
+# =============================================================================
+# Istio Egress Control — AWS EKS
+# =============================================================================
+# Blocks all unauthorized outbound traffic from pods.
+# Only explicitly whitelisted external services are reachable.
+# GDPR: Prevents accidental data exfiltration.
+# =============================================================================
+
+# ServiceEntry — Allow access to AWS services only
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-aws-services
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "*.amazonaws.com"
+    - "*.aws.amazon.com"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+  resolution: DNS
+---
+# ServiceEntry — Allow inter-cloud VPN traffic
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-azure-vpn
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "azure-standby.internal"
+  addresses:
+    - "10.1.0.0/16"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+    - number: 5432
+      name: postgres
+      protocol: TCP
+  resolution: NONE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-gcp-compliance
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "gcp-compliance.internal"
+  addresses:
+    - "10.2.0.0/16"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+    - number: 5432
+      name: postgres
+      protocol: TCP
+  resolution: NONE
+---
+# Sidecar — Restrict egress to only declared ServiceEntries
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: clearing-engine
+spec:
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+  egress:
+    - hosts:
+        - "clearing-engine/*"
+        - "istio-system/*"
+        - "*/allow-aws-services"
+        - "*/allow-azure-vpn"
+        - "*/allow-gcp-compliance"

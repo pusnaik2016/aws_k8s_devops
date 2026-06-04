@@ -1,0 +1,152 @@
+# Kubernetes best-practice rules for manifest scanning
+rules:
+  # ── Resource Management ────────────────────────────────────
+  - id: K8S001
+    title: Missing Resource Requests
+    severity: HIGH
+    category: Reliability
+    pattern: 'containers:[\s\S]*?(?:name:\s*\S+)(?:(?!resources:)[\s\S])*?(?=containers:|$)'
+    message: "Container is missing resource requests. Scheduler cannot make informed decisions."
+    recommendation: "Add resources.requests.cpu and resources.requests.memory to every container."
+    file_types: [".yaml", ".yml"]
+    negate: false
+
+  - id: K8S002
+    title: Missing Resource Limits
+    severity: MEDIUM
+    category: Reliability
+    pattern: 'requests:[\s\S]*?(?!limits:)'
+    message: "Container has requests but no limits. Could consume unbounded resources."
+    recommendation: "Add resources.limits.cpu and resources.limits.memory."
+    file_types: [".yaml", ".yml"]
+
+  # ── Health Checks ──────────────────────────────────────────
+  - id: K8S010
+    title: Missing Liveness Probe
+    severity: HIGH
+    category: Reliability
+    pattern: 'kind:\s*Deployment[\s\S]*?containers:[\s\S]*?(?!livenessProbe)'
+    message: "Deployment has no livenessProbe. K8s cannot detect hung processes."
+    recommendation: "Add a livenessProbe (httpGet, tcpSocket, or exec) to detect unhealthy containers."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S011
+    title: Missing Readiness Probe
+    severity: HIGH
+    category: Reliability
+    pattern: 'kind:\s*Deployment[\s\S]*?containers:[\s\S]*?(?!readinessProbe)'
+    message: "Deployment has no readinessProbe. Traffic sent to unready pods during rolling updates."
+    recommendation: "Add a readinessProbe to prevent traffic to pods that aren't ready."
+    file_types: [".yaml", ".yml"]
+
+  # ── Security ───────────────────────────────────────────────
+  - id: K8S020
+    title: Container Running as Root
+    severity: HIGH
+    category: Security
+    pattern: 'runAsUser:\s*0'
+    message: "Container is explicitly configured to run as root (UID 0)."
+    recommendation: "Set runAsNonRoot: true and specify a non-root runAsUser (e.g., 1000)."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S021
+    title: Privileged Container
+    severity: CRITICAL
+    category: Security
+    pattern: 'privileged:\s*true'
+    message: "Container runs in privileged mode with full host access."
+    recommendation: "Remove privileged: true unless absolutely necessary (e.g., CNI plugins)."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S022
+    title: Missing Security Context
+    severity: MEDIUM
+    category: Security
+    pattern: 'containers:[\s\S]*?(?:image:)[\s\S]*?(?!securityContext)'
+    message: "Container is missing securityContext. May run with elevated privileges."
+    recommendation: "Add securityContext with runAsNonRoot, readOnlyRootFilesystem, allowPrivilegeEscalation: false."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S023
+    title: Host Network Enabled
+    severity: HIGH
+    category: Security
+    pattern: 'hostNetwork:\s*true'
+    message: "Pod uses host network namespace. Container can see all host traffic."
+    recommendation: "Remove hostNetwork: true unless required (e.g., CNI, ingress controller)."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S024
+    title: Host PID Enabled
+    severity: HIGH
+    category: Security
+    pattern: 'hostPID:\s*true'
+    message: "Pod has access to host PID namespace. Can see and signal host processes."
+    recommendation: "Remove hostPID: true."
+    file_types: [".yaml", ".yml"]
+
+  # ── Image Best Practices ───────────────────────────────────
+  - id: K8S030
+    title: Using 'latest' Image Tag
+    severity: MEDIUM
+    category: Best Practice
+    pattern: 'image:\s*[^\s]+:latest'
+    message: "Image uses 'latest' tag. Deployments are not reproducible."
+    recommendation: "Pin images to specific version tags (e.g., nginx:1.25.3) or SHA digests."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S031
+    title: Image Without Tag
+    severity: MEDIUM
+    category: Best Practice
+    pattern: 'image:\s*[a-zA-Z0-9/._-]+\s*$'
+    message: "Image specified without a tag. Defaults to 'latest'."
+    recommendation: "Always specify an explicit image tag."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S032
+    title: Missing Image Pull Policy
+    severity: LOW
+    category: Best Practice
+    pattern: 'image:[\s\S]*?(?!imagePullPolicy)'
+    message: "imagePullPolicy not explicitly set."
+    recommendation: "Set imagePullPolicy to 'IfNotPresent' or 'Always' explicitly."
+    file_types: [".yaml", ".yml"]
+
+  # ── Namespace & Labels ─────────────────────────────────────
+  - id: K8S040
+    title: Missing Namespace
+    severity: LOW
+    category: Best Practice
+    pattern: 'kind:\s*(?:Deployment|Service|StatefulSet|DaemonSet)[\s\S]*?metadata:[\s\S]*?(?!namespace:)'
+    message: "Resource does not specify a namespace. Will deploy to 'default'."
+    recommendation: "Always specify metadata.namespace explicitly."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S041
+    title: Missing Labels
+    severity: LOW
+    category: Best Practice
+    pattern: 'metadata:\s*\n\s*name:[\s\S]*?(?!labels:)'
+    message: "Resource metadata has no labels. Makes it harder to manage and select."
+    recommendation: "Add labels for app, version, environment, and team."
+    file_types: [".yaml", ".yml"]
+
+  # ── Availability ───────────────────────────────────────────
+  - id: K8S050
+    title: Single Replica Deployment
+    severity: MEDIUM
+    category: Reliability
+    pattern: 'replicas:\s*1\b'
+    message: "Deployment has only 1 replica. No high availability."
+    recommendation: "Use at least 2-3 replicas for production workloads with PodDisruptionBudget."
+    file_types: [".yaml", ".yml"]
+
+  - id: K8S051
+    title: Missing Pod Disruption Budget
+    severity: LOW
+    category: Reliability
+    pattern: 'kind:\s*Deployment'
+    message: "Deployment may not have an associated PodDisruptionBudget."
+    recommendation: "Create a PDB to ensure minimum availability during voluntary disruptions."
+    file_types: [".yaml", ".yml"]

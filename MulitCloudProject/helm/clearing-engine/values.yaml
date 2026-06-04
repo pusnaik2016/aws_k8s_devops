@@ -1,0 +1,173 @@
+# =============================================================================
+# Default values for the Clearing Engine umbrella chart
+# =============================================================================
+# Override per-cloud via values-aws.yaml, values-azure.yaml, values-gcp.yaml
+# =============================================================================
+
+global:
+  environment: production
+  cloudProvider: aws
+  namespace: clearing-engine
+  imagePullPolicy: Always
+
+  # Container registry — overridden per-cloud
+  imageRegistry: ""
+  imageTag: "latest"
+
+  # Database (Aurora / Azure SQL / AlloyDB)
+  database:
+    host: ""
+    port: 5432
+    name: clearingdb
+    sslMode: require
+
+  # Redis (ElastiCache / Azure Cache)
+  redis:
+    host: ""
+    port: 6379
+    ssl: true
+
+  # Istio mesh settings
+  istio:
+    enabled: true
+    mtls: STRICT
+
+# ─────────────────────────────────────────────
+# Transaction Ingestion subchart
+# ─────────────────────────────────────────────
+transaction-ingestion:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: transaction-ingestion
+    tag: ""  # Uses global.imageTag if empty
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilization: 70
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  serviceAccount:
+    create: true
+    annotations: {}
+
+# ─────────────────────────────────────────────
+# Clearing Engine Core subchart
+# ─────────────────────────────────────────────
+clearing-engine-core:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: clearing-engine
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilization: 65
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  serviceAccount:
+    create: true
+    annotations: {}
+
+# ─────────────────────────────────────────────
+# Audit Pipeline subchart
+# ─────────────────────────────────────────────
+audit-pipeline:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: audit-pipeline
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  autoscaling:
+    enabled: false
+
+  serviceAccount:
+    create: true
+    annotations: {}
+
+# ─────────────────────────────────────────────
+# Notification Service subchart
+# ─────────────────────────────────────────────
+notification-service:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: notification-service
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: false
+
+  serviceAccount:
+    create: true
+    annotations: {}
+
+# ─────────────────────────────────────────────
+# Network Policies
+# ─────────────────────────────────────────────
+networkPolicies:
+  enabled: true

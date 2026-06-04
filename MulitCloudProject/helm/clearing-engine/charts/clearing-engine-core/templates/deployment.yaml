@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clearing-engine-core
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "clearing-engine-core.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "clearing-engine-core.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "clearing-engine-core.labels" . | nindent 8 }}
+        sidecar.istio.io/inject: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: clearing-engine-core
+      terminationGracePeriodSeconds: 30
+      # Security context — pod level
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: clearing-engine-core
+          image: {{ include "clearing-engine-core.image" . }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Security context — container level
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Environment variables — injected from ConfigMap and Secrets
+          env:
+            - name: SERVICE_NAME
+              value: "clearing-engine-core"
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment }}
+            - name: CLOUD_PROVIDER
+              value: {{ .Values.global.cloudProvider }}
+            - name: DATABASE_HOST
+              value: {{ .Values.global.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ .Values.global.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.global.database.name | quote }}
+            - name: DATABASE_SSL_MODE
+              value: {{ .Values.global.database.sslMode | quote }}
+            - name: REDIS_HOST
+              value: {{ .Values.global.redis.host | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.global.redis.port | quote }}
+            - name: REDIS_SSL
+              value: {{ .Values.global.redis.ssl | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clearing-engine-db-credentials
+                  key: password
+                  optional: true
+          # Probes
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Resources
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # Volume mounts for read-only root filesystem
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi

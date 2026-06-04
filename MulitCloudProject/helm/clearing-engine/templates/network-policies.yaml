@@ -1,0 +1,164 @@
+{{- if .Values.networkPolicies.enabled }}
+# =============================================================================
+# Network Policies — Zero-trust pod-to-pod communication
+# =============================================================================
+# Enforces service-to-service communication rules:
+#   transaction-ingestion → clearing-engine-core  (allowed)
+#   clearing-engine-core  → audit-pipeline        (allowed)
+#   clearing-engine-core  → notification-service   (allowed)
+#   All other pod-to-pod traffic                   (denied)
+# =============================================================================
+
+# Default deny all ingress in the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# transaction-ingestion: Accept from Istio ingress gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingestion-ingress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: transaction-ingestion
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: clearing-engine-core
+      ports:
+        - port: 8000
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 5432  # Database
+        - port: 6379  # Redis
+        - port: 6380  # Azure Redis
+        - port: 443   # AWS/Azure APIs via PrivateLink
+---
+# clearing-engine-core: Accept from transaction-ingestion
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-clearing-ingress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: clearing-engine-core
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: transaction-ingestion
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: audit-pipeline
+      ports:
+        - port: 8000
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification-service
+      ports:
+        - port: 8000
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 5432
+        - port: 6379
+        - port: 6380
+        - port: 443
+---
+# audit-pipeline: Accept from clearing-engine-core
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-audit-ingress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: audit-pipeline
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: clearing-engine-core
+      ports:
+        - port: 8000
+  egress:
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 5432
+        - port: 443   # BigQuery API, AlloyDB
+---
+# notification-service: Accept from clearing-engine-core
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-ingress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: clearing-engine-core
+      ports:
+        - port: 8000
+  egress:
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 443   # SQS/ASB via PrivateLink, webhook delivery
+{{- end }}

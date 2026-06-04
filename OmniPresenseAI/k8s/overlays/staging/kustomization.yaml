@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: omni-ai
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/chat-service/deployment.yaml
+  - ../../base/chat-service/service.yaml
+  - ../../base/chat-service/configmap.yaml
+  - ../../base/analytics-service/deployment.yaml
+  - ../../base/analytics-service/service.yaml
+  - ../../base/analytics-service/configmap.yaml
+  - ../../base/ingress.yaml
+commonLabels:
+  environment: staging
+patches:
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: chat-service
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: chat-service
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: analytics-service
+      spec:
+        replicas: 1

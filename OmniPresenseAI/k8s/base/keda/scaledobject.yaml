@@ -1,0 +1,32 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: analytics-service-scaler
+  namespace: omni-ai
+spec:
+  scaleTargetRef:
+    name: analytics-service
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: redis
+      metadata:
+        address: "REDIS_ENDPOINT:6379"
+        listName: "analytics:sentiment_queue"
+        listLength: "10"
+        enableTLS: "true"
+      authenticationRef:
+        name: redis-auth
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: redis-auth
+  namespace: omni-ai
+spec:
+  secretTargetRef:
+    - parameter: password
+      name: redis-credentials
+      key: auth-token

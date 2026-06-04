@@ -1,0 +1,54 @@
+# Service Description — Input for IaC Generator
+service:
+  name: order-api
+  description: "Order processing microservice"
+  environment: production
+
+infrastructure:
+  vpc:
+    cidr: "10.0.0.0/16"
+    azs: 3
+    public_subnets: true
+    private_subnets: true
+    nat_gateway: true
+
+  compute:
+    type: eks
+    cluster_name: order-cluster
+    node_groups:
+      - name: general
+        instance_type: m6g.large
+        min_size: 2
+        max_size: 10
+        desired_size: 3
+
+  database:
+    type: aurora-postgresql
+    engine_version: "15.4"
+    instance_class: db.r6g.large
+    instances: 2
+    encrypted: true
+    backup_retention: 7
+
+  cache:
+    type: elasticache-redis
+    node_type: cache.r6g.large
+    num_nodes: 2
+
+  storage:
+    s3_buckets:
+      - name: order-assets
+        versioning: true
+        encryption: true
+        lifecycle:
+          transition_to_ia: 30
+          transition_to_glacier: 90
+
+  monitoring:
+    cloudwatch: true
+    container_insights: true
+
+tags:
+  team: platform
+  cost_center: eng-001
+  managed_by: terraform

@@ -1,0 +1,160 @@
+# Security scanning rules for Terraform and IaC files
+rules:
+  # ── Secrets & Credentials ──────────────────────────────────
+  - id: SEC001
+    title: Hardcoded AWS Access Key
+    severity: CRITICAL
+    category: Security
+    pattern: '(?:AKIA|ASIA)[A-Z0-9]{16}'
+    message: "AWS access key found hardcoded in source code. This is a critical security risk."
+    recommendation: "Use AWS IAM roles, environment variables, or Secrets Manager instead of hardcoded keys."
+    file_types: [".tf", ".yaml", ".yml", ".json", ".py", ".sh"]
+
+  - id: SEC002
+    title: Hardcoded Secret Key or Password
+    severity: CRITICAL
+    category: Security
+    pattern: '(?i)(?:password|secret_key|api_key|private_key)\s*=\s*"[^"]{8,}"'
+    message: "Potential secret or password hardcoded in configuration."
+    recommendation: "Use AWS Secrets Manager, SSM Parameter Store, or environment variables."
+    file_types: [".tf", ".yaml", ".yml", ".json", ".py"]
+
+  - id: SEC003
+    title: Private Key File Detected
+    severity: CRITICAL
+    category: Security
+    pattern: '-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----'
+    message: "Private key embedded in source file. Never commit private keys."
+    recommendation: "Remove the key immediately, rotate it, and use Secrets Manager."
+    file_types: []
+
+  # ── Network Security ───────────────────────────────────────
+  - id: SEC010
+    title: Security Group Open to World (0.0.0.0/0)
+    severity: HIGH
+    category: Security
+    pattern: 'cidr_blocks\s*=\s*\[\s*"0\.0\.0\.0/0"\s*\]'
+    message: "Security group allows ingress from 0.0.0.0/0 (the entire internet)."
+    recommendation: "Restrict CIDR to specific IP ranges. Use VPN or bastion hosts for admin access."
+    file_types: [".tf"]
+
+  - id: SEC011
+    title: SSH Port Open to World
+    severity: CRITICAL
+    category: Security
+    pattern: 'from_port\s*=\s*22[\s\S]{0,200}cidr_blocks\s*=\s*\[\s*"0\.0\.0\.0/0"'
+    message: "SSH (port 22) is open to the entire internet."
+    recommendation: "Restrict SSH to trusted IPs only, or use SSM Session Manager instead."
+    file_types: [".tf"]
+
+  - id: SEC012
+    title: RDP Port Open to World
+    severity: CRITICAL
+    category: Security
+    pattern: 'from_port\s*=\s*3389[\s\S]{0,200}cidr_blocks\s*=\s*\[\s*"0\.0\.0\.0/0"'
+    message: "RDP (port 3389) is open to the entire internet."
+    recommendation: "Restrict RDP to trusted IPs only. Use VPN or bastion hosts."
+    file_types: [".tf"]
+
+  - id: SEC013
+    title: All Ports Open (from_port 0 to_port 65535)
+    severity: HIGH
+    category: Security
+    pattern: 'from_port\s*=\s*0[\s\S]{0,100}to_port\s*=\s*65535'
+    message: "Security group rule opens all ports (0-65535)."
+    recommendation: "Follow least-privilege: open only required ports."
+    file_types: [".tf"]
+
+  # ── S3 Security ────────────────────────────────────────────
+  - id: SEC020
+    title: S3 Bucket with Public ACL
+    severity: HIGH
+    category: Security
+    pattern: 'acl\s*=\s*"(?:public-read|public-read-write|authenticated-read)"'
+    message: "S3 bucket has a public ACL. Data may be exposed to the internet."
+    recommendation: "Use 'private' ACL and block public access with aws_s3_bucket_public_access_block."
+    file_types: [".tf"]
+
+  - id: SEC021
+    title: S3 Bucket Without Encryption
+    severity: HIGH
+    category: Security
+    pattern: 'resource\s+"aws_s3_bucket"\s+"[^"]*"'
+    message: "S3 bucket may not have server-side encryption configured."
+    recommendation: "Add aws_s3_bucket_server_side_encryption_configuration with AES256 or aws:kms."
+    file_types: [".tf"]
+
+  - id: SEC022
+    title: S3 Bucket Without Versioning
+    severity: MEDIUM
+    category: Security
+    pattern: 'resource\s+"aws_s3_bucket"\s+"[^"]*"'
+    message: "S3 bucket may not have versioning enabled. Data loss risk."
+    recommendation: "Enable versioning with aws_s3_bucket_versioning resource."
+    file_types: [".tf"]
+
+  # ── Encryption ─────────────────────────────────────────────
+  - id: SEC030
+    title: Unencrypted EBS Volume
+    severity: HIGH
+    category: Security
+    pattern: 'encrypted\s*=\s*false'
+    message: "EBS volume or resource has encryption explicitly disabled."
+    recommendation: "Set encrypted = true and specify a KMS key."
+    file_types: [".tf"]
+
+  - id: SEC031
+    title: RDS Without Encryption
+    severity: HIGH
+    category: Security
+    pattern: 'storage_encrypted\s*=\s*false'
+    message: "RDS instance has storage encryption disabled."
+    recommendation: "Set storage_encrypted = true for all RDS instances."
+    file_types: [".tf"]
+
+  - id: SEC032
+    title: RDS Publicly Accessible
+    severity: CRITICAL
+    category: Security
+    pattern: 'publicly_accessible\s*=\s*true'
+    message: "RDS instance is publicly accessible from the internet."
+    recommendation: "Set publicly_accessible = false and use private subnets."
+    file_types: [".tf"]
+
+  # ── IAM ────────────────────────────────────────────────────
+  - id: SEC040
+    title: IAM Policy with Wildcard Actions
+    severity: HIGH
+    category: Security
+    pattern: '(?:"Action"|Action)\s*[:=]\s*(?:\[\s*)?"?\*"?'
+    message: "IAM policy uses wildcard (*) actions, granting overly broad permissions."
+    recommendation: "Follow least privilege: specify exact actions needed."
+    file_types: [".tf", ".json"]
+
+  - id: SEC041
+    title: IAM Policy with Wildcard Resources
+    severity: HIGH
+    category: Security
+    pattern: '(?:"Resource"|Resource)\s*[:=]\s*(?:\[\s*)?"?\*"?'
+    message: "IAM policy applies to all resources (*). Overly permissive."
+    recommendation: "Scope resources to specific ARNs."
+    file_types: [".tf", ".json"]
+
+  # ── Logging & Monitoring ───────────────────────────────────
+  - id: SEC050
+    title: CloudTrail Logging Disabled
+    severity: HIGH
+    category: Compliance
+    pattern: 'enable_logging\s*=\s*false'
+    message: "CloudTrail logging is explicitly disabled. Compliance and audit risk."
+    recommendation: "Enable CloudTrail logging for all management and data events."
+    file_types: [".tf"]
+
+  - id: SEC051
+    title: Flow Logs Not Enabled
+    severity: MEDIUM
+    category: Compliance
+    pattern: 'resource\s+"aws_vpc"\s+'
+    message: "VPC may not have flow logs enabled. Limits network visibility."
+    recommendation: "Add aws_flow_log resource for the VPC."
+    file_types: [".tf"]

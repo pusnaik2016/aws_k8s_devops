@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────
+# Terraform Variables — Staging Example Values
+# ─────────────────────────────────────────────────────────────
+# Copy this file to terraform.tfvars and update the values:
+#   cp terraform.tfvars.example terraform.tfvars
+# ─────────────────────────────────────────────────────────────
+
+aws_region      = "us-east-1"
+environment     = "staging"
+project_name    = "omnipresense-ai"
+domain_name     = ""  # Set to your staging domain, e.g., "staging.omnipresense.ai"
+github_org_repo = "pusnaik2016/OmniPresenseAI"

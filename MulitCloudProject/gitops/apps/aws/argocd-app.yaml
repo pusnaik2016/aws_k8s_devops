@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clearing-engine-aws
+  namespace: argocd
+  labels:
+    cloud: aws
+    role: primary
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/multicloud-clearing-engine.git
+    targetRevision: main
+    path: gitops/apps/aws
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: clearing-engine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

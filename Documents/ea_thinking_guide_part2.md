@@ -139,16 +139,19 @@ I maintain a **live RAID log** reviewed in every weekly steering committee:
 #### Step 4: Specific Dependency Handling Strategies
 
 **Networking Team Delays:**
+
 - **Prevention:** Include network team in kickoff meeting, present FULL list of requirements upfront (all VPN tunnels, all firewall rules, all DNS changes for ALL waves)
 - **Escalation path:** If network work is > 1 week late → escalate to Infrastructure VP with impact statement: "Migration Wave 1 will slip by 2 weeks, affecting $X in delayed savings"
 - **Workaround:** For development/testing, use AWS Site-to-Site VPN (can be provisioned in hours) while waiting for Direct Connect
 
 **Compliance/Regulation Team Delays:**
+
 - **Prevention:** Provide a pre-filled compliance template with all answers ready — make their job easy
 - **Parallel processing:** Request conditional approval for non-production waves while full approval is pending
 - **Escalation:** Frame as business risk — "Without compliance sign-off by date X, we miss the data center lease deadline, committing to $2.4M/year"
 
 **AWS Service Delays (SES, limit increases, etc.):**
+
 - **Prevention:** Submit all service requests in Week 1 — don't wait until you need them
 - **Enterprise Support:** Use the TAM (Technical Account Manager) to expedite requests
 - **Workaround:** Always have a Plan B:

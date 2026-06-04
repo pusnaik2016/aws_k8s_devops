@@ -1,0 +1,19 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "lambda_handler: Lambda memory writer tests",
+    "terraform: Terraform structure validation tests",
+    "integration: End-to-end integration tests",
+    "confidence: Confidence gate tests",
+    "s3: S3 document format tests",
+    "dynamodb: DynamoDB record tests",
+]

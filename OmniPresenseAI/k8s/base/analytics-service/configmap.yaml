@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service-config
+  namespace: omni-ai
+data:
+  ANALYTICS_ENVIRONMENT: "production"
+  ANALYTICS_AWS_REGION: "us-east-1"
+  ANALYTICS_BEDROCK_MODEL_ID: "anthropic.claude-3-5-sonnet-20240620-v1:0"
+  ANALYTICS_DATABASE_PORT: "5432"
+  ANALYTICS_DATABASE_NAME: "omnipresense"
+  ANALYTICS_REDIS_PORT: "6379"
+  ANALYTICS_REDIS_SSL: "true"
+  ANALYTICS_S3_TRANSCRIPTS_BUCKET: "omnipresense-ai-prod-transcripts"

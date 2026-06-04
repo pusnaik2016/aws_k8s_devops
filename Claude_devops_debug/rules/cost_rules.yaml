@@ -1,0 +1,91 @@
+# Cost optimization rules for Terraform / AWS configs
+rules:
+  - id: COST001
+    title: EC2 Instance Possibly Oversized
+    severity: MEDIUM
+    category: Cost
+    pattern: 'instance_type\s*=\s*"(?:m5|m4|c5|c4|r5|r4)\.(?:2xlarge|4xlarge|8xlarge|12xlarge|16xlarge|24xlarge|metal)"'
+    message: "Large EC2 instance detected. Verify workload requires this size."
+    recommendation: "Right-size using AWS Compute Optimizer. Consider Graviton (m6g/c6g) for 20% savings."
+    file_types: [".tf"]
+
+  - id: COST002
+    title: Previous-Generation Instance Type
+    severity: LOW
+    category: Cost
+    pattern: 'instance_(?:type|class)\s*=\s*"(?:db\.)?(?:m4|c4|r4|t2|m3|c3)\.[a-z]+"'
+    message: "Using previous-generation instance type. Newer types offer better price-performance."
+    recommendation: "Upgrade m4→m6i/m6g, c4→c6i/c6g, r4→r6i/r6g, t2→t3/t3a for better performance at equal or lower cost."
+    file_types: [".tf"]
+
+  - id: COST003
+    title: EBS Volume Using gp2 Instead of gp3
+    severity: MEDIUM
+    category: Cost
+    pattern: 'volume_type\s*=\s*"gp2"'
+    message: "gp2 volumes cost 20% more than gp3 with less baseline performance."
+    recommendation: "Switch to gp3 for 20% cost savings and 3x more baseline IOPS."
+    file_types: [".tf"]
+
+  - id: COST004
+    title: NAT Gateway per AZ (Expensive)
+    severity: MEDIUM
+    category: Cost
+    pattern: 'resource\s+"aws_nat_gateway"'
+    message: "Each NAT Gateway costs ~$32/month + $0.045/GB processed."
+    recommendation: "Consider sharing NAT Gateways across AZs for non-production, or use VPC endpoints for AWS services."
+    file_types: [".tf"]
+
+  - id: COST005
+    title: No S3 Lifecycle Policy
+    severity: LOW
+    category: Cost
+    pattern: 'resource\s+"aws_s3_bucket"\s+"[^"]*"'
+    message: "S3 bucket may not have lifecycle rules. Data stays in Standard forever."
+    recommendation: "Add lifecycle rules to transition to IA (30d), Glacier (90d), and expire (365d)."
+    file_types: [".tf"]
+
+  - id: COST006
+    title: On-Demand Only (No Spot/Savings Plans Mentioned)
+    severity: LOW
+    category: Cost
+    pattern: 'resource\s+"aws_instance"\s+'
+    message: "EC2 instance using On-Demand pricing by default."
+    recommendation: "Use Spot instances for fault-tolerant workloads (60-90% savings) or Savings Plans/Reserved Instances."
+    file_types: [".tf"]
+
+  - id: COST007
+    title: Elastic IP Not Associated
+    severity: LOW
+    category: Cost
+    pattern: 'resource\s+"aws_eip"\s+'
+    message: "Unassociated Elastic IPs cost $3.65/month each (since Feb 2024)."
+    recommendation: "Ensure all EIPs are associated with running instances or release unused ones."
+    file_types: [".tf"]
+
+  - id: COST008
+    title: RDS Multi-AZ in Non-Production
+    severity: MEDIUM
+    category: Cost
+    pattern: 'multi_az\s*=\s*true'
+    message: "Multi-AZ RDS doubles the cost. Verify this is a production database."
+    recommendation: "Use Multi-AZ only for production. Non-prod databases should use single-AZ."
+    file_types: [".tf"]
+
+  - id: COST009
+    title: No Auto-Scaling Configured
+    severity: MEDIUM
+    category: Cost
+    pattern: 'resource\s+"aws_instance"\s+'
+    message: "Standalone EC2 instances without auto-scaling waste money during low-demand periods."
+    recommendation: "Use ASG with scaling policies or consider ECS/EKS with Karpenter for dynamic scaling."
+    file_types: [".tf"]
+
+  - id: COST010
+    title: CloudWatch Log Retention Not Set
+    severity: LOW
+    category: Cost
+    pattern: 'resource\s+"aws_cloudwatch_log_group"'
+    message: "CloudWatch log group may have indefinite retention (logs never expire)."
+    recommendation: "Set retention_in_days to 30, 60, or 90 to manage log storage costs."
+    file_types: [".tf"]

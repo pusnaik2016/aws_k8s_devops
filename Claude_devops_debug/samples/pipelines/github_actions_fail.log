@@ -1,0 +1,17 @@
+2024-03-15T10:23:45Z  Run actions/checkout@v4
+2024-03-15T10:23:50Z  Checkout completed successfully
+2024-03-15T10:23:52Z  Run actions/setup-node@v4
+2024-03-15T10:23:55Z  Node.js 20.11.0 installed
+2024-03-15T10:24:00Z  Run npm ci
+2024-03-15T10:24:15Z  npm WARN deprecated @humanwhocodes/config-array@0.11.14
+2024-03-15T10:24:30Z  npm ERR! code ERESOLVE
+2024-03-15T10:24:30Z  npm ERR! ERESOLVE unable to resolve dependency tree
+2024-03-15T10:24:30Z  npm ERR! 
+2024-03-15T10:24:30Z  npm ERR! While resolving: my-app@2.1.0
+2024-03-15T10:24:30Z  npm ERR! Found: react@18.2.0
+2024-03-15T10:24:30Z  npm ERR! Could not resolve dependency:
+2024-03-15T10:24:30Z  npm ERR! peer react@"^17.0.0" from react-beautiful-dnd@13.1.1
+2024-03-15T10:24:31Z  npm ERR! Fix the upstream dependency conflict
+2024-03-15T10:24:31Z  ##[error]Process completed with exit code 1.
+2024-03-15T10:24:31Z  Post actions/setup-node@v4
+2024-03-15T10:24:32Z  Post actions/checkout@v4

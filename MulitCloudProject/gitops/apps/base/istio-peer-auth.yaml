@@ -1,0 +1,50 @@
+# =============================================================================
+# Istio PeerAuthentication — Global STRICT mTLS
+# =============================================================================
+# Enforces mutual TLS across ALL namespaces in the mesh.
+# Every pod-to-pod communication is encrypted and authenticated.
+# This is a HIPAA requirement for data in transit.
+# =============================================================================
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-level enforcement for clearing-engine
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: clearing-engine-mtls
+  namespace: clearing-engine
+spec:
+  mtls:
+    mode: STRICT
+---
+# Authorization Policy — Deny all by default (zero-trust)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: clearing-engine
+spec:
+  {}
+---
+# Authorization Policy — Allow only internal mesh traffic
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-mesh-internal
+  namespace: clearing-engine
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/clearing-engine/sa/*"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]

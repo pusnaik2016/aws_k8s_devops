@@ -1,0 +1,52 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-azure-services
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "*.database.windows.net"
+    - "*.redis.cache.windows.net"
+    - "*.vault.azure.net"
+    - "*.blob.core.windows.net"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+    - number: 1433
+      name: mssql
+      protocol: TCP
+    - number: 6380
+      name: redis
+      protocol: TCP
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-aws-vpn
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "aws-primary.internal"
+  addresses:
+    - "10.0.0.0/16"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+    - number: 5432
+      name: postgres
+      protocol: TCP
+  resolution: NONE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: clearing-engine
+spec:
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY

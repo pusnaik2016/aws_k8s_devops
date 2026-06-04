@@ -1,0 +1,59 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-gcp-services
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "*.googleapis.com"
+    - "*.alloydb.googleapis.com"
+    - "bigquery.googleapis.com"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-aws-vpn
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "aws-primary.internal"
+  addresses:
+    - "10.0.0.0/16"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+  resolution: NONE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: allow-azure-vpn
+  namespace: clearing-engine
+spec:
+  hosts:
+    - "azure-standby.internal"
+  addresses:
+    - "10.1.0.0/16"
+  location: MESH_EXTERNAL
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+  resolution: NONE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: clearing-engine
+spec:
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY

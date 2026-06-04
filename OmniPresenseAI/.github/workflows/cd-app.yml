@@ -1,0 +1,194 @@
+# ─────────────────────────────────────────────────────────────
+# CD Application — Build, Scan, Push ECR, Deploy to EKS
+# ─────────────────────────────────────────────────────────────
+# DevSecOps Gates (post-merge):
+#   1. Build Docker image
+#   2. Trivy — Container image vulnerability scan (CRITICAL gate)
+#   3. Syft — SBOM generation (Software Bill of Materials)
+#   4. Push to ECR (only if scan passes)
+#   5. ECR Enhanced Scanning — AWS-native deep scan
+#   6. Deploy to EKS with rollout verification
+#   7. Post-deploy smoke test
+# ─────────────────────────────────────────────────────────────
+name: CD — Application Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write  # For SARIF upload
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  EKS_CLUSTER: omnipresense-ai-prod
+
+jobs:
+  build-scan-deploy:
+    name: Build, Scan & Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    strategy:
+      matrix:
+        service:
+          - name: chat-service
+            port: 8000
+          - name: analytics-service
+            port: 8001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ─── AWS Authentication (OIDC — Zero Credentials) ─────
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ─── Build Docker Image ───────────────────────────────
+      - name: Build Docker Image
+        id: build
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          REPO="${{ env.ECR_REGISTRY }}/omnipresense-ai/${{ matrix.service.name }}"
+          docker build \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t ${REPO}:${IMAGE_TAG} \
+            -t ${REPO}:latest \
+            src/${{ matrix.service.name }}/
+          echo "image=${REPO}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
+          echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      # ─── Trivy — Container Image Vulnerability Scan ───────
+      - name: Trivy — Image Vulnerability Scan (CRITICAL gate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.build.outputs.image }}
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-${{ matrix.service.name }}.sarif
+          exit-code: 1    # FAIL the build on CRITICAL/HIGH vulns
+
+      - name: Upload Trivy SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service.name }}.sarif
+          category: trivy-cd-${{ matrix.service.name }}
+
+      - name: Trivy — Image Scan (Table for Logs)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.build.outputs.image }}
+          severity: CRITICAL,HIGH,MEDIUM
+          format: table
+
+      # ─── Syft — SBOM Generation ───────────────────────────
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.build.outputs.image }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.service.name }}.spdx.json
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service.name }}
+          path: sbom-${{ matrix.service.name }}.spdx.json
+          retention-days: 90
+
+      # ─── Push to ECR (only if Trivy passed) ────────────────
+      - name: Push Docker Image to ECR
+        run: |
+          docker push ${{ steps.build.outputs.repo }}:${{ steps.build.outputs.tag }}
+          docker push ${{ steps.build.outputs.repo }}:latest
+          echo "✅ Image pushed: ${{ steps.build.outputs.image }}"
+
+      # ─── ECR Enhanced Scanning ─────────────────────────────
+      - name: Trigger ECR Enhanced Scan
+        id: ecr-scan
+        run: |
+          echo "Waiting for ECR scan to complete..."
+          aws ecr wait image-scan-complete \
+            --repository-name omnipresense-ai/${{ matrix.service.name }} \
+            --image-id imageTag=${{ steps.build.outputs.tag }} \
+            --region ${{ env.AWS_REGION }} \
+            --max-attempts 30 || true
+
+          # Retrieve scan findings
+          FINDINGS=$(aws ecr describe-image-scan-findings \
+            --repository-name omnipresense-ai/${{ matrix.service.name }} \
+            --image-id imageTag=${{ steps.build.outputs.tag }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --output json 2>/dev/null || echo '{}')
+
+          echo "ECR Scan Results: $FINDINGS"
+
+          # Check for CRITICAL findings
+          CRITICAL=$(echo "$FINDINGS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('CRITICAL',0))" 2>/dev/null || echo "0")
+          HIGH=$(echo "$FINDINGS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('HIGH',0))" 2>/dev/null || echo "0")
+
+          echo "  CRITICAL: $CRITICAL"
+          echo "  HIGH:     $HIGH"
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "⚠️  ECR found $CRITICAL CRITICAL vulnerabilities — review required!"
+            # Don't fail deploy for ECR scan (Trivy already gated), but warn
+          fi
+
+      # ─── Deploy to EKS ────────────────────────────────────
+      - name: Deploy to EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+          kubectl set image deployment/${{ matrix.service.name }} \
+            ${{ matrix.service.name }}=${{ steps.build.outputs.image }} \
+            -n omni-ai
+          echo "Waiting for rollout..."
+          kubectl rollout status deployment/${{ matrix.service.name }} -n omni-ai --timeout=300s
+
+      # ─── Post-Deploy Smoke Test ────────────────────────────
+      - name: Post-Deploy Smoke Test
+        run: |
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod \
+            -l app=${{ matrix.service.name }} \
+            -n omni-ai \
+            --timeout=120s
+
+          # Port-forward and test health endpoint
+          kubectl port-forward \
+            svc/${{ matrix.service.name }} \
+            ${{ matrix.service.port }}:${{ matrix.service.port }} \
+            -n omni-ai &
+          PF_PID=$!
+          sleep 5
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            http://localhost:${{ matrix.service.port }}/health || echo "000")
+
+          kill $PF_PID 2>/dev/null || true
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Smoke test passed — ${{ matrix.service.name }} /health returned 200"
+          else
+            echo "❌ Smoke test failed — ${{ matrix.service.name }} /health returned $HTTP_CODE"
+            echo "Rolling back..."
+            kubectl rollout undo deployment/${{ matrix.service.name }} -n omni-ai
+            exit 1
+          fi

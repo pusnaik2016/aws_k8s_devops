@@ -17,12 +17,14 @@
 I approach cloud strategy through **four pillars**: Business Alignment, Technical Foundation, People, and Governance.
 
 **Phase 1 — Discovery & Assessment (Month 1-2)**
+
 - Interview business stakeholders to understand revenue goals, growth projections, and pain points
 - Assess current infrastructure maturity: what's on-prem, what's in cloud, what's hybrid
 - Catalog all workloads with a migration readiness assessment (6 R's: Rehost, Replatform, Refactor, Repurchase, Retain, Retire)
 - Identify quick wins vs. strategic bets
 
 **Phase 2 — Vision & Roadmap (Month 2-3)**
+
 - Define the **target state architecture**: cloud-native, container-first, serverless where appropriate
 - Build a 12-month rolling roadmap with quarterly milestones:
 
@@ -34,6 +36,7 @@ I approach cloud strategy through **four pillars**: Business Alignment, Technica
 | Q4 | Optimization | Cost governance, security hardening, FinOps practice |
 
 **Phase 3 — Execution with Governance**
+
 - Establish a Cloud Center of Excellence (CCoE) with representatives from engineering, security, and finance
 - Monthly roadmap reviews with executive sponsors — adjust priorities based on business needs
 - Track KPIs: migration velocity, cloud spend efficiency, incident reduction, deployment frequency
@@ -83,6 +86,7 @@ Management Account (billing, organization policies)
 | **Financial** | AWS Budgets per account | Alert at 80%, hard cap at 100% for sandbox |
 
 **Key decisions I enforce:**
+
 - **Account vending machine:** Terraform module that creates new accounts with baseline security (CloudTrail, Config, GuardDuty) automatically
 - **Network topology:** Hub-and-spoke via Transit Gateway — workload accounts don't peer directly
 - **IAM Identity Center (SSO):** Federated access — no IAM users, no long-lived access keys
@@ -99,22 +103,26 @@ At Rio Tinto, I implemented state isolation per environment with cross-account I
 **Framework — The Three Tracks:**
 
 **Track 1: Foundation (Platform Team provides)**
+
 - Golden path templates: pre-built Terraform modules for VPC, EKS, RDS, S3 with security baked in
 - Self-service catalog: teams can deploy approved architectures without tickets
 - Reference architectures: documented patterns for web apps, APIs, data pipelines, event-driven systems
 
 **Track 2: Enablement (Cloud CoE provides)**
+
 - Hands-on workshops: 2-day "Cloud for Developers" bootcamp with real AWS sandbox
 - Pairing program: cloud engineers pair with application teams for first 2 sprints
 - Internal documentation: confluence space with runbooks, FAQs, architecture decision records
 - Office hours: weekly open session for any cloud questions
 
 **Track 3: Governance (Automated guardrails)**
+
 - Automated security scanning in CI/CD — teams don't need to be security experts
 - Cost dashboards per team — visibility drives accountability
 - Architecture review for any new service — lightweight, not bureaucratic
 
 **Handling Resistance:**
+
 - **"Cloud is less secure than on-prem"** → Show AWS compliance certifications (SOC 2, PCI, ISO 27001). Demonstrate that automated scanning catches more issues than manual on-prem audits.
 - **"We'll lose control"** → Multi-account isolation gives MORE control than shared on-prem. Each team gets their own account with guardrails.
 - **"Our team doesn't have skills"** → That's what Track 2 solves. Budget for AWS certifications, pair programming, and gradual ownership transfer.
@@ -137,6 +145,7 @@ I use a **weighted decision matrix** evaluated against five criteria:
 | **Vendor lock-in risk** | 15% | Full control, portable | Dependency on vendor roadmap |
 
 **My general framework:**
+
 - **Build:** Core business logic, proprietary data pipelines, competitive differentiators
 - **Buy/Use managed:** CI/CD (GitHub Actions), monitoring (Datadog/CloudWatch), secrets (Secrets Manager), container orchestration (EKS not self-managed K8s)
 
@@ -170,6 +179,7 @@ I categorize applications into four buckets and apply different strategies:
 4. **Event-Driven Architecture:** Replace synchronous point-to-point integrations with EventBridge/SQS for loose coupling
 
 **Success Metrics:**
+
 - Deployment frequency: monthly → daily
 - Lead time for changes: weeks → hours
 - MTTR: hours → minutes
@@ -242,6 +252,7 @@ Shared EKS Cluster (production)
 ```
 
 **Platform Team Responsibilities:**
+
 - EKS cluster lifecycle (upgrades, patching, scaling)
 - Shared add-ons: ingress controller, service mesh, cert-manager, external-secrets
 - RBAC templates: teams get admin in their namespace, read-only cluster-wide
@@ -250,11 +261,13 @@ Shared EKS Cluster (production)
 - PodDisruptionBudgets and Pod Security Standards enforcement
 
 **Product Team Self-Service:**
+
 - Teams own their namespace: deploy via CI/CD (Helm charts or Kustomize)
 - Standardized Helm chart templates provided by platform team
 - GitOps with ArgoCD: teams push to Git, ArgoCD syncs to cluster
 
 **Node Architecture:**
+
 ```hcl
 # Managed node groups with Graviton for cost optimization
 resource "aws_eks_node_group" "general" {
@@ -294,6 +307,7 @@ At Advantest, I led containerization using ECS. For enterprise scale with multip
 Rather than each team building their own pipeline, the platform team provides **reusable pipeline templates**:
 
 **GitHub Actions — Shared Workflows:**
+
 ```yaml
 # .github/workflows/deploy.yml (in each team's repo)
 name: Deploy
@@ -309,6 +323,7 @@ jobs:
 ```
 
 **Standard Pipeline Stages:**
+
 ```
 1. Build & Test     → Compile, unit tests, code coverage
 2. Security Scan    → SAST (SonarQube), dependency scan (Snyk), container scan (Trivy)
@@ -323,6 +338,7 @@ jobs:
 ```
 
 **Guardrails for All Pipelines:**
+
 - **OIDC authentication** — no stored AWS credentials (implemented at Rio Tinto)
 - **Mandatory security scanning** — PRs blocked if CRITICAL vulnerabilities found
 - **Infracost** — cost estimation in every Terraform PR
@@ -330,6 +346,7 @@ jobs:
 - **Audit trail** — every deployment logged with who, what, when, approval chain
 
 **Metrics I Track:**
+
 | Metric | Target | How Measured |
 |---|---|---|
 | Deployment frequency | Daily per team | GitHub deployments API |
@@ -357,6 +374,7 @@ jobs:
 | **Registry** | Only pull from internal ECR | Kyverno policy blocks external registries |
 
 **Golden Dockerfile Standards:**
+
 ```dockerfile
 # APPROVED: Use org-approved base image
 FROM 123456789.dkr.ecr.ap-south-1.amazonaws.com/base-images/python:3.11-slim
@@ -381,6 +399,7 @@ CMD ["gunicorn", "app:create_app()"]
 **Answer:**
 
 **Hierarchy:**
+
 - **SLA** (external promise to business): "99.95% availability for customer-facing APIs"
 - **SLO** (internal target, tighter than SLA): "99.97% availability, P99 latency < 300ms"
 - **SLI** (measured signals): HTTP success rate, request latency, error rate
@@ -395,6 +414,7 @@ CMD ["gunicorn", "app:create_app()"]
 | Throughput | Requests per second | > baseline ± 30% | Drop > 50% over 5 min |
 
 **Error Budget Model:**
+
 - Monthly error budget = 100% - SLO = 0.03% = ~13 minutes of downtime allowed
 - If budget is healthy → approve risky deployments, run chaos experiments
 - If budget is burning → freeze non-critical changes, focus on reliability

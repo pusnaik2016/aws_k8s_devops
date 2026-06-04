@@ -1,0 +1,65 @@
+# =============================================================================
+# Azure AKS Override Values — Private Cluster (Hot Standby)
+# =============================================================================
+# ACR image registry via Private Endpoint, Workload Identity annotations.
+# All traffic stays within VNet — no public internet egress.
+# =============================================================================
+
+global:
+  cloudProvider: azure
+  # ACR registry — images pulled via Private Endpoint (no internet)
+  imageRegistry: "<ACR_NAME>.azurecr.io"
+  imageTag: "latest"
+
+  database:
+    host: "<AZURE_SQL_SERVER>.database.windows.net"
+    port: 1433
+    name: clearingdb
+    sslMode: require
+
+  redis:
+    host: "<AZURE_REDIS>.redis.cache.windows.net"
+    port: 6380
+    ssl: true
+
+# ─── Azure Workload Identity ───
+# Pods authenticate to Azure services via Workload Identity Federation
+# No service principal secrets needed — token exchange via OIDC
+transaction-ingestion:
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: "<TRANSACTION_INGESTION_CLIENT_ID>"
+    labels:
+      azure.workload.identity/use: "true"
+  # Hot standby — reduced replicas
+  replicaCount: 2
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 10
+
+clearing-engine-core:
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: "<CLEARING_ENGINE_CLIENT_ID>"
+    labels:
+      azure.workload.identity/use: "true"
+  replicaCount: 2
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 10
+
+audit-pipeline:
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: "<AUDIT_PIPELINE_CLIENT_ID>"
+    labels:
+      azure.workload.identity/use: "true"
+  replicaCount: 1
+
+notification-service:
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: "<NOTIFICATION_SERVICE_CLIENT_ID>"
+    labels:
+      azure.workload.identity/use: "true"
+  replicaCount: 1

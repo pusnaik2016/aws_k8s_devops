@@ -1,0 +1,103 @@
+# Server configuration validation rules (Nginx, Apache, systemd)
+rules:
+  # ── Nginx ──────────────────────────────────────────────────
+  - id: SRV001
+    title: Nginx Server Tokens Enabled
+    severity: MEDIUM
+    category: Security
+    pattern: 'server_tokens\s+on'
+    message: "Nginx version exposed in response headers. Helps attackers find known vulnerabilities."
+    recommendation: "Set 'server_tokens off;' in the http block."
+    file_types: [".conf"]
+
+  - id: SRV002
+    title: Missing SSL/TLS Configuration
+    severity: HIGH
+    category: Security
+    pattern: 'listen\s+80(?:\s|;)'
+    message: "Server listening on HTTP (port 80) without HTTPS redirection."
+    recommendation: "Add SSL certificate and redirect HTTP to HTTPS."
+    file_types: [".conf"]
+
+  - id: SRV003
+    title: Weak SSL Protocol
+    severity: HIGH
+    category: Security
+    pattern: 'ssl_protocols\s+.*(?:SSLv2|SSLv3|TLSv1(?:\s|;|$)|TLSv1\.0)'
+    message: "Weak SSL/TLS protocol enabled (SSLv2/v3/TLSv1.0 are deprecated)."
+    recommendation: "Use only TLSv1.2 and TLSv1.3: ssl_protocols TLSv1.2 TLSv1.3;"
+    file_types: [".conf"]
+
+  - id: SRV004
+    title: Missing Security Headers
+    severity: MEDIUM
+    category: Security
+    pattern: 'server\s*\{'
+    message: "Server block may be missing security headers (X-Frame-Options, X-Content-Type-Options, etc.)."
+    recommendation: "Add: add_header X-Frame-Options DENY; add_header X-Content-Type-Options nosniff;"
+    file_types: [".conf"]
+
+  - id: SRV005
+    title: Large Client Max Body Size
+    severity: LOW
+    category: Security
+    pattern: 'client_max_body_size\s+(\d+)([mMgG])'
+    message: "Large client_max_body_size can enable denial-of-service via large uploads."
+    recommendation: "Set client_max_body_size to a reasonable limit (e.g., 10m) unless large uploads are required."
+    file_types: [".conf"]
+
+  - id: SRV006
+    title: Autoindex Enabled
+    severity: MEDIUM
+    category: Security
+    pattern: 'autoindex\s+on'
+    message: "Directory listing is enabled. May expose sensitive files."
+    recommendation: "Set 'autoindex off;' or remove the directive."
+    file_types: [".conf"]
+
+  - id: SRV007
+    title: Default Nginx Error/Access Log
+    severity: LOW
+    category: Observability
+    pattern: 'access_log\s+off'
+    message: "Access logging is disabled. Reduces observability and audit capability."
+    recommendation: "Enable access_log with structured JSON format for analysis."
+    file_types: [".conf"]
+
+  # ── Apache ─────────────────────────────────────────────────
+  - id: SRV010
+    title: Apache ServerSignature Enabled
+    severity: MEDIUM
+    category: Security
+    pattern: 'ServerSignature\s+On'
+    message: "Apache server signature exposes version information."
+    recommendation: "Set 'ServerSignature Off' and 'ServerTokens Prod'."
+    file_types: [".conf"]
+
+  - id: SRV011
+    title: Apache Directory Listing Enabled
+    severity: MEDIUM
+    category: Security
+    pattern: 'Options\s+.*Indexes'
+    message: "Directory listing is enabled via Options Indexes."
+    recommendation: "Remove 'Indexes' from Options directive."
+    file_types: [".conf"]
+
+  # ── Systemd ────────────────────────────────────────────────
+  - id: SRV020
+    title: Systemd Service Running as Root
+    severity: MEDIUM
+    category: Security
+    pattern: '(?i)User\s*=\s*root'
+    message: "Systemd service running as root. Security risk if service is compromised."
+    recommendation: "Create a dedicated service user and set User=<service-user>."
+    file_types: [".service"]
+
+  - id: SRV021
+    title: No Restart Policy
+    severity: MEDIUM
+    category: Reliability
+    pattern: '^\[Service\]'
+    message: "Service may not have a restart policy configured."
+    recommendation: "Add 'Restart=on-failure' and 'RestartSec=5s' to the [Service] section."
+    file_types: [".service"]

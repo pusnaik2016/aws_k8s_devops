@@ -60,22 +60,26 @@ Based on Gartner Magic Quadrant 2024-2025, Flexera State of the Cloud Report 202
 ### Supporting Research & Artifacts
 
 **1. Gartner Magic Quadrant for Cloud Infrastructure & Platform Services (2024)**
+
 - AWS: Leader (furthest right for completeness of vision)
 - Azure: Leader (close second, strongest hybrid story)
 - GCP: Leader (strongest in data/AI, gaining enterprise traction)
 
 **2. Flexera 2025 State of the Cloud Report (key data points):**
+
 - 89% of enterprises have a multi-cloud strategy
 - AWS leads in enterprise adoption (73%), Azure close (72%), GCP growing (38%)
 - Top cloud challenge: managing cloud spend (82% of respondents)
 - Top cloud initiative: migrating more workloads (65%)
 
 **3. Forrester Total Economic Impact Studies:**
+
 - AWS Migration: 3-year ROI of 241%, payback in < 6 months (Forrester TEI 2023)
 - Average infrastructure cost reduction: 31% after migration
 - Average downtime reduction: 69% after migration
 
 **4. IDC Cloud Pulse Survey 2024:**
+
 - 76% of enterprises cite security as top cloud selection criterion
 - 68% cite total cost of ownership
 - 54% cite existing team skills
@@ -123,6 +127,7 @@ START: What's the primary workload?
 ### The EA Mindset
 
 The CTO cares about three things:
+
 1. **Risk:** "Will this break anything?"
 2. **Cost:** "How much will it cost, and when do we see ROI?"
 3. **Timeline:** "How long will this take?"
@@ -134,6 +139,7 @@ Your job as EA is to answer all three with **data, not opinions.**
 ### Phase 1: Discovery & Assessment (Weeks 1-6)
 
 **Tooling:**
+
 - **AWS Migration Hub + Application Discovery Service** — agent-based discovery of all 1000 servers
 - **TSO Logic / Migration Evaluator** (free AWS tool) — generates TCO comparison
 

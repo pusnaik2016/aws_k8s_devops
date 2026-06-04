@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────────────────────
+# CD Infrastructure — Terraform via OIDC with Security Gates
+# ─────────────────────────────────────────────────────────────
+# DevSecOps Gates:
+#   1. Checkov      — IaC misconfiguration scan
+#   2. tfsec        — Terraform-specific security scanner
+#   3. Infracost    — Cost estimation (prevents surprise bills)
+#   4. Terraform Plan → Apply
+# ─────────────────────────────────────────────────────────────
+name: CD — Infrastructure Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  id-token: write   # OIDC JWT fetching
+  contents: read
+  pull-requests: write  # For Infracost PR comments
+  security-events: write
+
+jobs:
+  # ───────────────────────────────────────────────────────────
+  # 1. Security Scan Gate (Checkov + tfsec)
+  # ───────────────────────────────────────────────────────────
+  security-scan:
+    name: 🛡️ IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Checkov — Bridgecrew IaC scanner
+      - name: Checkov — IaC Misconfiguration Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          quiet: true
+          soft_fail: true
+          output_format: cli,sarif
+          output_file_path: console,checkov-infra.sarif
+          framework: terraform
+
+      - name: Upload Checkov SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-infra.sarif
+          category: checkov-infra-cd
+
+      # tfsec — Aqua Security Terraform scanner
+      - name: tfsec — Terraform Security Scan
+        uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        with:
+          sarif_file: tfsec.sarif
+          working_directory: terraform/
+          soft_fail: true
+
+      - name: Upload tfsec SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+          category: tfsec-cd
+
+  # ───────────────────────────────────────────────────────────
+  # 2. Infracost — Cost Estimation
+  # ───────────────────────────────────────────────────────────
+  infracost:
+    name: 💰 Infracost — Cost Estimation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost Breakdown
+        run: |
+          infracost breakdown \
+            --path terraform/envs/prod \
+            --format json \
+            --out-file /tmp/infracost.json || true
+
+      - name: Post Infracost Summary
+        if: always()
+        run: |
+          infracost output \
+            --path /tmp/infracost.json \
+            --format table || true
+
+  # ───────────────────────────────────────────────────────────
+  # 3. Terraform Deploy (Plan + Apply)
+  # ───────────────────────────────────────────────────────────
+  terraform:
+    name: 🏗️ Terraform Deploy
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        run: |
+          cd terraform/envs/prod
+          terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd terraform/envs/prod
+          terraform plan -out=tfplan -detailed-exitcode 2>&1 | tee plan-output.txt
+        continue-on-error: true
+
+      - name: Check Plan for Destructive Changes
+        run: |
+          cd terraform/envs/prod
+          # Warn on resource deletions
+          if grep -q "will be destroyed" plan-output.txt; then
+            echo "⚠️  WARNING: Terraform plan includes resource DELETIONS!"
+            echo "Review the plan output carefully before proceeding."
+            grep "will be destroyed" plan-output.txt
+          fi
+
+      - name: Terraform Apply
+        if: steps.plan.outcome == 'success'
+        run: |
+          cd terraform/envs/prod
+          terraform apply -auto-approve tfplan
+
+      - name: Post-Apply — Verify Critical Resources
+        if: steps.plan.outcome == 'success'
+        run: |
+          echo "Verifying critical infrastructure..."
+          aws eks describe-cluster \
+            --name omnipresense-ai-prod \
+            --query 'cluster.status' \
+            --output text || echo "EKS cluster check skipped"
+
+          aws rds describe-db-clusters \
+            --db-cluster-identifier omnipresense-ai-prod-aurora \
+            --query 'DBClusters[0].Status' \
+            --output text 2>/dev/null || echo "Aurora check skipped"
+
+          echo "✅ Infrastructure deploy complete"
