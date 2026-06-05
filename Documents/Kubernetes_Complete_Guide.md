@@ -666,13 +666,13 @@ LoadBalancer Services create **one LB per service** = expensive. Ingress provide
 
 ```
 Without Ingress:                 With Ingress:
-                               
+                             
 LB₁ → Service A                 One ALB → Ingress Controller
 LB₂ → Service B                              │
 LB₃ → Service C                    ┌─────────┼──────────┐
                                     ▼         ▼          ▼
 3 Load Balancers ($48/mo)      Service A  Service B  Service C
-                                  
+                                
                                  1 Load Balancer ($16/mo)
 ```
 
@@ -1871,6 +1871,8 @@ helm list                                                   # List installed rel
 
 ### How Every Component Connects
 
+![1780646764759](image/Kubernetes_Complete_Guide/1780646764759.png)
+
 ```mermaid
 graph TB
     subgraph "External"
@@ -1894,21 +1896,21 @@ graph TB
             LBCTRL["AWS LB Controller"]
             KP["Karpenter"]
         end
-      
+    
         subgraph "argocd"
             Argo["ArgoCD"]
         end
-      
+    
         subgraph "monitoring"
             Prom["Prometheus"]
             Graf["Grafana"]
             FB["FluentBit<br/>(DaemonSet)"]
         end
-      
+    
         subgraph "istio-system"
             Istiod["Istiod"]
         end
-      
+    
         subgraph "production"
             ESO["External Secrets<br/>Operator"]
             Ing["Ingress"]
@@ -2056,49 +2058,49 @@ flowchart TD
 
 #### Issue 1: `kubectl` commands timeout — "Unable to connect to the server"
 
-| Aspect                | Detail                                                                                                                                                                                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get nodes` hangs or returns `connection refused` / `i/o timeout`                                                                                                                                                                       |
-| **Root Causes** | 1. Wrong kubeconfig context``2. API server is down (self-managed) or unreachable``3. Network/firewall blocking port 443``4. Expired client certificates``5. VPN not connected (private API endpoint)                      |
-| **Diagnosis**   | `kubectl config current-context` — verify correct cluster`kubectl cluster-info` — check API server URL`curl -k https://<api-server-endpoint>` — test connectivity`aws eks get-token --cluster-name <name>` — test EKS auth |
-| **Solution**    | Update kubeconfig:`aws eks update-kubeconfig --name <cluster>`Check security group allows your IP on port 443``Connect VPN if API endpoint is private``Renew certificates if expired                                             |
+| Aspect                | Detail                                                                                                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `kubectl get nodes` hangs or returns `connection refused` / `i/o timeout`                                                                                                                                                           |
+| **Root Causes** | 1. Wrong kubeconfig context ``2. API server is down (self-managed) or unreachable``3. Network/firewall blocking port 443 ``4. Expired client certificates``5. VPN not connected (private API endpoint)                                    |
+| **Diagnosis**   | `kubectl config current-context` — verify correct cluster `kubectl cluster-info` — check API server URL `curl -k https://<api-server-endpoint>` — test connectivity `aws eks get-token --cluster-name <name>` — test EKS auth |
+| **Solution**    | Update kubeconfig:`aws eks update-kubeconfig --name <cluster>`Check security group allows your IP on port 443 ``Connect VPN if API endpoint is private``Renew certificates if expired                                                   |
 
 #### Issue 2: etcd is unhealthy / cluster data corruption
 
-| Aspect                | Detail                                                                                                                     |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | API server returns 500 errors, pods stuck in unknown states, stale data                                                    |
-| **Root Causes** | etcd disk full, etcd member quorum lost, network partition between etcd members                                            |
+| Aspect                | Detail                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | API server returns 500 errors, pods stuck in unknown states, stale data                                        |
+| **Root Causes** | etcd disk full, etcd member quorum lost, network partition between etcd members                                |
 | **Diagnosis**   | `etcdctl endpoint health``etcdctl endpoint status --write-out=table`Check etcd disk: `df -h /var/lib/etcd` |
-| **Solution**    | Compact etcd history:`etcdctl compact <rev>`Defragment: `etcdctl defrag`Restore from snapshot if corrupted   |
-| **EKS Note**    | ⚠️**You never deal with this on EKS** — AWS manages etcd. One major advantage of managed K8s.                     |
+| **Solution**    | Compact etcd history:`etcdctl compact <rev>`Defragment: `etcdctl defrag`Restore from snapshot if corrupted |
+| **EKS Note**    | ⚠️**You never deal with this on EKS** — AWS manages etcd. One major advantage of managed K8s.         |
 
 #### Issue 3: All nodes show `NotReady`
 
-| Aspect                | Detail                                                                                                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get nodes` shows all nodes `NotReady`                                                                                                                          |
-| **Root Causes** | 1. Cluster networking (CNI) broken``2. API server → node communication broken``3. kubelet crashed on all nodes``4. Cloud provider integration failure |
-| **Diagnosis**   | `kubectl describe node <name>` — check Conditions section``SSH to node: `systemctl status kubelet`Check CNI: `ls /etc/cni/net.d/`                        |
-| **Solution**    | Restart kubelet:`systemctl restart kubelet`Reinstall CNI plugin if config missing``Check VPC CNI daemonset: `kubectl get ds -n kube-system aws-node`        |
+| Aspect                | Detail                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `kubectl get nodes` shows all nodes `NotReady`                                                                                                       |
+| **Root Causes** | 1. Cluster networking (CNI) broken ``2. API server → node communication broken``3. kubelet crashed on all nodes``4. Cloud provider integration failure  |
+| **Diagnosis**   | `kubectl describe node <name>` — check Conditions section``SSH to node: `systemctl status kubelet`Check CNI: `ls /etc/cni/net.d/`                 |
+| **Solution**    | Restart kubelet:`systemctl restart kubelet`Reinstall CNI plugin if config missing``Check VPC CNI daemonset: `kubectl get ds -n kube-system aws-node` |
 
 #### Issue 4: CoreDNS is down — DNS resolution fails cluster-wide
 
-| Aspect                | Detail                                                                                                                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pods can't resolve service names (`nslookup kubernetes.default` fails from inside a pod)                                                                                                                                                                    |
-| **Root Causes** | CoreDNS pods crashed, CoreDNS ConfigMap misconfigured, resource exhaustion on nodes running CoreDNS                                                                                                                                                           |
-| **Diagnosis**   | `kubectl get pods -n kube-system -l k8s-app=kube-dns``kubectl logs -n kube-system -l k8s-app=kube-dns`Test from pod: `kubectl exec -it <pod> -- nslookup kubernetes.default`                                                                  |
+| Aspect                | Detail                                                                                                                                                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pods can't resolve service names (`nslookup kubernetes.default` fails from inside a pod)                                                                                                                                                          |
+| **Root Causes** | CoreDNS pods crashed, CoreDNS ConfigMap misconfigured, resource exhaustion on nodes running CoreDNS                                                                                                                                                 |
+| **Diagnosis**   | `kubectl get pods -n kube-system -l k8s-app=kube-dns``kubectl logs -n kube-system -l k8s-app=kube-dns`Test from pod: `kubectl exec -it <pod> -- nslookup kubernetes.default`                                                                    |
 | **Solution**    | Restart CoreDNS:`kubectl rollout restart deployment/coredns -n kube-system`Check CoreDNS ConfigMap: `kubectl get cm coredns -n kube-system -o yaml`Scale up CoreDNS if under load: `kubectl scale deploy coredns -n kube-system --replicas=3` |
 
 #### Issue 5: RBAC denials — "forbidden: User cannot..."
 
-| Aspect                | Detail                                                                                                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `Error from server (Forbidden): pods is forbidden: User "X" cannot list resource "pods" in namespace "Y"`                                                                   |
-| **Root Causes** | Missing RoleBinding/ClusterRoleBinding, wrong namespace, wrong subject name                                                                                                   |
+| Aspect                | Detail                                                                                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `Error from server (Forbidden): pods is forbidden: User "X" cannot list resource "pods" in namespace "Y"`                                                     |
+| **Root Causes** | Missing RoleBinding/ClusterRoleBinding, wrong namespace, wrong subject name                                                                                     |
 | **Diagnosis**   | `kubectl auth can-i list pods -n production --as=user@company.com``kubectl get rolebindings -n production``kubectl describe rolebinding <name> -n production` |
-| **Solution**    | Create or fix RoleBinding with correct subject and namespace``For EKS: update `aws-auth` ConfigMap or EKS access entries                                             |
+| **Solution**    | Create or fix RoleBinding with correct subject and namespace``For EKS: update `aws-auth` ConfigMap or EKS access entries                                      |
 
 ---
 
@@ -2106,47 +2108,47 @@ flowchart TD
 
 #### Issue 6: Node shows `NotReady`
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get nodes` shows one or more nodes as `NotReady`                                                                                                                                                                                                                      |
-| **Root Causes** | 1. kubelet stopped/crashed``2. Node ran out of disk (DiskPressure)``3. Node ran out of memory (MemoryPressure)``4. Node has too many PIDs (PIDPressure)``5. Container runtime (containerd) crashed``6. Network loss between node and API server |
-| **Diagnosis**   | `kubectl describe node <name>` → look at `Conditions` section``SSH to node:`systemctl status kubelet``df -h`(disk)`free -m`(memory)`journalctl -u kubelet --since "10 minutes ago"`                                                      |
-| **Solution**    | Restart kubelet:`systemctl restart kubelet`Clean up disk: `docker system prune` or `crictl rmi --prune`Drain and replace node if hardware issue: `kubectl drain <node> --ignore-daemonsets --delete-emptydir-data`                                               |
+| Aspect                | Detail                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Symptom**     | `kubectl get nodes` shows one or more nodes as `NotReady`                                                                                                                                                                                    |
+| **Root Causes** | 1. kubelet stopped/crashed ``2. Node ran out of disk (DiskPressure)``3. Node ran out of memory (MemoryPressure)``4. Node has too many PIDs (PIDPressure)``5. Container runtime (containerd) crashed``6. Network loss between node and API server |
+| **Diagnosis**   | `kubectl describe node <name>` → look at `Conditions` section ``SSH to node:`systemctl status kubelet``df -h `(disk)`free -m `(memory)`journalctl -u kubelet --since "10 minutes ago"`                                                  |
+| **Solution**    | Restart kubelet:`systemctl restart kubelet`Clean up disk: `docker system prune` or `crictl rmi --prune`Drain and replace node if hardware issue: `kubectl drain <node> --ignore-daemonsets --delete-emptydir-data`                       |
 
 #### Issue 7: Node has `DiskPressure`
 
-| Aspect                | Detail                                                                                                                                                                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**     | Node condition shows `DiskPressure=True`, pods evicted                                                                                                                                                                                   |
-| **Root Causes** | 1. Container images filling up disk``2. Container logs too large (no log rotation)``3. EmptyDir volumes consuming disk``4. Unused images not garbage collected                                                        |
-| **Diagnosis**   | SSH to node:`df -h /` and `df -h /var/lib/containerd``du -sh /var/log/pods/*``crictl images` (list cached images)                                                                                                   |
+| Aspect                | Detail                                                                                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Node condition shows `DiskPressure=True`, pods evicted                                                                                                                                                                  |
+| **Root Causes** | 1. Container images filling up disk ``2. Container logs too large (no log rotation)``3. EmptyDir volumes consuming disk``4. Unused images not garbage collected                                                           |
+| **Diagnosis**   | SSH to node:`df -h /` and `df -h /var/lib/containerd``du -sh /var/log/pods/*``crictl images` (list cached images)                                                                                                     |
 | **Solution**    | Clean unused images:`crictl rmi --prune`Clean old container logs: `find /var/log/pods -name '*.log' -mtime +7 -delete`Increase node root volume size (Terraform/ASG)``Configure kubelet garbage collection thresholds |
 
 #### Issue 8: Pods stuck in `Pending` — "Insufficient cpu" or "Insufficient memory"
 
-| Aspect                | Detail                                                                                                                                                                                                                                             |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pod stays `Pending`. Events show `0/5 nodes are available: 5 Insufficient cpu`                                                                                                                                                                 |
-| **Root Causes** | 1. No node has enough free resources to fit the pod``2. Resource requests are too high``3. Cluster autoscaler/Karpenter is not scaling up``4. Node has taints that the pod doesn't tolerate                                   |
-| **Diagnosis**   | `kubectl describe pod <name>` → Events section`kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory``kubectl describe node <name>` → check `Allocated resources` |
-| **Solution**    | 1. Lower resource requests if over-requested``2. Add more nodes (or fix Karpenter/CA configuration)``3. Check node taints: `kubectl get nodes -o json \| jq '.items[].spec.taints'`4. Add tolerations to pod spec if needed    |
+| Aspect                | Detail                                                                                                                                                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod stays `Pending`. Events show `0/5 nodes are available: 5 Insufficient cpu`                                                                                                                                                      |
+| **Root Causes** | 1. No node has enough free resources to fit the pod ``2. Resource requests are too high``3. Cluster autoscaler/Karpenter is not scaling up``4. Node has taints that the pod doesn't tolerate                                            |
+| **Diagnosis**   | `kubectl describe pod <name>` → Events section `kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory``kubectl describe node <name>` → check `Allocated resources` |
+| **Solution**    | 1. Lower resource requests if over-requested ``2. Add more nodes (or fix Karpenter/CA configuration)``3. Check node taints: `kubectl get nodes -o json \| jq '.items[].spec.taints'`4. Add tolerations to pod spec if needed           |
 
 #### Issue 9: Node is `SchedulingDisabled` (cordoned)
 
-| Aspect                | Detail                                                                                                                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get nodes` shows `SchedulingDisabled`. New pods won't schedule there.                                                 |
-| **Root Causes** | Someone ran `kubectl cordon <node>`, or node is being drained for maintenance/upgrade                                            |
-| **Diagnosis**   | `kubectl get nodes` — check status`kubectl describe node <name>` — check for taint `node.kubernetes.io/unschedulable` |
-| **Solution**    | If intentional (maintenance): wait for drain to complete``If accidental: `kubectl uncordon <node>`                        |
+| Aspect                | Detail                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Symptom**     | `kubectl get nodes` shows `SchedulingDisabled`. New pods won't schedule there.                                             |
+| **Root Causes** | Someone ran `kubectl cordon <node>`, or node is being drained for maintenance/upgrade                                        |
+| **Diagnosis**   | `kubectl get nodes` — check status `kubectl describe node <name>` — check for taint `node.kubernetes.io/unschedulable` |
+| **Solution**    | If intentional (maintenance): wait for drain to complete``If accidental:`kubectl uncordon <node>`                            |
 
 #### Issue 10: Kubelet certificate expired
 
-| Aspect                | Detail                                                                                                                                          |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Node shows `NotReady`, kubelet logs show `x509: certificate has expired`                                                                    |
-| **Root Causes** | Kubelet TLS certificates not auto-rotated, cluster CA expired                                                                                   |
-| **Diagnosis**   | SSH to node:`openssl x509 -in /var/lib/kubelet/pki/kubelet-client-current.pem -noout -dates`                                                  |
+| Aspect                | Detail                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Symptom**     | Node shows `NotReady`, kubelet logs show `x509: certificate has expired`                                                               |
+| **Root Causes** | Kubelet TLS certificates not auto-rotated, cluster CA expired                                                                              |
+| **Diagnosis**   | SSH to node:`openssl x509 -in /var/lib/kubelet/pki/kubelet-client-current.pem -noout -dates`                                             |
 | **Solution**    | Enable auto-rotation: kubelet flag `--rotate-certificates=true`For EKS: replace the node (managed node groups handle this automatically) |
 
 ---
@@ -2155,66 +2157,66 @@ flowchart TD
 
 #### Issue 11: Pod stuck in `Pending`
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**     | Pod stays in `Pending` state indefinitely                                                                                                                                                                                                                              |
-| **Root Causes** | 1. Insufficient resources (CPU/memory) on all nodes``2. PVC not bound (storage not available)``3. Node selector / affinity has no matching nodes``4. Taints on all nodes with no matching toleration``5. ResourceQuota exceeded in namespace |
-| **Diagnosis**   | `kubectl describe pod <name>` → check Events at bottom`kubectl get pvc` → check if Bound`kubectl get events --sort-by='.lastTimestamp'`                                                                                                                |
-| **Solution**    | Match error message to root cause above and fix                                                                                                                                                                                                                          |
+| Aspect                | Detail                                                                                                                                                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod stays in `Pending` state indefinitely                                                                                                                                                                                                    |
+| **Root Causes** | 1. Insufficient resources (CPU/memory) on all nodes ``2. PVC not bound (storage not available)``3. Node selector / affinity has no matching nodes ``4. Taints on all nodes with no matching toleration``5. ResourceQuota exceeded in namespace |
+| **Diagnosis**   | `kubectl describe pod <name>` → check Events at bottom `kubectl get pvc` → check if Bound `kubectl get events --sort-by='.lastTimestamp'`                                                                                              |
+| **Solution**    | Match error message to root cause above and fix                                                                                                                                                                                                |
 
 #### Issue 12: Pod stuck in `ContainerCreating`
 
-| Aspect                | Detail                                                                                                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**     | Pod moves from `Pending` to `ContainerCreating` but never reaches `Running`                                                                                                    |
+| Aspect                | Detail                                                                                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod moves from `Pending` to `ContainerCreating` but never reaches `Running`                                                                               |
 | **Root Causes** | 1. Image pull taking too long (large image)``2. Volume mount failing (EBS not attaching)``3. ConfigMap/Secret referenced doesn't exist``4. Init container stuck |
-| **Diagnosis**   | `kubectl describe pod <name>` → Events`kubectl get events -n <ns> --field-selector involvedObject.name=<pod>`                                                              |
-| **Solution**    | Fix missing ConfigMap/Secret``Check CSI driver if volume issue``Pre-pull large images on nodes                                                                         |
+| **Diagnosis**   | `kubectl describe pod <name>` → Events `kubectl get events -n <ns> --field-selector involvedObject.name=<pod>`                                             |
+| **Solution**    | Fix missing ConfigMap/Secret ``Check CSI driver if volume issue``Pre-pull large images on nodes                                                                 |
 
 #### Issue 13: `ImagePullBackOff` / `ErrImagePull`
 
-| Aspect                | Detail                                                                                                                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pod shows `ImagePullBackOff` or `ErrImagePull`                                                                                                                                                                                                            |
+| Aspect                | Detail                                                                                                                                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod shows `ImagePullBackOff` or `ErrImagePull`                                                                                                                                                                                |
 | **Root Causes** | 1. Image name/tag is wrong (typo)``2. Image doesn't exist in registry``3. No credentials for private registry (missing imagePullSecret)``4. Node can't reach registry (network/firewall)``5. ECR token expired (12-hour validity) |
-| **Diagnosis**   | `kubectl describe pod <name>` → look for exact error message``Test pull manually: `docker pull <image>` or `crictl pull <image>` on the node                                                                                                    |
-| **Solution**    | Fix image name/tag``Create imagePullSecret: `kubectl create secret docker-registry ...`For ECR: ensure node IAM role has `ecr:GetAuthorizationToken` + `ecr:BatchGetImage`Check VPC endpoints for ECR if private subnets               |
+| **Diagnosis**   | `kubectl describe pod <name>` → look for exact error message``Test pull manually: `docker pull <image>` or `crictl pull <image>` on the node                                                                               |
+| **Solution**    | Fix image name/tag``Create imagePullSecret:`kubectl create secret docker-registry ...`For ECR: ensure node IAM role has `ecr:GetAuthorizationToken` + `ecr:BatchGetImage`Check VPC endpoints for ECR if private subnets     |
 
 #### Issue 14: `CrashLoopBackOff`
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                                             |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pod starts, crashes, K8s restarts it, crashes again. Backoff timer: 10s → 20s → 40s → 80s → 160s → 300s (5 min max)                                                                                                                                                                           |
-| **Root Causes** | 1. Application error (exception on startup)``2. Missing environment variable or config``3. Wrong command/args in container spec``4. Liveness probe failing too quickly``5. OOMKilled (memory limit too low)``6. Dependent service not available (database, API) |
-| **Diagnosis**   | `kubectl logs <pod> --previous` — see logs from the CRASHED container`kubectl describe pod <name>` → check `Last State` for exit code``Exit code 137 = OOMKilled``Exit code 1 = Application error``Exit code 0 = Normal exit (wrong for a long-running service)  |
-| **Solution**    | Read the logs! 90% of CrashLoopBackOff is application-level.``If OOM: increase memory limit``If liveness probe: increase `initialDelaySeconds`If missing config: check ConfigMap/Secret exists                                                                                |
+| Aspect                | Detail                                                                                                                                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod starts, crashes, K8s restarts it, crashes again. Backoff timer: 10s → 20s → 40s → 80s → 160s → 300s (5 min max)                                                                                                                                                  |
+| **Root Causes** | 1. Application error (exception on startup)``2. Missing environment variable or config``3. Wrong command/args in container spec ``4. Liveness probe failing too quickly``5. OOMKilled (memory limit too low)``6. Dependent service not available (database, API)          |
+| **Diagnosis**   | `kubectl logs <pod> --previous` — see logs from the CRASHED container `kubectl describe pod <name>` → check `Last State` for exit code ``Exit code 137 = OOMKilled``Exit code 1 = Application error``Exit code 0 = Normal exit (wrong for a long-running service) |
+| **Solution**    | Read the logs! 90% of CrashLoopBackOff is application-level.``If OOM: increase memory limit``If liveness probe: increase `initialDelaySeconds`If missing config: check ConfigMap/Secret exists                                                                          |
 
 #### Issue 15: `OOMKilled` (Exit Code 137)
 
-| Aspect                | Detail                                                                                                                                                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Container killed,`Last State: Terminated, Reason: OOMKilled, Exit Code: 137`                                                                                                                                                        |
-| **Root Causes** | Container used more memory than the `resources.limits.memory` allows                                                                                                                                                                |
-| **Diagnosis**   | `kubectl describe pod <name>` → check `Last State``kubectl top pod <name>` — current memory usage                                                                                                                        |
+| Aspect                | Detail                                                                                                                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Container killed,`Last State: Terminated, Reason: OOMKilled, Exit Code: 137`                                                                                                                                   |
+| **Root Causes** | Container used more memory than the `resources.limits.memory` allows                                                                                                                                           |
+| **Diagnosis**   | `kubectl describe pod <name>` → check `Last State``kubectl top pod <name>` — current memory usage                                                                                                          |
 | **Solution**    | 1. Increase memory limit (if app legitimately needs more)``2. Fix memory leak in application``3. Use VPA to right-size automatically``4. Set JVM heap: `-Xmx` should be 75% of container limit (for Java apps) |
 
 #### Issue 16: Pod evicted — `The node was low on resource: ephemeral-storage`
 
-| Aspect                | Detail                                                                                                                                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**     | Pod status:`Evicted`, message about ephemeral storage or disk pressure                                                                                                                                     |
-| **Root Causes** | Pod writing too much to emptyDir or container writable layer (logs, temp files)                                                                                                                              |
-| **Diagnosis**   | `kubectl describe pod <name>` → Eviction message``Set ephemeral storage limits to prevent this                                                                                                     |
+| Aspect                | Detail                                                                                                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod status:`Evicted`, message about ephemeral storage or disk pressure                                                                                                                |
+| **Root Causes** | Pod writing too much to emptyDir or container writable layer (logs, temp files)                                                                                                         |
+| **Diagnosis**   | `kubectl describe pod <name>` → Eviction message``Set ephemeral storage limits to prevent this                                                                                       |
 | **Solution**    | Add ephemeral-storage limits:`resources: {limits: {ephemeral-storage: "2Gi"}}```Write to persistent volumes instead of container filesystem``Configure log rotation in your application |
 
 #### Issue 17: Init container stuck
 
-| Aspect                | Detail                                                                                                                       |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pod stuck in `Init:0/1` or `Init:CrashLoopBackOff`                                                                       |
-| **Root Causes** | Init container is waiting for a dependency (database, config), crashing, or has wrong command                                |
-| **Diagnosis**   | `kubectl logs <pod> -c <init-container-name>``kubectl describe pod <name>` → Init Containers section               |
-| **Solution**    | Fix the init container command/script``Ensure dependency is available``Add timeout/retry logic to init scripts |
+| Aspect                | Detail                                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod stuck in `Init:0/1` or `Init:CrashLoopBackOff`                                                          |
+| **Root Causes** | Init container is waiting for a dependency (database, config), crashing, or has wrong command                   |
+| **Diagnosis**   | `kubectl logs <pod> -c <init-container-name>``kubectl describe pod <name>` → Init Containers section         |
+| **Solution**    | Fix the init container command/script ``Ensure dependency is available``Add timeout/retry logic to init scripts |
 
 ---
 
@@ -2222,66 +2224,66 @@ flowchart TD
 
 #### Issue 18: Service has no endpoints
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                                 |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get endpoints <svc>` returns empty. Service returns `connection refused` or no response.                                                                                                                                                                                  |
-| **Root Causes** | 1.**Label mismatch** — Service selector doesn't match pod labels (MOST COMMON)``2. No pods running that match the selector``3. Pods exist but none are Ready (readiness probe failing)``4. Pods in wrong namespace                                         |
-| **Diagnosis**   | `kubectl get endpoints <svc> -n <ns>` — empty means no matching Ready pods`kubectl get svc <svc> -o yaml` — check `selector``kubectl get pods -l app=api -n <ns>` — do pods with matching labels exist?`kubectl get pods -n <ns>` — are pods Ready (1/1)? |
-| **Solution**    | Fix label mismatch (most common fix)``Ensure pods are Running AND Ready``Check readiness probe isn't failing                                                                                                                                                             |
+| Aspect                | Detail                                                                                                                                                                                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `kubectl get endpoints <svc>` returns empty. Service returns `connection refused` or no response.                                                                                                                                                                  |
+| **Root Causes** | 1.**Label mismatch** — Service selector doesn't match pod labels (MOST COMMON)``2. No pods running that match the selector``3. Pods exist but none are Ready (readiness probe failing)``4. Pods in wrong namespace                                              |
+| **Diagnosis**   | `kubectl get endpoints <svc> -n <ns>` — empty means no matching Ready pods `kubectl get svc <svc> -o yaml` — check `selector``kubectl get pods -l app=api -n <ns>` — do pods with matching labels exist?`kubectl get pods -n <ns>` — are pods Ready (1/1)? |
+| **Solution**    | Fix label mismatch (most common fix)``Ensure pods are Running AND Ready``Check readiness probe isn't failing                                                                                                                                                           |
 
 #### Issue 19: `Connection refused` when calling service from another pod
 
-| Aspect                | Detail                                                                                                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `curl http://my-service:80` from pod returns `Connection refused`                                                                                                                                                           |
+| Aspect                | Detail                                                                                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `curl http://my-service:80` from pod returns `Connection refused`                                                                                                                                          |
 | **Root Causes** | 1. Service port doesn't match targetPort``2. App is listening on different port than `containerPort`3. App is listening on `127.0.0.1` instead of `0.0.0.0`4. Service endpoints are empty (see Issue 18) |
-| **Diagnosis**   | `kubectl exec -it <pod> -- curl http://my-service:80``kubectl get endpoints my-service``kubectl exec -it <target-pod> -- netstat -tlnp` (what ports is the app actually listening on?)                          |
-| **Solution**    | Fix port mapping: Service `port` → `targetPort` → container `containerPort` must match``Ensure app binds to `0.0.0.0`, not `127.0.0.1`                                                                       |
+| **Diagnosis**   | `kubectl exec -it <pod> -- curl http://my-service:80``kubectl get endpoints my-service``kubectl exec -it <target-pod> -- netstat -tlnp` (what ports is the app actually listening on?)                       |
+| **Solution**    | Fix port mapping: Service `port` → `targetPort` → container `containerPort` must match``Ensure app binds to `0.0.0.0`, not `127.0.0.1`                                                             |
 
 #### Issue 20: LoadBalancer Service stuck in `Pending` (External IP never assigned)
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get svc` shows `EXTERNAL-IP: <pending>` indefinitely                                                                                                                                                                                                                |
-| **Root Causes** | 1. Cloud controller manager not running or misconfigured``2. AWS Load Balancer Controller not installed``3. IAM permissions missing (can't create ELB)``4. Subnet tagging missing (controller can't find subnets)``5. Service quota reached for ELBs |
-| **Diagnosis**   | `kubectl describe svc <name>` → Events section`kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller```Check AWS console for failed LB creation                                                                                    |
-| **Solution**    | Install AWS LB Controller if missing``Tag subnets:`kubernetes.io/cluster/<name>=shared``kubernetes.io/role/elb=1` (public) or `kubernetes.io/role/internal-elb=1` (private)``Check IAM role permissions                                            |
+| Aspect                | Detail                                                                                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `kubectl get svc` shows `EXTERNAL-IP: <pending>` indefinitely                                                                                                                                                                                     |
+| **Root Causes** | 1. Cloud controller manager not running or misconfigured ``2. AWS Load Balancer Controller not installed``3. IAM permissions missing (can't create ELB)``4. Subnet tagging missing (controller can't find subnets)``5. Service quota reached for ELBs |
+| **Diagnosis**   | `kubectl describe svc <name>` → Events section`kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller```Check AWS console for failed LB creation                                                                       |
+| **Solution**    | Install AWS LB Controller if missing ``Tag subnets:`kubernetes.io/cluster/<name>=shared``kubernetes.io/role/elb=1 `(public) or`kubernetes.io/role/internal-elb=1` (private)``Check IAM role permissions                                             |
 
 #### Issue 21: Ingress not routing traffic / 404 errors
 
-| Aspect                | Detail                                                                                                                                                                                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**     | Ingress created but returns 404, 502, or doesn't route at all                                                                                                                                                                                                |
-| **Root Causes** | 1. No Ingress Controller installed``2. Ingress class annotation wrong or missing``3. Backend service doesn't exist or has no endpoints``4. Path matching rules incorrect (Prefix vs Exact)``5. TLS certificate issues            |
-| **Diagnosis**   | `kubectl get ingress <name>` — check ADDRESS column (should show ALB DNS)`kubectl describe ingress <name>` → Events`kubectl get svc -n kube-system` — is ingress controller running?``Check ALB target group health in AWS console |
-| **Solution**    | Install ingress controller if missing``Fix `ingressClassName` or annotation``Ensure backend service has Ready endpoints``Check target group health checks in ALB settings                                                             |
+| Aspect                | Detail                                                                                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Ingress created but returns 404, 502, or doesn't route at all                                                                                                                                                                                |
+| **Root Causes** | 1. No Ingress Controller installed ``2. Ingress class annotation wrong or missing``3. Backend service doesn't exist or has no endpoints ``4. Path matching rules incorrect (Prefix vs Exact)``5. TLS certificate issues                      |
+| **Diagnosis**   | `kubectl get ingress <name>` — check ADDRESS column (should show ALB DNS)`kubectl describe ingress <name>` → Events `kubectl get svc -n kube-system` — is ingress controller running?``Check ALB target group health in AWS console |
+| **Solution**    | Install ingress controller if missing ``Fix `ingressClassName` or annotation``Ensure backend service has Ready endpoints``Check target group health checks in ALB settings                                                                   |
 
 #### Issue 22: DNS resolution fails inside pods
 
-| Aspect                | Detail                                                                                                                                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `nslookup` or service calls fail with `Name or service not known`                                                                                                                                               |
-| **Root Causes** | 1. CoreDNS pods down``2. Pod's `dnsPolicy` set to `None` or `Default` (uses node DNS, not cluster DNS)``3. Network policy blocking DNS (port 53/UDP)``4. CoreDNS ConfigMap misconfigured |
-| **Diagnosis**   | From inside pod:`nslookup kubernetes.default.svc.cluster.local``kubectl get pods -n kube-system -l k8s-app=kube-dns`Check pod spec: `dnsPolicy` should be `ClusterFirst`                          |
-| **Solution**    | Ensure CoreDNS is running with ≥2 replicas``Set `dnsPolicy: ClusterFirst` in pod spec``Allow egress to kube-dns on UDP/TCP 53 in NetworkPolicies                                                   |
+| Aspect                | Detail                                                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `nslookup` or service calls fail with `Name or service not known`                                                                                                                     |
+| **Root Causes** | 1. CoreDNS pods down ``2. Pod's `dnsPolicy` set to `None` or `Default` (uses node DNS, not cluster DNS)``3. Network policy blocking DNS (port 53/UDP)``4. CoreDNS ConfigMap misconfigured |
+| **Diagnosis**   | From inside pod:`nslookup kubernetes.default.svc.cluster.local``kubectl get pods -n kube-system -l k8s-app=kube-dns`Check pod spec: `dnsPolicy` should be `ClusterFirst`            |
+| **Solution**    | Ensure CoreDNS is running with ≥2 replicas ``Set `dnsPolicy: ClusterFirst` in pod spec``Allow egress to kube-dns on UDP/TCP 53 in NetworkPolicies                                        |
 
 #### Issue 23: Cross-namespace service communication fails
 
-| Aspect                | Detail                                                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Pod in namespace A can't reach service in namespace B                                                                       |
-| **Root Causes** | 1. Using short DNS name (won't resolve cross-namespace)``2. Network policy blocking cross-namespace traffic          |
+| Aspect                | Detail                                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Pod in namespace A can't reach service in namespace B                                                                  |
+| **Root Causes** | 1. Using short DNS name (won't resolve cross-namespace)``2. Network policy blocking cross-namespace traffic            |
 | **Diagnosis**   | Test with FQDN:`curl http://my-service.namespace-b.svc.cluster.local`Check NetworkPolicies in both namespaces        |
 | **Solution**    | Use FQDN:`<service>.<namespace>.svc.cluster.local`Add NetworkPolicy rules allowing ingress from the source namespace |
 
 #### Issue 24: Intermittent 5xx errors or connection timeouts
 
-| Aspect                | Detail                                                                                                                                                                                                                                                                                                                                   |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | Requests randomly fail with 502/503/504 or timeouts                                                                                                                                                                                                                                                                                      |
-| **Root Causes** | 1. Pods restarting during rolling update (no readiness probe)``2. Readiness probe too aggressive (marks pods ready before app is warm)``3. Connection pool exhaustion to downstream service``4. HPA scaling too slowly for traffic spike``5. kube-proxy iptables pointing to terminated pod (race condition) |
-| **Diagnosis**   | `kubectl get pods -w` — watch for restarts during errors`kubectl describe pod` — check readiness probe config`kubectl top pods` — check if pods are resource-constrained``Check ALB target group health                                                                                                        |
-| **Solution**    | Add `readinessProbe` with appropriate timing``Add `preStop` lifecycle hook for graceful shutdown:`lifecycle: {preStop: {exec: {command: ["sleep", "15"]}}}```This gives kube-proxy time to update endpoints before pod terminates                                                                               |
+| Aspect                | Detail                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | Requests randomly fail with 502/503/504 or timeouts                                                                                                                                                                                                                                                           |
+| **Root Causes** | 1. Pods restarting during rolling update (no readiness probe)``2. Readiness probe too aggressive (marks pods ready before app is warm)``3. Connection pool exhaustion to downstream service ``4. HPA scaling too slowly for traffic spike``5. kube-proxy iptables pointing to terminated pod (race condition) |
+| **Diagnosis**   | `kubectl get pods -w` — watch for restarts during errors `kubectl describe pod` — check readiness probe config `kubectl top pods` — check if pods are resource-constrained``Check ALB target group health                                                                                            |
+| **Solution**    | Add `readinessProbe` with appropriate timing``Add `preStop` lifecycle hook for graceful shutdown:`lifecycle: {preStop: {exec: {command: ["sleep", "15"]}}}```This gives kube-proxy time to update endpoints before pod terminates                                                                         |
 
 ---
 
@@ -2289,20 +2291,20 @@ flowchart TD
 
 #### Issue 25: PVC stuck in `Pending`
 
-| Aspect                | Detail                                                                                                                                                                                                                                         |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `kubectl get pvc` shows `STATUS: Pending`                                                                                                                                                                                                  |
-| **Root Causes** | 1. StorageClass doesn't exist``2. CSI driver not installed (EBS CSI)``3. `WaitForFirstConsumer` — PVC waits until a pod uses it``4. No available capacity in AZ``5. IAM permissions missing for volume creation |
-| **Diagnosis**   | `kubectl describe pvc <name>` → Events`kubectl get storageclass` — does the referenced class exist?`kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver`                                            |
-| **Solution**    | Install EBS CSI driver``Create the StorageClass``Check IAM role for CSI driver has `ec2:CreateVolume`, `ec2:AttachVolume`If `WaitForFirstConsumer`: create the pod that references the PVC                            |
+| Aspect                | Detail                                                                                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `kubectl get pvc` shows `STATUS: Pending`                                                                                                                                                                        |
+| **Root Causes** | 1. StorageClass doesn't exist ``2. CSI driver not installed (EBS CSI)``3. `WaitForFirstConsumer` — PVC waits until a pod uses it ``4. No available capacity in AZ``5. IAM permissions missing for volume creation |
+| **Diagnosis**   | `kubectl describe pvc <name>` → Events `kubectl get storageclass` — does the referenced class exist?`kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver`                           |
+| **Solution**    | Install EBS CSI driver ``Create the StorageClass``Check IAM role for CSI driver has `ec2:CreateVolume`, `ec2:AttachVolume`If `WaitForFirstConsumer`: create the pod that references the PVC                    |
 
 #### Issue 26: Pod can't mount volume — `Multi-Attach error`
 
-| Aspect                | Detail                                                                                                                                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**     | `Multi-Attach error for volume "pvc-xxx" Volume is already attached to node Y`                                                                                                                                                 |
-| **Root Causes** | EBS volumes are `ReadWriteOnce` — can only attach to ONE node at a time. Previous pod on a different node still has the volume.                                                                                               |
-| **Diagnosis**   | `kubectl describe pod <name>` → Events`kubectl get pv <pv-name> -o yaml` — check which node it's attached to                                                                                                          |
+| Aspect                | Detail                                                                                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**     | `Multi-Attach error for volume "pvc-xxx" Volume is already attached to node Y`                                                                                                                                     |
+| **Root Causes** | EBS volumes are `ReadWriteOnce` — can only attach to ONE node at a time. Previous pod on a different node still has the volume.                                                                                   |
+| **Diagnosis**   | `kubectl describe pod <name>` → Events `kubectl get pv <pv-name> -o yaml` — check which node it's attached to                                                                                                  |
 | **Solution**    | Wait for previous pod to terminate and detach the volume``If previous pod is stuck: force delete it `kubectl delete pod <name> --force --grace-period=0`For shared storage: use EFS (ReadWriteMany) instead of EBS |
 
 ---
@@ -2528,50 +2530,50 @@ resource "aws_eks_fargate_profile" "app" {
 
 #### EKS Issue 1: `aws-auth` ConfigMap deleted — Locked out of cluster
 
-| Aspect               | Detail                                                                                                                                                                                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**    | Nobody can authenticate to the cluster.`kubectl` returns `Unauthorized`.                                                                                                                                                                                       |
-| **Root Cause** | Someone deleted or corrupted the `aws-auth` ConfigMap                                                                                                                                                                                                            |
+| Aspect               | Detail                                                                                                                                                                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**    | Nobody can authenticate to the cluster.`kubectl` returns `Unauthorized`.                                                                                                                                                                       |
+| **Root Cause** | Someone deleted or corrupted the `aws-auth` ConfigMap                                                                                                                                                                                            |
 | **Solution**   | The cluster creator's IAM identity always has access (it's in the EKS control plane, not in `aws-auth`).``Log in as the cluster creator and recreate `aws-auth`.``**Prevention:** Use EKS Access Entries instead of `aws-auth` ConfigMap |
 
 #### EKS Issue 2: Pods can't pull from ECR — `ImagePullBackOff`
 
-| Aspect               | Detail                                                                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**    | `Failed to pull image: no basic auth credentials`                                                                                                   |
-| **Root Cause** | Node IAM role missing ECR permissions, or VPC endpoints not configured for private subnets                                                            |
+| Aspect               | Detail                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Symptom**    | `Failed to pull image: no basic auth credentials`                                                                                              |
+| **Root Cause** | Node IAM role missing ECR permissions, or VPC endpoints not configured for private subnets                                                       |
 | **Solution**   | Add policy to node role:`AmazonEC2ContainerRegistryReadOnly`For private subnets: create VPC endpoints for `ecr.api`, `ecr.dkr`, and `s3` |
 
 #### EKS Issue 3: VPC CNI IP exhaustion — Pods stuck in `Pending`
 
-| Aspect               | Detail                                                                                                                                                                                                                           |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**    | `Failed to assign an IP address to container`                                                                                                                                                                                  |
-| **Root Cause** | Subnet ran out of available IP addresses for pod networking                                                                                                                                                                      |
+| Aspect               | Detail                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**    | `Failed to assign an IP address to container`                                                                                                                                                                      |
+| **Root Cause** | Subnet ran out of available IP addresses for pod networking                                                                                                                                                          |
 | **Solution**   | Enable prefix delegation:`kubectl set env daemonset aws-node -n kube-system ENABLE_PREFIX_DELEGATION=true`Add secondary CIDR to VPC (100.64.0.0/16)``Use custom networking to put pods in separate, larger subnets |
 
 #### EKS Issue 4: EKS upgrade breaks addons
 
-| Aspect               | Detail                                                                                                                                                                                                                                                     |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**    | After cluster version upgrade, CoreDNS, kube-proxy, or VPC CNI stops working                                                                                                                                                                               |
-| **Root Cause** | Addons not updated to match new K8s version                                                                                                                                                                                                                |
+| Aspect               | Detail                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**    | After cluster version upgrade, CoreDNS, kube-proxy, or VPC CNI stops working                                                                                                                                                                |
+| **Root Cause** | Addons not updated to match new K8s version                                                                                                                                                                                                 |
 | **Solution**   | Always upgrade addons AFTER upgrading the control plane:`aws eks update-addon --cluster-name <name> --addon-name vpc-cni --resolve-conflicts OVERWRITE```Check compatible versions:`aws eks describe-addon-versions --addon-name coredns` |
 
 #### EKS Issue 5: ALB Ingress not creating — `failed to build model due to ingress class not found`
 
-| Aspect               | Detail                                                                                                                                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Symptom**    | Ingress created but no ALB appears. Events show ingress class errors.                                                                                                                                                   |
-| **Root Cause** | AWS Load Balancer Controller not installed, or using deprecated `kubernetes.io/ingress.class` annotation instead of `ingressClassName`                                                                              |
-| **Solution**   | Install AWS LB Controller via Helm``Use `spec.ingressClassName: alb` instead of annotation``Ensure subnets tagged correctly:`kubernetes.io/cluster/<name>=shared` + `kubernetes.io/role/elb=1` |
+| Aspect               | Detail                                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**    | Ingress created but no ALB appears. Events show ingress class errors.                                                                                                                               |
+| **Root Cause** | AWS Load Balancer Controller not installed, or using deprecated `kubernetes.io/ingress.class` annotation instead of `ingressClassName`                                                          |
+| **Solution**   | Install AWS LB Controller via Helm ``Use `spec.ingressClassName: alb` instead of annotation``Ensure subnets tagged correctly:`kubernetes.io/cluster/<name>=shared` + `kubernetes.io/role/elb=1` |
 
 #### EKS Issue 6: IRSA not working — Pods using node role instead
 
-| Aspect               | Detail                                                                                                                                                                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Symptom**    | Pod makes AWS API calls using the node's IAM role instead of the ServiceAccount role                                                                                                                                                                                                 |
-| **Root Cause** | 1. OIDC provider not created for cluster``2. ServiceAccount annotation missing `eks.amazonaws.com/role-arn`3. IAM role trust policy doesn't reference the correct OIDC provider``4. Pod not using the annotated ServiceAccount                                  |
+| Aspect               | Detail                                                                                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Symptom**    | Pod makes AWS API calls using the node's IAM role instead of the ServiceAccount role                                                                                                                                                                                |
+| **Root Cause** | 1. OIDC provider not created for cluster ``2. ServiceAccount annotation missing `eks.amazonaws.com/role-arn`3. IAM role trust policy doesn't reference the correct OIDC provider``4. Pod not using the annotated ServiceAccount                                     |
 | **Solution**   | Verify OIDC:`aws eks describe-cluster --name <name> --query cluster.identity.oidc`Check SA annotation: `kubectl get sa <name> -o yaml`Check IAM role trust policy conditions match SA name and namespace``Ensure pod spec has `serviceAccountName: <sa-name>` |
 
 ---

@@ -23,7 +23,7 @@
 - [Directory Structure](#-directory-structure)
 - [Prerequisites](#-prerequisites)
 - [Deployment Guide](#-deployment-guide)
-- [GitOps & ArgoCD](#-gitops--argocd)
+- [GitOps &amp; ArgoCD](#-gitops--argocd)
 - [Disaster Recovery](#-disaster-recovery)
 
 ---
@@ -32,11 +32,11 @@
 
 This system implements a **three-cloud active/standby/compliance** architecture:
 
-| Cloud | Role | Services |
-|-------|------|----------|
-| **AWS** | Primary Active Site | EKS, Aurora PostgreSQL, ElastiCache Redis, CloudFront + WAF, Route 53, ECR |
-| **Azure** | Hot Standby Site | AKS, Azure SQL Hyperscale, Azure Cache for Redis, Front Door + WAF, ACR |
-| **GCP** | Compliance & Analytics | GKE, AlloyDB, BigQuery, Cloud Armor, Cloud KMS |
+| Cloud           | Role                   | Services                                                                   |
+| --------------- | ---------------------- | -------------------------------------------------------------------------- |
+| **AWS**   | Primary Active Site    | EKS, Aurora PostgreSQL, ElastiCache Redis, CloudFront + WAF, Route 53, ECR |
+| **Azure** | Hot Standby Site       | AKS, Azure SQL Hyperscale, Azure Cache for Redis, Front Door + WAF, ACR    |
+| **GCP**   | Compliance & Analytics | GKE, AlloyDB, BigQuery, Cloud Armor, Cloud KMS                             |
 
 ---
 
@@ -75,12 +75,12 @@ The clearing engine is composed of **4 Python/FastAPI microservices** that run a
                             └─────────┘  └─────────────────┘
 ```
 
-| Service | Port | What It Does | Runs On |
-|---------|------|-------------|--------|
-| **transaction-ingestion** | 8000 | Receives transactions via REST, validates schemas, deduplicates via Redis, persists to DB | EKS + AKS |
-| **clearing-engine-core** | 8000 | Core clearing logic — matches counterparties, validates business rules, settles batches | EKS + AKS |
-| **audit-pipeline** | 8000 | Streams every transaction event to BigQuery (audit trail), AlloyDB (compliance), with PII tokenization (GDPR) | EKS + AKS + GKE |
-| **notification-service** | 8000 | Sends transaction status updates via webhooks, SQS (AWS), Azure Service Bus, email | EKS + AKS |
+| Service                         | Port | What It Does                                                                                                  | Runs On         |
+| ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------- | --------------- |
+| **transaction-ingestion** | 8000 | Receives transactions via REST, validates schemas, deduplicates via Redis, persists to DB                     | EKS + AKS       |
+| **clearing-engine-core**  | 8000 | Core clearing logic — matches counterparties, validates business rules, settles batches                      | EKS + AKS       |
+| **audit-pipeline**        | 8000 | Streams every transaction event to BigQuery (audit trail), AlloyDB (compliance), with PII tokenization (GDPR) | EKS + AKS + GKE |
+| **notification-service**  | 8000 | Sends transaction status updates via webhooks, SQS (AWS), Azure Service Bus, email                            | EKS + AKS       |
 
 ### How Applications Are Built and Stored
 
@@ -129,10 +129,10 @@ The clearing engine is composed of **4 Python/FastAPI microservices** that run a
 
 Both EKS and AKS are **private clusters** with no Internet Gateway or NAT. Image pulls happen entirely within the private network:
 
-| Registry | Cloud | Access Method | Key Features |
-|----------|-------|---------------|-------------|
-| **ECR** (Elastic Container Registry) | AWS | VPC Interface Endpoints (`ecr.api`, `ecr.dkr`, `s3`) | KMS encryption, scan-on-push, immutable tags, 30-image retention |
-| **ACR** (Azure Container Registry) | Azure | Private Endpoint + Private DNS Zone (`privatelink.azurecr.io`) | Premium SKU, content trust, quarantine policy, AcrPull via managed identity |
+| Registry                                   | Cloud | Access Method                                                    | Key Features                                                                |
+| ------------------------------------------ | ----- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **ECR** (Elastic Container Registry) | AWS   | VPC Interface Endpoints (`ecr.api`, `ecr.dkr`, `s3`)       | KMS encryption, scan-on-push, immutable tags, 30-image retention            |
+| **ACR** (Azure Container Registry)   | Azure | Private Endpoint + Private DNS Zone (`privatelink.azurecr.io`) | Premium SKU, content trust, quarantine policy, AcrPull via managed identity |
 
 ### Helm Chart Structure
 
@@ -155,6 +155,7 @@ helm/clearing-engine/
 ```
 
 Each subchart Deployment includes:
+
 - **Security Context**: `runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`
 - **Probes**: Liveness (`/health`), Readiness (`/ready`)
 - **HPA**: Auto-scale at 70% CPU (3–15 replicas for ingestion, 3–20 for clearing)
@@ -164,6 +165,8 @@ Each subchart Deployment includes:
 ---
 
 ## 🌐 High-Level Topology
+
+![1780543969735](image/README/1780543969735.png)
 
 ```
                               ┌─────────────────────────────────────────┐
@@ -253,20 +256,20 @@ Each subchart Deployment includes:
 
 ## 🔧 Component Matrix
 
-| Component | AWS (Primary) | Azure (Hot Standby) | GCP (Compliance) |
-|-----------|---------------|---------------------|------------------|
-| **Global DNS** | Route 53 | Azure DNS | Cloud DNS |
-| **CDN & Edge** | CloudFront + WAF | Front Door Premium + WAF | Cloud CDN + Armor |
-| **Compute** | EKS + Managed Nodes | AKS + System/User Pools | GKE Standard |
-| **Service Mesh** | Istio (STRICT mTLS) | Istio (STRICT mTLS) | Istio (STRICT mTLS) |
-| **GitOps** | ArgoCD | ArgoCD | ArgoCD |
-| **Database** | Aurora PostgreSQL 15 | SQL Hyperscale | AlloyDB PostgreSQL |
-| **Caching** | ElastiCache Redis 7.x | Cache for Redis Premium | — |
-| **Analytics** | — | — | BigQuery |
-| **Secrets** | KMS + IRSA | Key Vault + Workload ID | Cloud KMS + WI |
-| **VPN** | VPN Gateway (BGP 65000) | VPN Gateway (BGP 65001) | HA VPN (BGP 65002) |
-| **Compliance** | CloudTrail + Config | Azure Policy + Defender | Audit Logs + SCC |
-| **Identity** | IAM + OIDC | **Azure AD (Central)** | IAM + WI Pools |
+| Component              | AWS (Primary)           | Azure (Hot Standby)          | GCP (Compliance)    |
+| ---------------------- | ----------------------- | ---------------------------- | ------------------- |
+| **Global DNS**   | Route 53                | Azure DNS                    | Cloud DNS           |
+| **CDN & Edge**   | CloudFront + WAF        | Front Door Premium + WAF     | Cloud CDN + Armor   |
+| **Compute**      | EKS + Managed Nodes     | AKS + System/User Pools      | GKE Standard        |
+| **Service Mesh** | Istio (STRICT mTLS)     | Istio (STRICT mTLS)          | Istio (STRICT mTLS) |
+| **GitOps**       | ArgoCD                  | ArgoCD                       | ArgoCD              |
+| **Database**     | Aurora PostgreSQL 15    | SQL Hyperscale               | AlloyDB PostgreSQL  |
+| **Caching**      | ElastiCache Redis 7.x   | Cache for Redis Premium      | —                  |
+| **Analytics**    | —                      | —                           | BigQuery            |
+| **Secrets**      | KMS + IRSA              | Key Vault + Workload ID      | Cloud KMS + WI      |
+| **VPN**          | VPN Gateway (BGP 65000) | VPN Gateway (BGP 65001)      | HA VPN (BGP 65002)  |
+| **Compliance**   | CloudTrail + Config     | Azure Policy + Defender      | Audit Logs + SCC    |
+| **Identity**     | IAM + OIDC              | **Azure AD (Central)** | IAM + WI Pools      |
 
 ---
 
@@ -294,17 +297,17 @@ Each subchart Deployment includes:
 
 ### Subnet Architecture
 
-| Cloud | Subnet | CIDR | Purpose |
-|-------|--------|------|---------|
-| AWS | Public (×2) | 10.0.0.0/24, 10.0.1.0/24 | ALB, NAT Gateways |
-| AWS | Private-App (×2) | 10.0.10.0/24, 10.0.11.0/24 | EKS Worker Nodes |
-| AWS | Private-Data (×2) | 10.0.20.0/24, 10.0.21.0/24 | Aurora, ElastiCache |
-| Azure | AKS System | 10.1.0.0/24 | AKS System Pool |
-| Azure | AKS User | 10.1.1.0/24 | AKS User Pool |
-| Azure | Data | 10.1.10.0/24 | SQL, Redis, Key Vault |
-| Azure | Gateway | 10.1.255.0/24 | VPN Gateway |
-| GCP | GKE Nodes | 10.2.0.0/20 | GKE Node Pool |
-| GCP | Data | 10.2.16.0/20 | AlloyDB, Private Services |
+| Cloud | Subnet             | CIDR                       | Purpose                   |
+| ----- | ------------------ | -------------------------- | ------------------------- |
+| AWS   | Public (×2)       | 10.0.0.0/24, 10.0.1.0/24   | ALB, NAT Gateways         |
+| AWS   | Private-App (×2)  | 10.0.10.0/24, 10.0.11.0/24 | EKS Worker Nodes          |
+| AWS   | Private-Data (×2) | 10.0.20.0/24, 10.0.21.0/24 | Aurora, ElastiCache       |
+| Azure | AKS System         | 10.1.0.0/24                | AKS System Pool           |
+| Azure | AKS User           | 10.1.1.0/24                | AKS User Pool             |
+| Azure | Data               | 10.1.10.0/24               | SQL, Redis, Key Vault     |
+| Azure | Gateway            | 10.1.255.0/24              | VPN Gateway               |
+| GCP   | GKE Nodes          | 10.2.0.0/20                | GKE Node Pool             |
+| GCP   | Data               | 10.2.16.0/20               | AlloyDB, Private Services |
 
 ---
 
@@ -343,32 +346,32 @@ Each subchart Deployment includes:
 
 ### HIPAA Controls
 
-| Control | Implementation |
-|---------|---------------|
-| Data at Rest Encryption | AWS KMS (CMK), Azure Key Vault (CMK), GCP Cloud KMS (CMEK) |
-| Data in Transit | Istio mTLS (STRICT mode) + IPSec VPN (AES-256-GCM) |
-| Access Controls | IAM Roles, Azure RBAC, GCP IAM + Workload Identity |
-| Audit Logging | CloudTrail, Azure Monitor, GCP Audit Logs → BigQuery |
-| Network Isolation | VPC/VNet with NACLs/NSGs, private subnets, no public DB access |
-| Backup & Recovery | Aurora: 35-day, Azure SQL: 7-year, AlloyDB: 35-day + PITR |
+| Control                 | Implementation                                                 |
+| ----------------------- | -------------------------------------------------------------- |
+| Data at Rest Encryption | AWS KMS (CMK), Azure Key Vault (CMK), GCP Cloud KMS (CMEK)     |
+| Data in Transit         | Istio mTLS (STRICT mode) + IPSec VPN (AES-256-GCM)             |
+| Access Controls         | IAM Roles, Azure RBAC, GCP IAM + Workload Identity             |
+| Audit Logging           | CloudTrail, Azure Monitor, GCP Audit Logs → BigQuery          |
+| Network Isolation       | VPC/VNet with NACLs/NSGs, private subnets, no public DB access |
+| Backup & Recovery       | Aurora: 35-day, Azure SQL: 7-year, AlloyDB: 35-day + PITR      |
 
 ### SOX Controls
 
-| Control | Implementation |
-|---------|---------------|
-| Immutable Audit Trail | CloudTrail (S3 + Glacier, 7yr), Azure Activity Log, GCP → BigQuery |
-| Separation of Duties | Admin/Dev/Compliance Azure AD groups, IAM role boundaries |
-| Change Detection | AWS Config Rules, Azure Policy, GCP Org Policies + Drift Alerts |
-| Financial Auditability | pgAudit on all DB writes, Performance Insights, BigQuery analytics |
+| Control                | Implementation                                                      |
+| ---------------------- | ------------------------------------------------------------------- |
+| Immutable Audit Trail  | CloudTrail (S3 + Glacier, 7yr), Azure Activity Log, GCP → BigQuery |
+| Separation of Duties   | Admin/Dev/Compliance Azure AD groups, IAM role boundaries           |
+| Change Detection       | AWS Config Rules, Azure Policy, GCP Org Policies + Drift Alerts     |
+| Financial Auditability | pgAudit on all DB writes, Performance Insights, BigQuery analytics  |
 
 ### GDPR Controls
 
-| Control | Implementation |
-|---------|---------------|
-| Data Sovereignty | Route 53 geolocation routing, BigQuery EU dataset, KMS EU keyring |
-| Right to Erasure | Tokenized PII, anonymization in microservices before cross-cloud sync |
-| Egress Control | Istio Sidecar REGISTRY_ONLY mode + whitelisted ServiceEntries |
-| Data Minimization | Pod-level egress blocks unauthorized API calls |
+| Control           | Implementation                                                        |
+| ----------------- | --------------------------------------------------------------------- |
+| Data Sovereignty  | Route 53 geolocation routing, BigQuery EU dataset, KMS EU keyring     |
+| Right to Erasure  | Tokenized PII, anonymization in microservices before cross-cloud sync |
+| Egress Control    | Istio Sidecar REGISTRY_ONLY mode + whitelisted ServiceEntries         |
+| Data Minimization | Pod-level egress blocks unauthorized API calls                        |
 
 ---
 
@@ -483,16 +486,16 @@ MulitCloudProject/
 
 ### Required GitHub Secrets
 
-| Secret | Purpose |
-|--------|---------|
-| `AWS_ROLE_ARN` | OIDC role for AWS authentication |
-| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | Azure OIDC |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_SERVICE_ACCOUNT` | GCP OIDC |
-| `ACR_NAME` / `ACR_LOGIN_SERVER` | Azure Container Registry |
-| `EKS_CLUSTER_NAME` / `AKS_CLUSTER_NAME` / `GKE_CLUSTER_NAME` | Cluster names |
-| `AURORA_WRITER_ENDPOINT` / `AZURE_SQL_ENDPOINT` / `ALLOYDB_PRIVATE_IP` | DB endpoints |
-| `ELASTICACHE_ENDPOINT` / `AZURE_REDIS_ENDPOINT` | Cache endpoints |
-| `VPN_PSK_AWS_AZURE` / `VPN_PSK_AWS_GCP` / `VPN_PSK_AZURE_GCP` | VPN pre-shared keys |
+| Secret                                                                       | Purpose                          |
+| ---------------------------------------------------------------------------- | -------------------------------- |
+| `AWS_ROLE_ARN`                                                             | OIDC role for AWS authentication |
+| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID`        | Azure OIDC                       |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_SERVICE_ACCOUNT`                 | GCP OIDC                         |
+| `ACR_NAME` / `ACR_LOGIN_SERVER`                                          | Azure Container Registry         |
+| `EKS_CLUSTER_NAME` / `AKS_CLUSTER_NAME` / `GKE_CLUSTER_NAME`           | Cluster names                    |
+| `AURORA_WRITER_ENDPOINT` / `AZURE_SQL_ENDPOINT` / `ALLOYDB_PRIVATE_IP` | DB endpoints                     |
+| `ELASTICACHE_ENDPOINT` / `AZURE_REDIS_ENDPOINT`                          | Cache endpoints                  |
+| `VPN_PSK_AWS_AZURE` / `VPN_PSK_AWS_GCP` / `VPN_PSK_AZURE_GCP`          | VPN pre-shared keys              |
 
 ---
 
@@ -520,6 +523,7 @@ terraform apply tfplan
 ```
 
 This provisions across all 3 clouds:
+
 - VPCs/VNets, subnets, security groups
 - EKS, AKS, GKE clusters (private, no public endpoints)
 - Aurora, Azure SQL, AlloyDB databases
@@ -600,23 +604,23 @@ ArgoCD manages the Kubernetes state after Terraform provisions infrastructure:
 
 ## 🔥 Disaster Recovery
 
-| Scenario | RTO | RPO | Procedure |
-|----------|-----|-----|-----------|
-| AWS Region Failure | 5 min | 0 (sync replication) | Route 53 auto-failover to Azure |
-| Single AZ Failure | 0 | 0 | Multi-AZ architecture handles automatically |
-| Database Corruption | 30 min | 5 min (PITR) | Point-in-time recovery from Aurora |
-| Full Cloud Outage | 15 min | ~1 min | Manual DNS cutover to Azure Front Door |
+| Scenario            | RTO    | RPO                  | Procedure                                   |
+| ------------------- | ------ | -------------------- | ------------------------------------------- |
+| AWS Region Failure  | 5 min  | 0 (sync replication) | Route 53 auto-failover to Azure             |
+| Single AZ Failure   | 0      | 0                    | Multi-AZ architecture handles automatically |
+| Database Corruption | 30 min | 5 min (PITR)         | Point-in-time recovery from Aurora          |
+| Full Cloud Outage   | 15 min | ~1 min               | Manual DNS cutover to Azure Front Door      |
 
 ---
 
 ## 📊 CI/CD Pipeline Summary
 
-| Pipeline | File | Trigger | What It Does |
-|----------|------|---------|-------------|
-| **AWS Infra** | `aws-deploy.yml` | `terraform/**` changes | Checkov → Plan → Apply → ArgoCD sync |
+| Pipeline              | File                 | Trigger                              | What It Does                                        |
+| --------------------- | -------------------- | ------------------------------------ | --------------------------------------------------- |
+| **AWS Infra**   | `aws-deploy.yml`   | `terraform/**` changes             | Checkov → Plan → Apply → ArgoCD sync             |
 | **Azure Infra** | `azure-deploy.yml` | `terraform/modules/azure_infra/**` | Checkov+tfsec → Plan → Apply → Compliance report |
-| **GCP Infra** | `gcp-deploy.yml` | `terraform/modules/gcp_infra/**` | Checkov+tfsec → Plan → Apply → Compliance report |
-| **App CI** | `ci-app.yml` | `src/**` changes | Lint → Test → Trivy → Build+Push to ECR+ACR |
-| **App CD** | `cd-app.yml` | After CI success | Helm deploy → EKS → AKS → GKE |
+| **GCP Infra**   | `gcp-deploy.yml`   | `terraform/modules/gcp_infra/**`   | Checkov+tfsec → Plan → Apply → Compliance report |
+| **App CI**      | `ci-app.yml`       | `src/**` changes                   | Lint → Test → Trivy → Build+Push to ECR+ACR      |
+| **App CD**      | `cd-app.yml`       | After CI success                     | Helm deploy → EKS → AKS → GKE                    |
 
 See [docs/RUNBOOK.md](docs/RUNBOOK.md) for detailed operational procedures.

@@ -9,16 +9,17 @@
 1. [Quick Reference Card](#1-quick-reference-card)
 2. [Day-to-Day Operations](#2-day-to-day-operations)
 3. [Deployment Procedures](#3-deployment-procedures)
-4. [Scaling Operations](#4-scaling-operations)
-5. [Monitoring & Alerting](#5-monitoring--alerting)
-6. [Incident Response Playbooks](#6-incident-response-playbooks)
-7. [Disaster Recovery Procedures](#7-disaster-recovery-procedures)
-8. [Database Operations](#8-database-operations)
-9. [Certificate & Secret Rotation](#9-certificate--secret-rotation)
-10. [Compliance Audit Procedures](#10-compliance-audit-procedures)
-11. [VPN Troubleshooting](#11-vpn-troubleshooting)
-12. [Cost Management](#12-cost-management)
-13. [Contact & Escalation](#13-contact--escalation)
+4. [Application Container Operations](#4-application-container-operations)
+5. [Scaling Operations](#5-scaling-operations)
+6. [Monitoring & Alerting](#6-monitoring--alerting)
+7. [Incident Response Playbooks](#7-incident-response-playbooks)
+8. [Disaster Recovery Procedures](#8-disaster-recovery-procedures)
+9. [Database Operations](#9-database-operations)
+10. [Certificate & Secret Rotation](#10-certificate--secret-rotation)
+11. [Compliance Audit Procedures](#11-compliance-audit-procedures)
+12. [VPN Troubleshooting](#12-vpn-troubleshooting)
+13. [Cost Management](#13-cost-management)
+14. [Contact & Escalation](#14-contact--escalation)
 
 ---
 
@@ -44,6 +45,8 @@ kubectl config use-context gke_enterprise-compliance-analytics_us-central1_multi
 
 ### Key Endpoints
 
+**Infrastructure Endpoints:**
+
 | Service | Endpoint | Cloud |
 |---------|----------|-------|
 | Primary API | `api.clearing-engine.example.com` | AWS (Route 53) |
@@ -57,16 +60,34 @@ kubectl config use-context gke_enterprise-compliance-analytics_us-central1_multi
 | Redis (AWS) | `*.cache.amazonaws.com:6379` | AWS |
 | Redis (Azure) | `*.redis.cache.windows.net:6380` | Azure |
 
+**Application Endpoints (inside clusters — namespace: `clearing-engine`):**
+
+| Service | K8s Service | Port | Health | Metrics |
+|---------|-------------|------|--------|---------|
+| transaction-ingestion | `transaction-ingestion.clearing-engine.svc` | 8000 | `/health`, `/ready` | `/metrics` |
+| clearing-engine-core | `clearing-engine-core.clearing-engine.svc` | 8000 | `/health`, `/ready` | `/metrics` |
+| audit-pipeline | `audit-pipeline.clearing-engine.svc` | 8000 | `/health`, `/ready` | `/metrics` |
+| notification-service | `notification-service.clearing-engine.svc` | 8000 | `/health`, `/ready` | `/metrics` |
+
+**Container Registries (Private Access Only):**
+
+| Registry | URL | Access Method |
+|----------|-----|---------------|
+| AWS ECR | `<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com` | VPC Interface Endpoints |
+| Azure ACR | `<ACR_NAME>.azurecr.io` | Private Endpoint + DNS Zone |
+
 ### Critical Thresholds
 
 | Metric | Warning | Critical | Action |
 |--------|---------|----------|--------|
 | EKS Node CPU | > 70% | > 85% | Auto-scale triggers at 70% |
+| Pod CPU (HPA) | > 70% | > 85% | HPA scales transaction-ingestion, clearing-engine |
 | Aurora CPU | > 60% | > 80% | Scale reader instance |
 | Redis Memory | > 75% | > 90% | Review eviction policy |
-| VPN Tunnel Status | 1 tunnel down | Both tunnels down | See §11 VPN Troubleshooting |
+| VPN Tunnel Status | 1 tunnel down | Both tunnels down | See §12 VPN Troubleshooting |
 | Disk Usage | > 80% | > 90% | Expand EBS/Disk |
 | API Latency (P99) | > 500ms | > 2000ms | Check DB connections |
+| Pod Restarts | > 3 in 1hr | > 10 in 1hr | Check logs, OOM, image issues |
 
 ---
 
@@ -77,7 +98,9 @@ kubectl config use-context gke_enterprise-compliance-analytics_us-central1_multi
 Run this checklist every morning:
 
 ```bash
-# ─── Step 1: Verify all clusters are healthy ───
+# ═══════════════════════════════════════════
+# Step 1: Verify all clusters are healthy
+# ═══════════════════════════════════════════
 echo "=== AWS EKS ==="
 kubectl --context=eks get nodes -o wide
 kubectl --context=eks get pods -n clearing-engine --field-selector status.phase!=Running
@@ -90,21 +113,59 @@ echo "=== GCP GKE ==="
 kubectl --context=gke get nodes -o wide
 kubectl --context=gke get pods -n clearing-engine --field-selector status.phase!=Running
 
-# ─── Step 2: Verify Istio mesh health ───
+# ═══════════════════════════════════════════
+# Step 2: Verify APPLICATION pods are running
+# ═══════════════════════════════════════════
+for ctx in eks aks; do
+  echo "=== $ctx APPLICATION HEALTH ==="
+  kubectl --context=$ctx get deploy -n clearing-engine
+  kubectl --context=$ctx get hpa -n clearing-engine
+  for svc in transaction-ingestion clearing-engine-core audit-pipeline notification-service; do
+    echo "--- $svc ---"
+    kubectl --context=$ctx exec deploy/$svc -n clearing-engine -- \
+      python -c "import httpx; r=httpx.get('http://localhost:8000/ready'); print(r.json())" 2>/dev/null || echo "SKIP"
+  done
+done
+
+# GKE runs audit-pipeline only
+echo "=== GKE AUDIT PIPELINE ==="
+kubectl --context=gke exec deploy/audit-pipeline -n clearing-engine -- \
+  python -c "import httpx; r=httpx.get('http://localhost:8000/ready'); print(r.json())" 2>/dev/null || echo "SKIP"
+
+# ═══════════════════════════════════════════
+# Step 3: Verify Istio mesh health
+# ═══════════════════════════════════════════
 kubectl --context=eks -n istio-system get pods
 istioctl --context=eks proxy-status
 
-# ─── Step 3: Check ArgoCD sync status ───
+# ═══════════════════════════════════════════
+# Step 4: Check ArgoCD sync status
+# ═══════════════════════════════════════════
 argocd app list --server argocd.internal.eks
 # All apps should show "Synced" and "Healthy"
 
-# ─── Step 4: Verify VPN tunnel status ───
+# ═══════════════════════════════════════════
+# Step 5: Verify VPN tunnel status
+# ═══════════════════════════════════════════
 aws ec2 describe-vpn-connections --query 'VpnConnections[*].VgwTelemetry[*].[OutsideIpAddress,Status]'
 
-# ─── Step 5: Check database connectivity ───
+# ═══════════════════════════════════════════
+# Step 6: Check database connectivity
+# ═══════════════════════════════════════════
 psql -h <aurora-writer-endpoint> -U admin -d clearingdb -c "SELECT 1;"
 
-# ─── Step 6: Review overnight alerts ───
+# ═══════════════════════════════════════════
+# Step 7: Check container registries
+# ═══════════════════════════════════════════
+# ECR: Verify image scan results (no CRITICAL CVEs)
+for svc in transaction-ingestion clearing-engine audit-pipeline notification-service; do
+  aws ecr describe-image-scan-findings \
+    --repository-name multicloud-clearing-engine/$svc \
+    --image-id imageTag=latest \
+    --query 'imageScanFindings.findingSeverityCounts' 2>/dev/null || echo "$svc: no scan"
+done
+
+# Step 8: Review overnight alerts
 # Check CloudWatch, Azure Monitor, and GCP Cloud Monitoring dashboards
 ```
 
@@ -133,20 +194,47 @@ argocd app rollback clearing-engine-aws <REVISION_ID>
 ### 2.3 Log Access
 
 ```bash
-# ─── AWS CloudWatch Logs ───
+# ═══════════════════════════════════════════
+# APPLICATION LOGS (per-service)
+# ═══════════════════════════════════════════
+
+# Live logs from a specific service (EKS)
+kubectl --context=eks logs -f deploy/transaction-ingestion -n clearing-engine
+kubectl --context=eks logs -f deploy/clearing-engine-core -n clearing-engine
+kubectl --context=eks logs -f deploy/audit-pipeline -n clearing-engine
+kubectl --context=eks logs -f deploy/notification-service -n clearing-engine
+
+# Last 100 lines from all pods of a service
+kubectl --context=eks logs deploy/transaction-ingestion -n clearing-engine --tail=100 --all-containers
+
+# Logs from a crashed/restarting pod (previous container)
+kubectl --context=eks logs <pod-name> -n clearing-engine --previous
+
+# ═══════════════════════════════════════════
+# INFRASTRUCTURE LOGS
+# ═══════════════════════════════════════════
+
+# AWS CloudWatch Logs (cluster-level)
 aws logs tail /aws/eks/multicloud-clearing-engine-production-eks/cluster --follow
 aws logs tail /aws/cloudtrail/multicloud-clearing-engine-production --follow
 
-# ─── Azure Log Analytics ───
+# Azure Log Analytics (container logs)
 az monitor log-analytics query \
   --workspace <WORKSPACE_ID> \
   --analytics-query "ContainerLog | where TimeGenerated > ago(1h) | limit 50"
 
-# ─── GCP Cloud Logging ───
+# Azure — filter by specific application service
+az monitor log-analytics query \
+  --workspace <WORKSPACE_ID> \
+  --analytics-query "ContainerLog | where ContainerName == 'transaction-ingestion' | where TimeGenerated > ago(1h) | limit 50"
+
+# GCP Cloud Logging
 gcloud logging read "resource.type=k8s_container AND resource.labels.cluster_name=multicloud-clearing-engine-production-gke" \
   --limit 50 --format json
 
-# ─── BigQuery Audit Logs ───
+# ═══════════════════════════════════════════
+# AUDIT & COMPLIANCE LOGS
+# ═══════════════════════════════════════════
 bq query --use_legacy_sql=false \
   'SELECT * FROM `enterprise-compliance-analytics.compliance_audit_logs.transaction_audit_trail`
    WHERE event_timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
@@ -157,34 +245,151 @@ bq query --use_legacy_sql=false \
 
 ## 3. Deployment Procedures
 
-### 3.1 Standard Deployment (via CI/CD)
+### 3.1 Understanding the Two Pipeline Types
 
-1. Create a feature branch and make changes
+This project has **two separate CI/CD pipeline sets**:
+
+| Pipeline Type | Trigger | Files | What It Deploys |
+|--------------|---------|-------|----------------|
+| **Infrastructure** | Changes to `terraform/` | `aws-deploy.yml`, `azure-deploy.yml`, `gcp-deploy.yml` | VPCs, clusters, databases, registries, VPN |
+| **Application** | Changes to `src/` or `helm/` | `ci-app.yml` → `cd-app.yml` | Container images + Helm releases to clusters |
+
+### 3.2 Application Deployment (Standard via CI/CD)
+
+When a developer pushes code changes to `src/`:
+
+```
+ Step 1: ci-app.yml triggers automatically
+ ┌──────────────────────────────────────────────────────────┐
+ │ For EACH service (parallel matrix: 4 services):          │
+ │                                                          │
+ │  a. Install Python 3.12 + dependencies                  │
+ │  b. Lint with ruff                                      │
+ │  c. Run pytest unit tests                               │
+ │  d. Build Docker image (multi-stage, non-root)          │
+ │  e. Trivy scan for CRITICAL/HIGH CVEs (fails on finding)│
+ │  f. TruffleHog scan for leaked secrets                  │
+ │  g. Push multi-arch image to BOTH:                      │
+ │     ├── AWS ECR (via OIDC → VPC Interface Endpoints)    │
+ │     └── Azure ACR (via OIDC → Private Endpoint)         │
+ │  h. Generate SBOM (Software Bill of Materials)           │
+ │                                                          │
+ │  Image tags: sha-<commit>, latest                       │
+ └──────────────────────────────────────────────────────────┘
+
+ Step 2: cd-app.yml triggers after ci-app.yml succeeds on main
+ ┌──────────────────────────────────────────────────────────┐
+ │                                                          │
+ │  a. Deploy to EKS (Primary Active)                      │
+ │     → OIDC auth → aws eks update-kubeconfig             │
+ │     → helm upgrade --install --atomic                   │
+ │       -f values.yaml -f values-aws.yaml                 │
+ │     → kubectl rollout status (waits for pods)            │
+ │     → Smoke test: curl /health on each service          │
+ │                                                          │
+ │  b. Deploy to AKS (Hot Standby) — after EKS succeeds    │
+ │     → OIDC auth → az aks get-credentials                │
+ │     → helm upgrade --install --atomic                   │
+ │       -f values.yaml -f values-azure.yaml               │
+ │     → kubectl rollout status                            │
+ │                                                          │
+ │  c. Deploy to GKE (Audit Only) — after EKS succeeds     │
+ │     → OIDC auth → gcloud get-gke-credentials            │
+ │     → helm upgrade --install --atomic                   │
+ │       -f values.yaml -f values-gcp.yaml                 │
+ │     → Only audit-pipeline is deployed                   │
+ │                                                          │
+ │  d. Deployment Summary Report                           │
+ └──────────────────────────────────────────────────────────┘
+```
+
+### 3.3 Application Deployment (Manual)
+
+```bash
+# ─── Step 1: Build Docker images locally ───
+for svc in transaction-ingestion clearing-engine audit-pipeline notification-service; do
+  docker build -t $svc:latest src/$svc/
+  echo "✓ Built $svc"
+done
+
+# ─── Step 2: Push to AWS ECR ───
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+for svc in transaction-ingestion clearing-engine audit-pipeline notification-service; do
+  docker tag $svc:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/multicloud-clearing-engine/$svc:latest
+  docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/multicloud-clearing-engine/$svc:latest
+  echo "✓ Pushed $svc to ECR"
+done
+
+# ─── Step 3: Push to Azure ACR ───
+az acr login --name <ACR_NAME>
+for svc in transaction-ingestion clearing-engine audit-pipeline notification-service; do
+  docker tag $svc:latest <ACR_NAME>.azurecr.io/clearing-engine/$svc:latest
+  docker push <ACR_NAME>.azurecr.io/clearing-engine/$svc:latest
+  echo "✓ Pushed $svc to ACR"
+done
+
+# ─── Step 4: Deploy to EKS via Helm ───
+aws eks update-kubeconfig --name <EKS_CLUSTER_NAME> --region us-east-1
+helm upgrade --install clearing-engine helm/clearing-engine/ \
+  --namespace clearing-engine --create-namespace \
+  -f helm/clearing-engine/values.yaml \
+  -f helm/clearing-engine/values-aws.yaml \
+  --set global.imageRegistry=<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com \
+  --set global.imageTag=latest \
+  --wait --atomic --timeout 10m
+
+# ─── Step 5: Deploy to AKS via Helm ───
+az aks get-credentials --resource-group <RG_NAME> --name <AKS_CLUSTER_NAME>
+helm upgrade --install clearing-engine helm/clearing-engine/ \
+  --namespace clearing-engine --create-namespace \
+  -f helm/clearing-engine/values.yaml \
+  -f helm/clearing-engine/values-azure.yaml \
+  --set global.imageRegistry=<ACR_NAME>.azurecr.io \
+  --set global.imageTag=latest \
+  --wait --atomic --timeout 10m
+
+# ─── Step 6: Verify deployments ───
+kubectl get pods -n clearing-engine -o wide
+kubectl get svc -n clearing-engine
+kubectl get hpa -n clearing-engine
+```
+
+### 3.4 Infrastructure Deployment (via CI/CD)
+
+1. Create a feature branch and make changes under `terraform/`
 2. Open a Pull Request to `main`
 3. CI pipeline runs: format check → validate → checkov scan → plan
 4. Review the `terraform plan` output in the PR
 5. Merge to `main` → Apply job runs with environment approval gate
 6. ArgoCD auto-syncs Kubernetes manifests
 
-### 3.2 Emergency Hotfix Deployment
+### 3.5 Emergency Hotfix Deployment
 
 ```bash
 # ─── For Terraform changes ───
 cd terraform/environments/production
 terraform init
 terraform plan -target=module.<affected_module> -out=hotfix.plan
-# Review the plan carefully!
 terraform apply hotfix.plan
 
-# ─── For Kubernetes changes ───
-# Option A: Direct kubectl (break glass)
-kubectl --context=eks apply -f <hotfix-manifest.yaml>
+# ─── For Application changes (bypass CI) ───
+# Build, push, and deploy a single service:
+SVC=transaction-ingestion
+docker build -t $SVC:hotfix src/$SVC/
+docker tag $SVC:hotfix <ECR_REGISTRY>/multicloud-clearing-engine/$SVC:hotfix
+docker push <ECR_REGISTRY>/multicloud-clearing-engine/$SVC:hotfix
+kubectl --context=eks set image deploy/$SVC $SVC=<ECR_REGISTRY>/multicloud-clearing-engine/$SVC:hotfix -n clearing-engine
+kubectl --context=eks rollout status deploy/$SVC -n clearing-engine
 
-# Option B: ArgoCD (preferred)
-argocd app sync clearing-engine-aws --resource <GROUP>:<KIND>:<NAME>
+# ─── Rollback to previous version ───
+kubectl --context=eks rollout undo deploy/$SVC -n clearing-engine
+# OR via Helm:
+helm rollback clearing-engine <REVISION> --namespace clearing-engine
 ```
 
-### 3.3 Terraform State Operations
+### 3.6 Terraform State Operations
 
 ```bash
 # View current state
@@ -205,9 +410,115 @@ terraform force-unlock <LOCK_ID>
 
 ---
 
-## 4. Scaling Operations
+## 4. Application Container Operations
 
-### 4.1 EKS Node Group Scaling
+### 4.1 Container Registry Management
+
+```bash
+# ═══════════════════════════════════════════
+# AWS ECR — List images and scan results
+# ═══════════════════════════════════════════
+for svc in transaction-ingestion clearing-engine audit-pipeline notification-service; do
+  echo "=== $svc ==="
+  aws ecr list-images --repository-name multicloud-clearing-engine/$svc \
+    --query 'imageIds[*].imageTag' --output text
+  echo ""
+done
+
+# Check vulnerability scan results for a specific image
+aws ecr describe-image-scan-findings \
+  --repository-name multicloud-clearing-engine/transaction-ingestion \
+  --image-id imageTag=latest
+
+# ═══════════════════════════════════════════
+# Azure ACR — List images and scan results
+# ═══════════════════════════════════════════
+az acr repository list --name <ACR_NAME> --output table
+az acr repository show-tags --name <ACR_NAME> \
+  --repository clearing-engine/transaction-ingestion --output table
+```
+
+### 4.2 Helm Release Management
+
+```bash
+# ─── View current release status ───
+helm list -n clearing-engine
+helm status clearing-engine -n clearing-engine
+
+# ─── View release history (for rollback) ───
+helm history clearing-engine -n clearing-engine
+
+# ─── View what's deployed vs what's in chart ───
+helm diff upgrade clearing-engine helm/clearing-engine/ \
+  -f helm/clearing-engine/values.yaml \
+  -f helm/clearing-engine/values-aws.yaml \
+  -n clearing-engine
+
+# ─── Rollback to a previous revision ───
+helm rollback clearing-engine <REVISION> -n clearing-engine
+
+# ─── View computed values (what was actually applied) ───
+helm get values clearing-engine -n clearing-engine --all
+```
+
+### 4.3 Application Pod Operations
+
+```bash
+# ─── Check pod status across all clusters ───
+for ctx in eks aks gke; do
+  echo "=== $ctx ==="
+  kubectl --context=$ctx get pods -n clearing-engine -o wide
+done
+
+# ─── Restart a single service (rolling restart) ───
+kubectl --context=eks rollout restart deploy/transaction-ingestion -n clearing-engine
+
+# ─── Watch rollout progress ───
+kubectl --context=eks rollout status deploy/transaction-ingestion -n clearing-engine --watch
+
+# ─── Exec into a running pod (debugging) ───
+kubectl --context=eks exec -it deploy/transaction-ingestion -n clearing-engine -- /bin/sh
+
+# ─── Port-forward to test locally ───
+kubectl --context=eks port-forward svc/transaction-ingestion 8000:8000 -n clearing-engine
+# Then: curl http://localhost:8000/health
+
+# ─── View NetworkPolicies (pod-to-pod rules) ───
+kubectl --context=eks get networkpolicies -n clearing-engine -o wide
+```
+
+---
+
+## 5. Scaling Operations
+
+### 5.1 Application Scaling (HPA & Helm)
+
+```bash
+# ─── View current HPA status ───
+kubectl --context=eks get hpa -n clearing-engine
+# Expected: transaction-ingestion (3-10), clearing-engine-core (3-15)
+
+# ─── Manual scale (temporary, HPA will override) ───
+kubectl --context=eks scale deploy/transaction-ingestion --replicas=8 -n clearing-engine
+
+# ─── Permanent scaling via Helm values ───
+# Edit values-aws.yaml:
+#   transaction-ingestion:
+#     autoscaling:
+#       minReplicas: 5
+#       maxReplicas: 20
+# Then deploy:
+helm upgrade clearing-engine helm/clearing-engine/ \
+  --namespace clearing-engine \
+  -f helm/clearing-engine/values.yaml \
+  -f helm/clearing-engine/values-aws.yaml \
+  --wait --atomic
+
+# ─── View Pod Disruption Budgets ───
+kubectl --context=eks get pdb -n clearing-engine
+```
+
+### 5.2 EKS Node Group Scaling
 
 ```bash
 # View current capacity
@@ -228,7 +539,7 @@ aws eks update-nodegroup-config \
 # Then run: terraform apply
 ```
 
-### 4.2 Aurora Read Replica Scaling
+### 5.3 Aurora Read Replica Scaling
 
 ```bash
 # Add a read replica (via Terraform)
@@ -246,7 +557,7 @@ aws cloudwatch get-metric-statistics \
   --statistics Average
 ```
 
-### 4.3 AKS Node Pool Scaling
+### 5.4 AKS Node Pool Scaling
 
 ```bash
 # Scale user node pool
@@ -259,9 +570,9 @@ az aks nodepool scale \
 
 ---
 
-## 5. Monitoring & Alerting
+## 6. Monitoring & Alerting
 
-### 5.1 Dashboard URLs
+### 6.1 Dashboard URLs
 
 | Dashboard | URL | Purpose |
 |-----------|-----|---------|
@@ -271,7 +582,16 @@ az aks nodepool scale \
 | Grafana (if deployed) | `grafana.internal.eks` | Unified dashboards |
 | Kiali (Istio) | `kiali.internal.eks` | Service mesh visualization |
 
-### 5.2 Key Metrics to Watch
+### 6.2 Key Metrics to Watch
+
+**Application Metrics (Prometheus — scraped from `/metrics`):**
+
+- `transactions_received_total` — total transactions ingested (by type, status)
+- `transaction_processing_seconds` — ingestion latency histogram
+- `clearing_operations_total` — total clearing operations
+- `clearing_latency_seconds` — clearing processing time
+- `audit_events_total` — audit events streamed (by type, cloud source)
+- `notifications_sent_total` — notifications sent (by channel, status)
 
 **Transaction Processing:**
 
@@ -290,9 +610,9 @@ az aks nodepool scale \
 
 ---
 
-## 6. Incident Response Playbooks
+## 7. Incident Response Playbooks
 
-### 6.1 PLAYBOOK: High API Latency (P99 > 2s)
+### 7.1 PLAYBOOK: High API Latency (P99 > 2s)
 
 ```
 SEVERITY: P2 — High
@@ -321,7 +641,7 @@ c. Pod overload: Scale horizontally (kubectl scale deployment)
 d. Network: Check VPN tunnel status, re-establish if needed
 ```
 
-### 6.2 PLAYBOOK: VPN Tunnel Down
+### 7.2 PLAYBOOK: VPN Tunnel Down
 
 ```
 SEVERITY: P1 — Critical (if both tunnels to same cloud are down)
@@ -349,7 +669,36 @@ c. If persistent: Re-create tunnel via Terraform
    terraform apply -target=module.<cloud>_infra.aws_vpn_connection.<peer>
 ```
 
-### 6.3 PLAYBOOK: Database Failover
+### 7.3 PLAYBOOK: Database Failover
+
+### 7.4 PLAYBOOK: Application Pod CrashLoopBackOff
+
+```
+SEVERITY: P2 — High
+RESPONSE TIME: 15 minutes
+
+DIAGNOSIS:
+1. Identify which service and cluster:
+   kubectl get pods -n clearing-engine --field-selector status.phase!=Running
+
+2. Check pod events:
+   kubectl describe pod <pod-name> -n clearing-engine
+
+3. Check previous container logs:
+   kubectl logs <pod-name> -n clearing-engine --previous
+
+4. Common causes:
+   a. OOMKilled → check resources.limits.memory in Helm values
+   b. Image pull failure → verify ECR/ACR private endpoint connectivity
+   c. Readiness probe failure → check /ready endpoint, DB, Redis connectivity
+   d. Config error → check env vars via: kubectl exec <pod> -- env
+
+REMEDIATION:
+   a. OOM: Increase memory limits in values-aws.yaml / values-azure.yaml
+   b. Image pull: Verify VPC endpoints (ECR) or Private Endpoint (ACR)
+   c. DB issue: Check Aurora/Azure SQL connectivity from within the pod
+   d. Rollback: helm rollback clearing-engine <previous-revision> -n clearing-engine
+```
 
 ```
 SEVERITY: P1 — Critical
@@ -372,9 +721,9 @@ See §7 Disaster Recovery Procedures
 
 ---
 
-## 7. Disaster Recovery Procedures
+## 8. Disaster Recovery Procedures
 
-### 7.1 AWS → Azure Failover (Full Region Failure)
+### 8.1 AWS → Azure Failover (Full Region Failure)
 
 **RTO Target: 15 minutes | RPO Target: < 1 minute**
 
@@ -396,9 +745,16 @@ STEP 3: Update DNS to point to Azure (5 min)
       --hosted-zone-id <ZONE_ID> \
       --change-batch '{"Changes":[{"Action":"UPSERT","ResourceRecordSet":{"Name":"api.clearing-engine.example.com","Type":"CNAME","TTL":60,"ResourceRecords":[{"Value":"<AZURE_FRONTDOOR_ENDPOINT>"}]}}]}'
 
-STEP 4: Scale Azure AKS (3 min)
+STEP 4: Scale Azure AKS + application (3 min)
   → az aks nodepool scale --resource-group <rg> --cluster-name <cluster> \
       --name user --node-count 10
+  → Scale application replicas to production levels:
+    helm upgrade clearing-engine helm/clearing-engine/ \
+      -n clearing-engine \
+      -f values.yaml -f values-azure.yaml \
+      --set transaction-ingestion.replicaCount=3 \
+      --set clearing-engine-core.replicaCount=3 \
+      --wait --atomic
 
 STEP 5: Verify traffic is flowing (3 min)
   → Monitor Azure Front Door access logs
@@ -410,7 +766,7 @@ STEP 6: Notify stakeholders
   → Update status page
 ```
 
-### 7.2 Failback: Azure → AWS Recovery
+### 8.2 Failback: Azure → AWS Recovery
 
 ```
 STEP 1: Confirm AWS services are restored
@@ -434,9 +790,9 @@ STEP 4: Scale down Azure standby
 
 ---
 
-## 8. Database Operations
+## 9. Database Operations
 
-### 8.1 Aurora PostgreSQL
+### 9.1 Aurora PostgreSQL
 
 ```bash
 # Connect to writer
@@ -461,7 +817,7 @@ aws rds restore-db-cluster-to-point-in-time \
   --restore-to-time "2026-06-03T15:00:00Z"
 ```
 
-### 8.2 Azure SQL Hyperscale
+### 9.2 Azure SQL Hyperscale
 
 ```bash
 # Connect via sqlcmd
@@ -474,7 +830,7 @@ SELECT * FROM sys.dm_exec_sessions WHERE is_user_process = 1;
 az sql db ltr-backup list --location eastus --server <server> --database clearingdb
 ```
 
-### 8.3 BigQuery Audit Queries
+### 9.3 BigQuery Audit Queries
 
 ```sql
 -- Recent transactions (last 24 hours)
@@ -500,9 +856,9 @@ ORDER BY severity DESC, detected_at DESC;
 
 ---
 
-## 9. Certificate & Secret Rotation
+## 10. Certificate & Secret Rotation
 
-### 9.1 VPN Pre-Shared Keys
+### 10.1 VPN Pre-Shared Keys
 
 ```bash
 # Generate new PSK
@@ -515,7 +871,7 @@ NEW_PSK=$(openssl rand -base64 48)
 # ⚠️ Brief connectivity disruption expected during rotation
 ```
 
-### 9.2 Database Credentials
+### 10.2 Database Credentials
 
 ```bash
 # Aurora: Rotate via Secrets Manager
@@ -526,7 +882,7 @@ az keyvault secret set --vault-name <vault> --name sql-admin-password --value <n
 az sql server update --resource-group <rg> --name <server> --admin-password <new-password>
 ```
 
-### 9.3 KMS Key Rotation
+### 10.3 KMS Key Rotation
 
 All KMS keys are configured with automatic rotation:
 
@@ -538,9 +894,9 @@ Manual rotation is not typically required.
 
 ---
 
-## 10. Compliance Audit Procedures
+## 11. Compliance Audit Procedures
 
-### 10.1 HIPAA Audit Checklist
+### 11.1 HIPAA Audit Checklist
 
 | # | Check | Command/Tool | Frequency |
 |---|-------|-------------|-----------|
@@ -552,7 +908,7 @@ Manual rotation is not typically required.
 | 6 | Backup verification | Test restore procedure | Quarterly |
 | 7 | Incident response tested | Tabletop exercise | Annually |
 
-### 10.2 SOX Audit Checklist
+### 11.2 SOX Audit Checklist
 
 | # | Check | Command/Tool | Frequency |
 |---|-------|-------------|-----------|
@@ -562,7 +918,7 @@ Manual rotation is not typically required.
 | 4 | Financial transactions immutable | BigQuery transaction_audit_trail | Daily |
 | 5 | 7-year log retention verified | S3 lifecycle, BQ retention | Quarterly |
 
-### 10.3 GDPR Audit Checklist
+### 11.3 GDPR Audit Checklist
 
 | # | Check | Command/Tool | Frequency |
 |---|-------|-------------|-----------|
@@ -574,9 +930,9 @@ Manual rotation is not typically required.
 
 ---
 
-## 11. VPN Troubleshooting
+## 12. VPN Troubleshooting
 
-### 11.1 Diagnostic Commands
+### 12.1 Diagnostic Commands
 
 ```bash
 # ─── AWS Side ───
@@ -595,7 +951,7 @@ gcloud compute vpn-tunnels list \
   --format="table(name,status,peerIp,detailedStatus)"
 ```
 
-### 11.2 Common Issues
+### 12.2 Common Issues
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
@@ -606,9 +962,9 @@ gcloud compute vpn-tunnels list \
 
 ---
 
-## 12. Cost Management
+## 13. Cost Management
 
-### 12.1 Estimated Monthly Costs
+### 13.1 Estimated Monthly Costs
 
 | Component | AWS | Azure | GCP | Total |
 |-----------|-----|-------|-----|-------|
@@ -620,7 +976,7 @@ gcloud compute vpn-tunnels list \
 | Monitoring | ~$300 | ~$200 | ~$100 | ~$600 |
 | **Subtotal** | **~$7,700** | **~$6,300** | **~$3,000** | **~$17,000** |
 
-### 12.2 Cost Optimization Tips
+### 13.2 Cost Optimization Tips
 
 - Use **Savings Plans** (AWS) / **Reserved Instances** (Azure/GCP) for 1-year commit
 - Scale down **Azure standby** node pools during off-peak hours
@@ -630,7 +986,7 @@ gcloud compute vpn-tunnels list \
 
 ---
 
-## 13. Contact & Escalation
+## 14. Contact & Escalation
 
 | Level | Team | Contact | Response SLA |
 |-------|------|---------|-------------|
