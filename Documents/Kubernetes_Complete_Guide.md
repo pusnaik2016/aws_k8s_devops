@@ -2039,17 +2039,20 @@ This section covers the **most common issues** you'll face in production, organi
 
 ### Debugging Flowchart — Where to Start
 
+![1780662688729](image/Kubernetes_Complete_Guide/1780662688729.png)
+
 ```mermaid
 flowchart TD
-    A[Something is broken] --> B{Can you reach\nthe API server?}
-    B -->|No| C[🔴 CLUSTER LEVEL\nCheck kubeconfig, network, certs]
-    B -->|Yes| D{Are nodes\nReady?}
-    D -->|No| E[🟠 NODE LEVEL\nCheck kubelet, resources, taints]
-    D -->|Yes| F{Are pods\nRunning?}
-    F -->|No| G[🟡 POD LEVEL\nCheck events, images, resources]
-    F -->|Yes| H{Can you reach\nthe service?}
-    H -->|No| I[🔵 SERVICE LEVEL\nCheck selectors, endpoints, ingress]
-    H -->|Yes| J[✅ App-level issue\nCheck logs, application code]
+    A["Something is broken"] --> B{"Can you reach<br/>the API server?"}
+    B -->|No| C["🔴 CLUSTER LEVEL<br/>Check kubeconfig, network, certs"]
+    B -->|Yes| D{"Are nodes<br/>Ready?"}
+    D -->|No| E["🟠 NODE LEVEL<br/>Check kubelet, resources, taints"]
+    D -->|Yes| F{"Are pods<br/>Running?"}
+    F -->|No| G["🟡 POD LEVEL<br/>Check events, images, resources"]
+    F -->|Yes| H{"Can you reach<br/>the service?"}
+    H -->|No| I["🔵 SERVICE LEVEL<br/>Check selectors, endpoints, ingress"]
+    H -->|Yes| J["✅ App-level issue<br/>Check logs, application code"]
+
 ```
 
 ---
@@ -2630,6 +2633,8 @@ graph TB
     style ETCD fill:#326CE5,color:#fff
     style ALB fill:#8C4FFF,color:#fff
 ```
+
+![1780664684231](image/Kubernetes_Complete_Guide/1780664684231.png)
 
 ---
 
