@@ -2,10 +2,12 @@
 
 > **Author:** [Pushparaj Naik](https://github.com/pusnaik2016)
 > **Repository:** [`pusnaik2016/aws_k8s_devops`](https://github.com/pusnaik2016/aws_k8s_devops)
-> **Focus:** Cloud Architecture · DevSecOps · Infrastructure as Code · Kubernetes · Serverless AI
+> **Focus:** Cloud Architecture · DevSecOps · Infrastructure as Code · Kubernetes · Serverless AI · Multi-Cloud · IoT Edge Computing
 
 [![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.5-623CE4?logo=terraform)](https://terraform.io)
 [![AWS](https://img.shields.io/badge/Cloud-AWS-FF9900?logo=amazonaws)](https://aws.amazon.com/)
+[![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4?logo=microsoft-azure)](https://azure.microsoft.com/)
+[![GCP](https://img.shields.io/badge/Cloud-GCP-4285F4?logo=google-cloud)](https://cloud.google.com/)
 [![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-EF7B4D?logo=argo&logoColor=white)](https://argoproj.github.io/cd/)
@@ -15,7 +17,7 @@
 
 ## 📌 About This Repository
 
-This mono-repository is a curated collection of **production-grade AWS infrastructure projects** that showcase end-to-end cloud architecture, DevSecOps pipelines, Kubernetes orchestration, serverless AI solutions, and IoT edge computing — all implemented with **Infrastructure as Code (Terraform)** and **GitOps** best practices.
+This mono-repository is a curated collection of **12 production-grade cloud infrastructure projects** that showcase end-to-end cloud architecture, DevSecOps pipelines, Kubernetes orchestration, serverless AI solutions, multi-cloud platforms, and IoT edge computing — all implemented with **Infrastructure as Code (Terraform)** and **GitOps** best practices.
 
 Each project is self-contained with its own README, Terraform modules, CI/CD pipelines, and documentation. Together, they demonstrate expertise across the AWS Well-Architected Framework pillars: **Operational Excellence**, **Security**, **Reliability**, **Performance Efficiency**, **Cost Optimization**, and **Sustainability**.
 
@@ -24,25 +26,28 @@ Each project is self-contained with its own README, Terraform modules, CI/CD pip
 ## 🗂️ Repository Structure
 
 ```
-AWS_DevOps_K8s/
+aws_k8s_devops/
 │
-├── 3Tier_EKS_React/                          # 🌐 3-Tier App on EKS with ArgoCD GitOps
-├── EKS_DevSecOPs/                            # 🛡️ Multi-Region EKS with DevSecOps Pipelines
-├── Java_DevSecOps/                           # ☕ Java DevSecOps Pipeline (WAF + Cognito + ArgoCD)
-├── Bedrock_RAG/                              # 🤖 Enterprise RAG Chatbot on Amazon Bedrock
-├── AnamolyDetector/                          # 🔍 AWS Cost Anomaly Detector (Bedrock + Z-score)
-├── IOT_LemonGrass/                           # 📡 IoT Greengrass v2 Enterprise PoC
-├── End-to-End-Deployment-Automation.../      # 🚀 ECS Fargate CI/CD with GitHub Actions
-├── hackerrank-orchestrate-may26/             # 🧠 AI Support Triage Agent (Hackathon)
-├── Documents/                                # 📚 Technical Interview Guides & References
-└── README.md                                 # ← You are here
+├── eks-gitops-quiz-app/                   # 🌐 3-Tier App on EKS with ArgoCD GitOps
+├── eks-multiregion-devsecops/             # 🛡️ Multi-Region EKS with DevSecOps Pipelines
+├── java-eks-devsecops-pipeline/           # ☕ Java DevSecOps Pipeline (WAF + Cognito + ArgoCD)
+├── multicloud-clearing-engine/            # 🏗️ Multi-Cloud Healthcare/Financial Clearing Engine
+├── omnichannel-ai-support-platform/       # 🤖 Omnichannel AI Customer Support Platform
+├── bedrock-agent-memory-system/           # 🧠 3-Layer Memory System for Bedrock Agents
+├── bedrock-rag-chatbot/                   # 💬 Enterprise RAG Chatbot on Amazon Bedrock
+├── aws-cost-anomaly-detector/             # 🔍 AWS Cost Anomaly Detector (Bedrock + Z-score)
+├── iot-greengrass-edge-telemetry/         # 📡 IoT Greengrass v2 Edge Telemetry PoC
+├── claude-code-devops-workflows/          # 🤖 AI-Driven DevOps Workflows with Claude Code
+├── devops-debug-toolkit/                  # 🔧 10-in-1 Offline DevOps Debug Toolkit
+├── interview-prep-docs/                   # 📚 Technical Interview Guides & References
+└── README.md                              # ← You are here
 ```
 
 ---
 
 ## 🏗️ Projects at a Glance
 
-### 1. 🌐 [3-Tier DevOps Quiz Application on AWS EKS](./3Tier_EKS_React/)
+### 1. 🌐 [3-Tier DevOps Quiz Application on AWS EKS](./eks-gitops-quiz-app/)
 
 > Production-ready 3-tier application (React + Flask + PostgreSQL) deployed on AWS EKS with full GitOps automation via ArgoCD.
 
@@ -63,7 +68,7 @@ AWS_DevOps_K8s/
 
 ---
 
-### 2. 🛡️ [Multi-Region EKS DevSecOps Infrastructure](./EKS_DevSecOPs/)
+### 2. 🛡️ [Multi-Region EKS DevSecOps Infrastructure](./eks-multiregion-devsecops/)
 
 > Multi-region (us-east-1 + ap-south-1) AWS infrastructure for a Java ecommerce application on private EKS clusters with Aurora Global Database and comprehensive security scanning.
 
@@ -84,7 +89,7 @@ AWS_DevOps_K8s/
 
 ---
 
-### 3. ☕ [Java DevSecOps Pipeline — Production Architecture](./Java_DevSecOps/)
+### 3. ☕ [Java DevSecOps Pipeline — Production Architecture](./java-eks-devsecops-pipeline/)
 
 > End-to-end CI/CD pipeline with 12-stage GitHub Actions CI, private EKS, ArgoCD GitOps, WAF v2, API Gateway, and Cognito authentication — fully automated with Terraform.
 
@@ -103,7 +108,71 @@ AWS_DevOps_K8s/
 
 ---
 
-### 4. 🤖 [Enterprise RAG Chatbot on Amazon Bedrock](./Bedrock_RAG/)
+### 4. 🏗️ [Multi-Cloud Healthcare & Financial Clearing Engine](./multicloud-clearing-engine/)
+
+> Production-grade multi-cloud infrastructure (AWS + Azure + GCP) for ingesting, validating, and clearing sensitive medical billing transactions with HIPAA, SOX, GDPR, and PCI-DSS compliance.
+
+| Aspect | Details |
+|--------|---------|
+| **Architecture** | Three-cloud: AWS (primary active) + Azure (hot standby) + GCP (compliance & analytics) |
+| **Microservices** | 4 Python/FastAPI services: transaction-ingestion, clearing-engine-core, audit-pipeline, notification-service |
+| **Compute** | EKS + AKS + GKE — all private clusters, Istio STRICT mTLS service mesh |
+| **Databases** | Aurora PostgreSQL (primary), Azure SQL Hyperscale (standby), AlloyDB + BigQuery (compliance) |
+| **Caching** | ElastiCache Redis (3 shards × 2 replicas) + Azure Cache for Redis Premium |
+| **Networking** | Cross-cloud IPSec VPN mesh (IKEv2, AES-256-GCM, BGP dynamic routing) |
+| **Security** | Azure AD centralized identity, KMS/Key Vault/Cloud KMS encryption, private endpoints everywhere |
+| **Compliance** | HIPAA + SOX + GDPR + PCI-DSS controls: immutable audit trail, PII tokenization, data sovereignty |
+| **GitOps** | ArgoCD on all 3 clusters with Istio egress policies |
+| **CI/CD** | 5 GitHub Actions pipelines: 3 infra (per cloud) + app CI + app CD |
+| **DR** | RTO 5 min, RPO 0 (sync replication) — Route53 auto-failover to Azure |
+
+**Scale:** Full Helm umbrella chart with 4 subcharts, HPA (3–20 replicas), PDB, zero-trust NetworkPolicies.
+
+---
+
+### 5. 🤖 [Omnichannel AI Customer Support Platform](./omnichannel-ai-support-platform/)
+
+> Enterprise AI-powered customer support system with real-time WebSocket chat (Bedrock Claude 3.5), human escalation, and sentiment analytics — deployed on EKS with KEDA event-driven scaling.
+
+| Aspect | Details |
+|--------|---------|
+| **AI Chat** | WebSocket-based real-time chat powered by Amazon Bedrock (Claude 3.5 Sonnet) with RAG context from pgvector |
+| **Human Escalation** | Automatic routing to human agents when AI confidence is low or sentiment turns negative |
+| **Sentiment Analytics** | Async analysis pipeline scoring every conversation for sentiment, topics, and CSAT proxy metrics |
+| **Caching** | Redis cache layer saves ~40% Bedrock API costs |
+| **Vector DB** | pgvector in Aurora PostgreSQL (no separate OpenSearch/Pinecone service) |
+| **Scaling** | KEDA event-driven scaling on Redis queue depth + HPA for CPU |
+| **Security** | GitHub OIDC + IRSA — zero static AWS credentials anywhere |
+| **Frontend** | React 18 + Vite chat widget served via CloudFront + S3 |
+| **IaC** | 5 Terraform modules: networking, security, compute, database, ai_cdn |
+| **Cost** | ~$458–$608/month (production estimate) |
+
+**Key Differentiator:** Combines LLM cost optimization (Redis caching), event-driven autoscaling (KEDA), and pgvector-in-Aurora (no extra vector DB service) for a cost-efficient AI platform.
+
+---
+
+### 6. 🧠 [3-Layer Memory System for Bedrock Agents](./bedrock-agent-memory-system/)
+
+> Production-grade 3-layer memory architecture for Amazon Bedrock Agents — in-context memory, SESSION_SUMMARY, and long-term knowledge base backed by Aurora pgvector. Fully deployed with Terraform.
+
+| Aspect | Details |
+|--------|---------|
+| **Layer 1** | In-Context Memory — 0ms latency, current invocation only, zero config |
+| **Layer 2** | SESSION_SUMMARY — ~50ms, Bedrock-managed, 30-day retention, within-session |
+| **Layer 3** | Knowledge Base — ~310ms, indefinite retention, cross-session, Aurora pgvector |
+| **Memory Writer** | Lambda-based action group with confidence gate (≥ 0.7 saves, < 0.7 skips) |
+| **Categories** | preference, project_context, decision, user_profile |
+| **Storage** | Aurora Serverless v2 (pgvector), S3 (memory docs), DynamoDB (audit trail) |
+| **Observability** | CloudWatch dashboard + 3 alarms |
+| **IaC** | 5 Terraform modules: aurora-pgvector, knowledge-base, agent, session-memory, observability |
+| **Tests** | 81 tests: Lambda handler (23), Terraform (33), Integration (25) |
+| **Cost** | ~$43/month (Aurora dominant, set min_capacity=0 for dev) |
+
+**The Problem It Solves:** Most AI agents suffer from goldfish memory — every session starts from zero. This architecture gives agents persistent, semantically searchable memory across sessions.
+
+---
+
+### 7. 💬 [Enterprise RAG Chatbot on Amazon Bedrock](./bedrock-rag-chatbot/)
 
 > Serverless Retrieval-Augmented Generation (RAG) chatbot using Amazon Bedrock (Claude 3.5 Sonnet + Titan Embed v2) with OpenSearch Serverless vector search, Bedrock Guardrails, and zero NAT Gateway costs.
 
@@ -123,7 +192,7 @@ AWS_DevOps_K8s/
 
 ---
 
-### 5. 🔍 [AWS Cost Anomaly Detector](./AnamolyDetector/)
+### 8. 🔍 [AWS Cost Anomaly Detector](./aws-cost-anomaly-detector/)
 
 > Intelligent AWS cost monitoring for ~$2/month — powered by Z-score statistics and Claude 3.5 Sonnet via Amazon Bedrock. Tells you **WHY** your bill spiked, not just **THAT** it did.
 
@@ -146,7 +215,7 @@ EventBridge (08:10 UTC) → Anomaly Detector Lambda → Z-score analysis → Bed
 
 ---
 
-### 6. 📡 [AWS IoT Greengrass v2 — Enterprise PoC](./IOT_LemonGrass/)
+### 9. 📡 [IoT Greengrass v2 — Edge Telemetry PoC](./iot-greengrass-edge-telemetry/)
 
 > Production-grade IoT edge connectivity using AWS IoT Core and Greengrass v2, featuring device security (X.509 certificates, mTLS), edge processing, and telemetry flows across multi-site deployments.
 
@@ -167,43 +236,43 @@ EventBridge (08:10 UTC) → Anomaly Detector Lambda → Z-score analysis → Bed
 
 ---
 
-### 7. 🚀 [End-to-End Deployment Automation to AWS using GitHub Actions](./End-to-End-Deployment-Automation-to-AWS-using-GitHub-Actions/)
+### 10. 🤖 [AI-Driven DevOps Workflows with Claude Code](./claude-code-devops-workflows/)
 
-> Campus Event Management System with a fully automated CI/CD pipeline — push to GitHub and the entire AWS infrastructure (VPC, ECS Fargate, ALB, ECR) is provisioned and deployed in under 15 minutes.
+> Autonomous AI-driven infrastructure workflows — configuring Claude Code as a DevOps agent that owns the entire pipeline from scanning to reporting, using 5 key primitives: CLAUDE.md, slash commands, hooks, agentic pipelines, and MCP servers.
 
 | Aspect | Details |
 |--------|---------|
-| **Application** | Campus event management platform (React 18 + Node.js/Express) |
-| **Compute** | AWS ECS Fargate — serverless container orchestration |
-| **Networking** | VPC with 2 public subnets across AZs, Internet Gateway, ALB with path-based routing |
-| **CI/CD** | GitHub Actions — infrastructure provisioning + Docker build + ECR push + ECS deploy |
-| **Deployment** | Zero-downtime rolling updates with ALB health check validation |
-| **Docker** | Multi-stage builds (60–70% image size reduction), Nginx for frontend |
-| **Routing** | ALB path-based: `/api/*` → backend (port 3000), `/*` → frontend (port 80) |
-| **Security** | Three-tier security groups (ALB, backend, frontend), IAM least-privilege |
-| **Idempotent** | Pipeline creates resources only when needed, updates existing ones gracefully |
-| **Cleanup** | Automated resource cleanup workflow — deletes all AWS resources in 3–5 minutes |
+| **Paradigm** | Shift from prompting AI for snippets to orchestrating an autonomous DevOps agent |
+| **CLAUDE.md** | Standing brief with stack rules, security policies, naming conventions, dangerous command lists |
+| **Slash Commands** | `/pr-review`, `/infra-validate`, `/security-scan`, `/k8s-diagnostics` |
+| **Security Scanner** | 5-engine scanner: secrets (15+ patterns), Docker, Terraform, K8s, CI/CD |
+| **Quality Gates** | `pre-tool.sh` (dangerous command gatekeeper) + `pre-commit.sh` (5-check quality gate) |
+| **Audit Trail** | All dangerous command decisions logged to `.claude/audit.log` |
+| **Defense in Depth** | 3-layer security model: Prevention → Detection → Enforcement |
+| **Dependencies** | Zero external Python dependencies — stdlib only |
+| **Output Formats** | Text, Markdown, JSON for CI/CD integration |
 
-**Key Feature:** Fully idempotent pipeline — first run provisions everything, subsequent runs only update the application. Code commit to production in ~5–7 minutes.
+**Core Insight:** Traditional AI usage generates code snippets. This project configures AI as an autonomous agent that executes multi-step pipelines: `diff → scan → validate → report`.
 
 ---
 
-### 8. 🧠 [HackerRank Orchestrate — AI Support Triage Agent](./hackerrank-orchestrate-may26/)
+### 11. 🔧 [10-in-1 Offline DevOps Debug Toolkit](./devops-debug-toolkit/)
 
-> AI-powered customer support triage agent built for the HackerRank Orchestrate 24-hour hackathon. Classifies, routes, and responds to support tickets across three product ecosystems using RAG-only grounding.
+> 10 essential DevOps automation tools — IaC generation, pipeline debugging, security scanning, K8s troubleshooting, cost optimization, and more — all running 100% offline with zero API dependencies.
 
 | Aspect | Details |
 |--------|---------|
-| **Challenge** | Triage 29 real support tickets across HackerRank, Claude (Anthropic), and Visa ecosystems |
-| **Retrieval** | TF-IDF vectorizer searching 774 markdown documents with company-aware boosting |
-| **LLM** | Google Gemini with 6-model fallback for rate limit resilience (~12 RPM effective) |
-| **Pre-Screening** | Deterministic regex patterns catch prompt injections and malicious requests before LLM |
-| **Grounding** | RAG-only responses — every answer must cite from the 774-doc support corpus, no hallucination |
-| **Adversarial Handling** | Detects prompt injections (English + French), malicious code requests, off-topic queries |
-| **Accuracy** | 90% status accuracy, 100% request_type accuracy on sample test set |
-| **Output** | Structured CSV with classification, response, justification, and escalation decisions |
+| **Tools** | IaC Generator, Pipeline Debugger, Security Scanner, Incident Triage, Server Config Analyzer, Legacy Modernizer, Runbook Generator, K8s Troubleshooter, Release Notes Generator, Cost Optimizer |
+| **Rules Engine** | YAML-driven: 66 detection rules across 5 rule files (customizable, version-controllable) |
+| **Output Formats** | Terminal (colorized), JSON, Markdown, HTML Dashboard (Chart.js) |
+| **Architecture** | Uniform `Input → Analyzer → Findings → Reporter` model for all 10 tools |
+| **Offline** | 100% offline — no API keys, no cloud accounts, no internet required |
+| **Speed** | 0.33s for 70 tests |
+| **Tests** | 70/70 tests passing across all 10 tools |
+| **Extensibility** | Add new tools by extending `BaseAnalyzer` + YAML rules + CLI registration |
+| **Dependencies** | PyYAML, Rich, Click, Jinja2, pytest |
 
-**Pipeline:** `CSV Input → Regex Pre-Screen → TF-IDF Retrieve (top-5 docs) → Gemini LLM (classify + reply) → Validated CSV Output`
+**Key Differentiator:** Your code never leaves your machine. YAML-based rules you own and version control vs vendor-locked cloud scanning tools.
 
 ---
 
@@ -213,18 +282,22 @@ EventBridge (08:10 UTC) → Anomaly Detector Lambda → Z-score analysis → Bed
 
 | Technology | Used In | Purpose |
 |------------|---------|---------|
-| **AWS EKS** | 3Tier_EKS, EKS_DevSecOPs, Java_DevSecOps | Managed Kubernetes orchestration |
-| **AWS ECS Fargate** | E2E Deployment | Serverless container orchestration |
-| **AWS RDS / Aurora** | 3Tier_EKS, EKS_DevSecOPs | Managed relational databases |
-| **Amazon Bedrock** | Bedrock_RAG, AnamolyDetector | Managed LLM inference (Claude, Titan) |
-| **OpenSearch Serverless** | Bedrock_RAG | Vector search for RAG |
-| **AWS IoT Core + Greengrass** | IOT_LemonGrass | IoT device management + edge compute |
-| **Amazon Timestream** | IOT_LemonGrass | Time-series database for telemetry |
-| **AWS Lambda** | AnamolyDetector, Bedrock_RAG, IOT_LemonGrass | Serverless compute |
-| **API Gateway** | Bedrock_RAG, Java_DevSecOps | REST API management |
-| **AWS WAF v2** | Java_DevSecOps, EKS_DevSecOPs | Web application firewall |
-| **AWS Cognito** | Java_DevSecOps | User authentication & JWT |
-| **AWS KMS** | All projects | Encryption key management |
+| **AWS EKS** | eks-gitops-quiz-app, eks-multiregion-devsecops, java-eks-devsecops-pipeline, omnichannel-ai-support-platform | Managed Kubernetes orchestration |
+| **AWS Aurora / RDS** | eks-gitops-quiz-app, eks-multiregion-devsecops, omnichannel-ai-support-platform, bedrock-agent-memory-system | Managed relational databases |
+| **Amazon Bedrock** | bedrock-rag-chatbot, aws-cost-anomaly-detector, bedrock-agent-memory-system, omnichannel-ai-support-platform | Managed LLM inference (Claude, Titan) |
+| **OpenSearch Serverless** | bedrock-rag-chatbot | Vector search for RAG |
+| **AWS IoT Core + Greengrass** | iot-greengrass-edge-telemetry | IoT device management + edge compute |
+| **Amazon Timestream** | iot-greengrass-edge-telemetry | Time-series database for telemetry |
+| **AWS Lambda** | aws-cost-anomaly-detector, bedrock-rag-chatbot, iot-greengrass-edge-telemetry, bedrock-agent-memory-system | Serverless compute |
+| **API Gateway** | bedrock-rag-chatbot, java-eks-devsecops-pipeline, omnichannel-ai-support-platform | REST / WebSocket API management |
+| **AWS WAF v2** | java-eks-devsecops-pipeline, eks-multiregion-devsecops, multicloud-clearing-engine | Web application firewall |
+| **AWS Cognito** | java-eks-devsecops-pipeline | User authentication & JWT |
+| **AWS KMS** | All infrastructure projects | Encryption key management |
+| **Azure AKS** | multicloud-clearing-engine | Azure Kubernetes Service |
+| **Azure SQL Hyperscale** | multicloud-clearing-engine | Azure managed database (hot standby) |
+| **GCP GKE** | multicloud-clearing-engine | Google Kubernetes Engine (compliance layer) |
+| **GCP BigQuery** | multicloud-clearing-engine | Audit trail analytics and compliance |
+| **GCP AlloyDB** | multicloud-clearing-engine | PostgreSQL-compatible compliance database |
 
 ### DevOps & CI/CD
 
@@ -232,33 +305,46 @@ EventBridge (08:10 UTC) → Anomaly Detector Lambda → Z-score analysis → Bed
 |------------|---------|---------|
 | **Terraform** | All infrastructure projects | Infrastructure as Code |
 | **GitHub Actions** | All projects | CI/CD pipeline orchestration |
-| **ArgoCD** | 3Tier_EKS, Java_DevSecOps, EKS_DevSecOPs | GitOps continuous delivery |
-| **Helm** | EKS_DevSecOPs, 3Tier_EKS, Java_DevSecOps | Kubernetes package management |
+| **ArgoCD** | eks-gitops-quiz-app, java-eks-devsecops-pipeline, eks-multiregion-devsecops, multicloud-clearing-engine | GitOps continuous delivery |
+| **Helm** | eks-multiregion-devsecops, eks-gitops-quiz-app, java-eks-devsecops-pipeline, multicloud-clearing-engine | Kubernetes package management |
+| **Istio** | multicloud-clearing-engine | Service mesh with STRICT mTLS |
+| **KEDA** | omnichannel-ai-support-platform | Event-driven Kubernetes autoscaling |
 | **Docker** | All application projects | Containerization |
 | **Amazon ECR** | All container projects | Private container registry |
+| **Azure ACR** | multicloud-clearing-engine | Azure private container registry |
 
 ### Security & Compliance
 
 | Technology | Used In | Purpose |
 |------------|---------|---------|
-| **Checkov** | AnamolyDetector, Bedrock_RAG | IaC security scanning |
-| **Trivy** | EKS_DevSecOPs, Java_DevSecOps | Container vulnerability scanning |
-| **SonarCloud** | EKS_DevSecOPs, Java_DevSecOps | Static application security testing (SAST) |
-| **OWASP Dependency Check** | EKS_DevSecOPs, Java_DevSecOps | Software composition analysis (SCA) |
-| **Gitleaks** | EKS_DevSecOPs, Java_DevSecOps | Secrets detection in code |
-| **Bedrock Guardrails** | Bedrock_RAG | PII redaction, content filtering, topic denial |
-| **GuardDuty** | 3Tier_EKS, EKS_DevSecOPs | Threat detection |
-| **Security Hub** | EKS_DevSecOPs | Security posture management |
+| **Checkov** | aws-cost-anomaly-detector, bedrock-rag-chatbot, multicloud-clearing-engine | IaC security scanning |
+| **Trivy** | eks-multiregion-devsecops, java-eks-devsecops-pipeline, multicloud-clearing-engine | Container vulnerability scanning |
+| **SonarCloud** | eks-multiregion-devsecops, java-eks-devsecops-pipeline | Static application security testing (SAST) |
+| **OWASP Dependency Check** | eks-multiregion-devsecops, java-eks-devsecops-pipeline | Software composition analysis (SCA) |
+| **Gitleaks / TruffleHog** | eks-multiregion-devsecops, java-eks-devsecops-pipeline, multicloud-clearing-engine | Secrets detection in code |
+| **Bedrock Guardrails** | bedrock-rag-chatbot | PII redaction, content filtering, topic denial |
+| **GuardDuty** | eks-gitops-quiz-app, eks-multiregion-devsecops | Threat detection |
+| **Security Hub** | eks-multiregion-devsecops | Security posture management |
+| **Azure AD** | multicloud-clearing-engine | Centralized identity provider across 3 clouds |
+
+### AI / ML
+
+| Technology | Used In | Purpose |
+|------------|---------|---------|
+| **Claude 3.5 Sonnet** | bedrock-rag-chatbot, aws-cost-anomaly-detector, bedrock-agent-memory-system, omnichannel-ai-support-platform | Conversational AI, analysis, memory |
+| **Titan Embeddings v2** | bedrock-rag-chatbot, omnichannel-ai-support-platform | RAG vector generation |
+| **pgvector** | bedrock-agent-memory-system, omnichannel-ai-support-platform | Vector similarity search in PostgreSQL |
+| **Claude Code Agent** | claude-code-devops-workflows | Autonomous DevOps agent |
 
 ### Application Frameworks
 
 | Technology | Used In | Purpose |
 |------------|---------|---------|
-| **React 18** | 3Tier_EKS, E2E Deployment | Frontend UI framework |
-| **Flask / Gunicorn** | 3Tier_EKS | Python REST API |
-| **Node.js / Express** | E2E Deployment | JavaScript REST API |
-| **Spring Boot (Java)** | Java_DevSecOps | Enterprise Java application |
-| **Python 3.11+** | AnamolyDetector, Bedrock_RAG, IOT_LemonGrass, HackerRank | Serverless functions, AI agents |
+| **React 18** | eks-gitops-quiz-app, omnichannel-ai-support-platform | Frontend UI framework |
+| **Flask / Gunicorn** | eks-gitops-quiz-app | Python REST API |
+| **FastAPI** | multicloud-clearing-engine, omnichannel-ai-support-platform | High-performance Python API framework |
+| **Spring Boot (Java)** | java-eks-devsecops-pipeline | Enterprise Java application |
+| **Python 3.11+** | 8 projects | Serverless functions, AI agents, tooling |
 
 ---
 
@@ -266,22 +352,25 @@ EventBridge (08:10 UTC) → Anomaly Detector Lambda → Z-score analysis → Bed
 
 | Pattern | Projects | Description |
 |---------|----------|-------------|
-| **GitOps** | 3Tier_EKS, Java_DevSecOps, EKS_DevSecOPs | ArgoCD-driven declarative cluster management — CI writes to Git, ArgoCD reconciles |
-| **Multi-Region DR** | EKS_DevSecOPs | Active-passive with Route53 failover, Aurora Global DB, cross-region replication |
-| **Defense-in-Depth** | Java_DevSecOps | 12-layer security stack from edge (WAF) to pod (IRSA) |
-| **Event-Driven** | AnamolyDetector, IOT_LemonGrass, Bedrock_RAG | EventBridge schedules, S3 event triggers, IoT Rules Engine |
-| **Edge Computing** | IOT_LemonGrass | Greengrass v2 edge processing — 80-98% bandwidth cost reduction |
-| **RAG / CAG** | Bedrock_RAG | Dual generation strategies with prompt caching for cost optimization |
-| **Serverless** | AnamolyDetector, Bedrock_RAG, E2E Deployment | Lambda, ECS Fargate, API Gateway — zero server management |
-| **App-of-Apps** | 3Tier_EKS | ArgoCD parent application managing multiple child applications |
-| **External Secrets** | 3Tier_EKS | AWS Secrets Manager → K8s Secrets via ESO (no secrets in Git) |
-| **OIDC Federation** | Java_DevSecOps | GitHub Actions → AWS STS — keyless, credential-free CI/CD |
+| **GitOps** | eks-gitops-quiz-app, java-eks-devsecops-pipeline, eks-multiregion-devsecops, multicloud-clearing-engine | ArgoCD-driven declarative cluster management — CI writes to Git, ArgoCD reconciles |
+| **Multi-Region DR** | eks-multiregion-devsecops | Active-passive with Route53 failover, Aurora Global DB, cross-region replication |
+| **Multi-Cloud** | multicloud-clearing-engine | AWS (primary) + Azure (hot standby) + GCP (compliance) with IPSec VPN mesh |
+| **Defense-in-Depth** | java-eks-devsecops-pipeline | 12-layer security stack from edge (WAF) to pod (IRSA) |
+| **Event-Driven** | aws-cost-anomaly-detector, iot-greengrass-edge-telemetry, bedrock-rag-chatbot, omnichannel-ai-support-platform | EventBridge, S3 triggers, IoT Rules Engine, KEDA |
+| **Edge Computing** | iot-greengrass-edge-telemetry | Greengrass v2 edge processing — 80-98% bandwidth cost reduction |
+| **RAG / CAG** | bedrock-rag-chatbot | Dual generation strategies with prompt caching for cost optimization |
+| **AI Agent Memory** | bedrock-agent-memory-system | 3-layer memory architecture for persistent, cross-session agent context |
+| **Service Mesh** | multicloud-clearing-engine | Istio STRICT mTLS across 3 cloud providers |
+| **App-of-Apps** | eks-gitops-quiz-app | ArgoCD parent application managing multiple child applications |
+| **External Secrets** | eks-gitops-quiz-app | AWS Secrets Manager → K8s Secrets via ESO (no secrets in Git) |
+| **OIDC Federation** | java-eks-devsecops-pipeline, omnichannel-ai-support-platform | GitHub Actions → AWS STS — keyless, credential-free CI/CD |
+| **Autonomous AI Agent** | claude-code-devops-workflows | AI-driven DevOps automation with quality gates and audit logging |
 
 ---
 
-## 📚 Documents & Technical Guides
+## 📚 Technical Interview Guides & References
 
-The [`Documents/`](./Documents/) directory contains comprehensive technical interview preparation guides and architecture references covering:
+The [`interview-prep-docs/`](./interview-prep-docs/) directory contains comprehensive technical preparation materials covering:
 
 - **Cloud/DevOps Architect** — AWS architecture, EKS operations, CI/CD, Terraform
 - **Integration Architect** — API design, event-driven architectures, system integration
@@ -290,7 +379,7 @@ The [`Documents/`](./Documents/) directory contains comprehensive technical inte
 - **Solution Architect** — Well-Architected Framework, cost optimization, migration strategies
 - **EKS Upgrade Guides** — Detailed EKS 1.29 → 1.31 upgrade procedures (3 parts)
 - **Enterprise Architecture** — EA thinking frameworks and principal architect patterns
-- **Data Engineering** — GCP ecosystem: Kafka, Apache Beam, Airflow, Kubernetes
+- **Kubernetes Complete Guide** — Comprehensive K8s reference
 
 ---
 
@@ -308,11 +397,11 @@ Individual projects may additionally require:
 
 | Tool | Required By |
 |------|------------|
-| `kubectl` | EKS projects (3Tier_EKS, EKS_DevSecOPs, Java_DevSecOps) |
-| `helm` | EKS projects with Helm charts |
+| `kubectl` | EKS projects (eks-gitops-quiz-app, eks-multiregion-devsecops, java-eks-devsecops-pipeline, omnichannel-ai-support-platform) |
+| `helm` | EKS projects with Helm charts, multicloud-clearing-engine |
 | `docker` | All container-based projects |
 | `node` (v20+) | React frontend projects |
-| `python` (3.11+) | Lambda functions, AI agents |
+| `python` (3.11+) | Lambda functions, AI agents, devops-debug-toolkit |
 
 ### Quick Start (Any Project)
 
@@ -344,12 +433,13 @@ All projects in this repository follow consistent security best practices:
 
 - ✅ **No hardcoded credentials** — AWS Secrets Manager, IRSA, OIDC federation, Token Exchange Service
 - ✅ **Encryption at rest** — KMS Customer Managed Keys for all data stores
-- ✅ **Encryption in transit** — TLS 1.2+ for all inter-service communication
+- ✅ **Encryption in transit** — TLS 1.2+ for all inter-service communication, Istio mTLS
 - ✅ **Least-privilege IAM** — Scoped IAM roles per function/service
 - ✅ **Private networking** — Private subnets, VPC Endpoints, no public IPs on compute
 - ✅ **Security scanning** — SAST (SonarCloud), SCA (OWASP DC), container scanning (Trivy), IaC scanning (Checkov)
 - ✅ **Audit logging** — CloudTrail, VPC Flow Logs, CloudWatch Logs
 - ✅ **Threat detection** — GuardDuty, Security Hub, AWS Config rules
+- ✅ **Multi-cloud security** — Azure AD centralized identity, Key Vault, Cloud KMS
 
 ---
 
@@ -359,12 +449,14 @@ Each project includes cost estimates and optimization strategies:
 
 | Project | Estimated Monthly Cost | Key Optimization |
 |---------|----------------------|-----------------|
-| AnamolyDetector | ~$1–$2 | Free-tier Lambda, PAY_PER_REQUEST DynamoDB |
-| IOT_LemonGrass | ~$5 (edge) | Edge aggregation saves ~$304/month vs raw ingestion |
-| Bedrock_RAG | ~$60 (dev) | VPC Endpoints over NAT GW, CAG prompt caching |
-| Java_DevSecOps | ~$235 | No Jenkins/SonarQube EC2 (saves ~$100) |
-| 3Tier_EKS | Variable | Karpenter spot instances, RDS reserved instances |
-| E2E Deployment | ~$30–$50 | Fargate pay-per-use, automated cleanup workflow |
+| aws-cost-anomaly-detector | ~$1–$2 | Free-tier Lambda, PAY_PER_REQUEST DynamoDB |
+| iot-greengrass-edge-telemetry | ~$5 (edge) | Edge aggregation saves ~$304/month vs raw ingestion |
+| bedrock-agent-memory-system | ~$43 | Aurora min_capacity=0 for dev (auto-pause) |
+| bedrock-rag-chatbot | ~$60 (dev) | VPC Endpoints over NAT GW, CAG prompt caching |
+| java-eks-devsecops-pipeline | ~$235 | No Jenkins/SonarQube EC2 (saves ~$100) |
+| omnichannel-ai-support-platform | ~$458–$608 | Redis LLM cache saves ~40% Bedrock costs |
+| eks-gitops-quiz-app | Variable | Karpenter spot instances, RDS reserved instances |
+| multicloud-clearing-engine | Enterprise | Karpenter spot, Aurora auto-scaling, S3 lifecycle |
 
 ---
 
