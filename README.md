@@ -38,6 +38,7 @@ aws_k8s_devops/
 ├── interview-prep-docs/                          # 📚 Project directory
 ├── iot-greengrass-edge-telemetry/                # 📡 **Production-grade IoT edge connectivity using AWS IoT Core 
 ├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
+├── medcloud-global-platform/                     # 📁 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
 ├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
 └── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
 └── README.md                                     # ← You are here
