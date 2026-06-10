@@ -1,0 +1,109 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Istio Security Policies — HIPAA mTLS & Authorization
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Enforce STRICT mTLS across the entire mesh (HIPAA requirement)
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-strict-mtls
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# Authorization policy: Deny all by default (zero-trust)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: medcloud
+spec:
+  {}
+
+---
+# Allow storefront-api to access order-service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-storefront-to-orders
+  namespace: medcloud
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/medcloud/sa/storefront-api"
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT"]
+            paths: ["/api/v1/orders*"]
+
+---
+# Allow order-service to access patient-service (cross-cloud: AWS → Azure)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-patients
+  namespace: medcloud
+spec:
+  selector:
+    matchLabels:
+      app: patient-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/medcloud/sa/order-service"
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/api/v1/patients/*"]
+
+---
+# Allow ai-gateway to access imaging-service (cross-cloud: GCP → Azure)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ai-to-imaging
+  namespace: medcloud
+spec:
+  selector:
+    matchLabels:
+      app: imaging-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/medcloud/sa/ai-gateway"
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/api/v1/images/*", "/api/v1/analyze*"]
+
+---
+# Rate limiting for external API access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: external-api-ratelimit
+  namespace: medcloud
+spec:
+  selector:
+    matchLabels:
+      app: storefront-api
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["istio-system"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE"]

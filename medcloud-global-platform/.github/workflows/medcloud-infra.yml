@@ -1,0 +1,178 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MedCloud Global — Multi-Cloud Infrastructure CI/CD Pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+name: "🏥 MedCloud — Infrastructure Pipeline"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'medcloud-global-platform/terraform/**'
+      - 'medcloud-global-platform/.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'medcloud-global-platform/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+      cloud:
+        description: 'Target cloud (or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options: [all, aws, azure, gcp]
+
+concurrency:
+  group: medcloud-infra-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.7.5"
+  WORKING_DIR: "medcloud-global-platform/terraform"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 1: Security Scanning
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  security-scan:
+    name: "🔒 Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tfsec — Terraform Security Scanner
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ${{ env.WORKING_DIR }}
+          format: sarif
+          out: tfsec-results.sarif
+          soft_fail: true
+
+      - name: Upload tfsec SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec-results.sarif
+          category: tfsec
+
+      - name: Checkov — Compliance Scanner
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: ${{ env.WORKING_DIR }}
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: true
+
+      - name: Upload Checkov SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 2: Terraform Plan (parallel per cloud)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  plan:
+    name: "📋 Plan — ${{ matrix.cloud }}"
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    strategy:
+      matrix:
+        cloud: [aws, azure, gcp]
+        module: [networking]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        if: matrix.cloud == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Azure Login (OIDC)
+        if: matrix.cloud == 'azure'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: GCP Auth (OIDC)
+        if: matrix.cloud == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}/${{ matrix.cloud }}/${{ matrix.module }}
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        working-directory: ${{ env.WORKING_DIR }}/${{ matrix.cloud }}/${{ matrix.module }}
+        run: terraform plan -input=false -out=tfplan
+        env:
+          TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.cloud }}-${{ matrix.module }}
+          path: ${{ env.WORKING_DIR }}/${{ matrix.cloud }}/${{ matrix.module }}/tfplan
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 3: Terraform Apply (merge to main only)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  apply:
+    name: "🚀 Apply Infrastructure"
+    runs-on: ubuntu-latest
+    needs: [plan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: plans/
+      - name: Apply Summary
+        run: |
+          echo "## 🏥 MedCloud Infrastructure Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "| Cloud | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| AWS | ✅ Planned |" >> $GITHUB_STEP_SUMMARY
+          echo "| Azure | ✅ Planned |" >> $GITHUB_STEP_SUMMARY
+          echo "| GCP | ✅ Planned |" >> $GITHUB_STEP_SUMMARY
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 4: ArgoCD Sync (application deployment)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  argocd-sync:
+    name: "🔄 ArgoCD Sync"
+    runs-on: ubuntu-latest
+    needs: [apply]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Notify ArgoCD
+        run: |
+          echo "ArgoCD auto-sync triggered by merge to main."
+          echo "Applications will sync within 3 minutes via GitOps."

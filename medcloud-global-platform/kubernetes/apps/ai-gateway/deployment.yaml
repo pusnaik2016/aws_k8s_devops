@@ -1,0 +1,189 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AI Gateway — ML Inference & Analytics Gateway (Deployed on GCP GKE)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-gateway
+  namespace: medcloud
+  annotations:
+    # GCP Workload Identity — bind to GCP SA for BigQuery, Vertex AI
+    iam.gke.io/gcp-service-account: medcloud-ai-gateway@PROJECT_ID.iam.gserviceaccount.com
+  labels:
+    app: ai-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-gateway
+  namespace: medcloud
+  labels:
+    app: ai-gateway
+    version: v1
+    cloud: gcp
+    compliance: hipaa
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-gateway
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: ai-gateway
+        version: v1
+        cloud: gcp
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: ai-gateway
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "analytics"
+          effect: "NoSchedule"
+      nodeSelector:
+        role: analytics
+        cloud: gcp
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: ai-gateway
+          image: us-central1-docker.pkg.dev/PROJECT_ID/medcloud/ai-gateway:latest
+          ports:
+            - containerPort: 8080
+              name: http
+
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: GCP_PROJECT_ID
+              value: "PROJECT_ID"
+            - name: BIGQUERY_DATASET
+              value: "ecommerce_transactions"
+            - name: VERTEX_AI_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-gateway-config
+                  key: vertex-ai-endpoint
+            - name: FEATURE_STORE_ID
+              value: "medcloud_prod_featurestore"
+            # Cross-cloud service URLs (via Istio mesh)
+            - name: PATIENT_SERVICE_URL
+              value: "http://patient-service.medcloud.svc.cluster.local:8080"
+            - name: IMAGING_SERVICE_URL
+              value: "http://imaging-service.medcloud.svc.cluster.local:8080"
+            # DLP template for PHI scrubbing
+            - name: DLP_DEIDENTIFY_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-gateway-config
+                  key: dlp-deidentify-template
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ai-gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-gateway
+  namespace: medcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: ai-gateway
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-gateway-config
+  namespace: medcloud
+data:
+  vertex-ai-endpoint: "projects/PROJECT_ID/locations/us-central1/endpoints/ENDPOINT_ID"
+  dlp-deidentify-template: "projects/PROJECT_ID/deidentifyTemplates/TEMPLATE_ID"
+  fraud-detection-model: "projects/PROJECT_ID/locations/us-central1/models/FRAUD_MODEL_ID"
+  recommendation-model: "projects/PROJECT_ID/locations/us-central1/models/REC_MODEL_ID"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-gateway
+  namespace: medcloud
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-gateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-gateway
+  namespace: medcloud
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-gateway

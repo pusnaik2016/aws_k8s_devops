@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Order Service — E-Commerce Order Processing (Deployed on AWS EKS)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: order-service
+  namespace: medcloud
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/medcloud-order-service-role
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: medcloud
+  labels:
+    app: order-service
+    version: v1
+    cloud: aws
+    compliance: pci-dss
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        version: v1
+        cloud: aws
+    spec:
+      serviceAccountName: order-service
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "e-commerce"
+          effect: "NoSchedule"
+      nodeSelector:
+        role: application
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: order-service
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/medcloud/order-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-credentials
+                  key: endpoint
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: endpoint
+            - name: PATIENT_SERVICE_URL
+              value: "http://patient-service.medcloud.svc.cluster.local:8080"
+            - name: NOTIFICATION_SERVICE_URL
+              value: "http://notification-service.medcloud.svc.cluster.local:8080"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: medcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: order-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service
+  namespace: medcloud
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service
+  namespace: medcloud
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: order-service

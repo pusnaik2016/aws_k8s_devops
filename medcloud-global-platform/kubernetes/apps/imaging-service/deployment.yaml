@@ -1,0 +1,139 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Imaging Service — Medical Image Processing (Deployed on Azure AKS)
+# Connects to Azure AI Vision + Blob Storage (DICOM images)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: imaging-service
+  namespace: medcloud
+  annotations:
+    azure.workload.identity/client-id: "AZURE_CLIENT_ID"
+  labels:
+    azure.workload.identity/use: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: imaging-service
+  namespace: medcloud
+  labels:
+    app: imaging-service
+    version: v1
+    cloud: azure
+    compliance: hipaa
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: imaging-service
+  template:
+    metadata:
+      labels:
+        app: imaging-service
+        version: v1
+        cloud: azure
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: imaging-service
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "healthcare"
+          effect: "NoSchedule"
+      nodeSelector:
+        role: medical
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: imaging-service
+          image: medclouddevacr.azurecr.io/medcloud/imaging-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: AZURE_VISION_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: vision-credentials
+                  key: endpoint
+            - name: BLOB_STORAGE_ACCOUNT
+              value: "medcloudprodmedimages"
+            - name: DICOM_CONTAINER
+              value: "dicom-images"
+            - name: EHR_CONTAINER
+              value: "ehr-documents"
+            - name: PATIENT_SERVICE_URL
+              value: "http://patient-service.medcloud.svc.cluster.local:8080"
+            - name: AI_GATEWAY_URL
+              value: "http://ai-gateway.medcloud.svc.cluster.local:8080"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 25
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: image-cache
+              mountPath: /var/cache/images
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: image-cache
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: imaging-service
+  namespace: medcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: imaging-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: imaging-service
+  namespace: medcloud
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: imaging-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

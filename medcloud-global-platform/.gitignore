@@ -1,0 +1,59 @@
+# ─── Terraform ───────────────────────────────────────────────────────────
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ─── IDE ─────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# ─── Java / Maven ────────────────────────────────────────────────────────
+target/
+*.jar
+*.war
+*.ear
+*.class
+hs_err_pid*
+
+# ─── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# ─── Docker ──────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Secrets (NEVER commit) ─────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+secrets.yaml
+secrets.yml
+.env.local
+.env.production

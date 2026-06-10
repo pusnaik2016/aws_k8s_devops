@@ -1,0 +1,168 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Istio Gateways — Ingress & East-West Cross-Cloud
+# ─────────────────────────────────────────────────────────────────────────────
+
+# External Ingress Gateway (public traffic → storefront-api)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: medcloud-ingress-gateway
+  namespace: medcloud
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: medcloud-tls-cert
+      hosts:
+        - "api.medcloud.example.com"
+        - "*.medcloud.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "api.medcloud.example.com"
+      tls:
+        httpsRedirect: true
+
+---
+# VirtualService: Route external traffic to storefront-api
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: storefront-api-routes
+  namespace: medcloud
+spec:
+  hosts:
+    - "api.medcloud.example.com"
+  gateways:
+    - medcloud-ingress-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api/v1/products
+        - uri:
+            prefix: /api/v1/orders
+        - uri:
+            prefix: /api/v1/cart
+      route:
+        - destination:
+            host: storefront-api
+            port:
+              number: 8080
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: "5xx,reset,connect-failure"
+      timeout: 10s
+
+    - match:
+        - uri:
+            prefix: /api/v1/patients
+      route:
+        - destination:
+            host: patient-service
+            port:
+              number: 8080
+      timeout: 15s
+
+    - match:
+        - uri:
+            prefix: /api/v1/images
+      route:
+        - destination:
+            host: imaging-service
+            port:
+              number: 8080
+      timeout: 30s  # Longer timeout for image upload/processing
+
+---
+# East-West Gateway exposure (for cross-cluster service discovery)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: cross-network-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: eastwestgateway
+  servers:
+    - port:
+        number: 15443
+        name: tls
+        protocol: TLS
+      tls:
+        mode: AUTO_PASSTHROUGH
+      hosts:
+        - "*.local"
+
+---
+# DestinationRule: Circuit breaker for storefront-api
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: storefront-api-circuit-breaker
+  namespace: medcloud
+spec:
+  host: storefront-api
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DEFAULT
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+# DestinationRule: Circuit breaker for patient-service (cross-cloud)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: patient-service-circuit-breaker
+  namespace: medcloud
+spec:
+  host: patient-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 25
+        http2MaxRequests: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 15s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+
+---
+# DestinationRule: Circuit breaker for ai-gateway (cross-cloud)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ai-gateway-circuit-breaker
+  namespace: medcloud
+spec:
+  host: ai-gateway
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 30
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 20s
+      baseEjectionTime: 60s

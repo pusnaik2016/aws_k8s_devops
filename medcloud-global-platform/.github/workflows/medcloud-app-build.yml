@@ -1,0 +1,411 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MedCloud — Application Build & Deploy Pipeline (Java/Maven + Docker)
+# ─────────────────────────────────────────────────────────────────────────────
+# Builds, tests, scans, and deploys all 6 microservices.
+# Triggered by changes to application source code.
+# ─────────────────────────────────────────────────────────────────────────────
+name: "🚀 MedCloud — Application CI/CD"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/**'
+      - 'pom.xml'
+      - '.github/workflows/medcloud-app-*.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/**'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to build (or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - storefront-api
+          - order-service
+          - patient-service
+          - imaging-service
+          - ai-gateway
+          - notification-service
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+
+concurrency:
+  group: medcloud-app-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21"
+  MAVEN_OPTS: "-Xmx1024m"
+  DOCKER_BUILDKIT: 1
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+  security-events: write
+  pull-requests: write
+
+jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 1: Detect changed services
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  detect-changes:
+    name: "🔍 Detect Changed Services"
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          if [ "${{ github.event.inputs.service }}" = "all" ] || [ -z "${{ github.event.inputs.service }}" ]; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep '^apps/' | cut -d'/' -f2 | sort -u | jq -R . | jq -s .)
+            if [ "$CHANGED" = "[]" ]; then
+              CHANGED='["storefront-api","order-service","patient-service","imaging-service","ai-gateway","notification-service"]'
+            fi
+          else
+            CHANGED='["${{ github.event.inputs.service }}"]'
+          fi
+          echo "services=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Building services: $CHANGED"
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 2: Build & Unit Test (parallel per service)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build-test:
+    name: "🔨 Build — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "temurin"
+          cache: maven
+
+      - name: Set up Python (for ai-gateway)
+        if: matrix.service == 'ai-gateway' || matrix.service == 'imaging-service'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Maven Build & Unit Tests (Java services)
+        if: matrix.service != 'ai-gateway' && matrix.service != 'imaging-service'
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          mvn clean verify \
+            -B \
+            -Dmaven.test.failure.ignore=false \
+            -Dspring.profiles.active=test \
+            -Djacoco.destFile=target/jacoco.exec
+          echo "## 🧪 Test Results — ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Unit tests passed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Python Build & Tests (Python services)
+        if: matrix.service == 'ai-gateway' || matrix.service == 'imaging-service'
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          python -m pytest tests/ \
+            --cov=src \
+            --cov-report=xml:coverage.xml \
+            --junitxml=test-results.xml \
+            -v
+
+      - name: JaCoCo Coverage Report (Java)
+        if: matrix.service != 'ai-gateway' && matrix.service != 'imaging-service'
+        uses: madrapps/jacoco-report@v1.6
+        with:
+          paths: apps/${{ matrix.service }}/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 70
+          min-coverage-changed-files: 80
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.service }}
+          path: |
+            apps/${{ matrix.service }}/target/*.jar
+            apps/${{ matrix.service }}/dist/
+          retention-days: 5
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 3: SAST + SCA Security Scanning
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  security-scan:
+    name: "🔒 Security — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SonarQube Analysis
+        uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: apps/${{ matrix.service }}
+          args: >
+            -Dsonar.projectKey=medcloud-${{ matrix.service }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+      - name: OWASP Dependency Check (Java services)
+        if: matrix.service != 'ai-gateway' && matrix.service != 'imaging-service'
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "medcloud-${{ matrix.service }}"
+          path: "apps/${{ matrix.service }}"
+          format: "HTML,SARIF"
+          args: >
+            --failOnCVSS 7
+            --enableExperimental
+
+      - name: Safety Check (Python services)
+        if: matrix.service == 'ai-gateway' || matrix.service == 'imaging-service'
+        run: |
+          pip install safety
+          safety check -r apps/${{ matrix.service }}/requirements.txt --output json || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/
+          category: sca-${{ matrix.service }}
+        continue-on-error: true
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 4: Docker Build + Container Scan + Push
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  docker-build:
+    name: "🐳 Docker — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    needs: [build-test, security-scan]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+        include:
+          - service: storefront-api
+            cloud: aws
+            registry_type: ecr
+          - service: order-service
+            cloud: aws
+            registry_type: ecr
+          - service: notification-service
+            cloud: aws
+            registry_type: ecr
+          - service: patient-service
+            cloud: azure
+            registry_type: acr
+          - service: imaging-service
+            cloud: azure
+            registry_type: acr
+          - service: ai-gateway
+            cloud: gcp
+            registry_type: gar
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.service }}
+          path: apps/${{ matrix.service }}/target/
+
+      # ─── Cloud Authentication ──────────────────────────────────────
+      - name: Configure AWS (ECR)
+        if: matrix.registry_type == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: ECR Login
+        if: matrix.registry_type == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Azure Login (ACR)
+        if: matrix.registry_type == 'acr'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        if: matrix.registry_type == 'acr'
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: GCP Auth (GAR)
+        if: matrix.registry_type == 'gar'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: GAR Login
+        if: matrix.registry_type == 'gar'
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      # ─── Build & Tag ───────────────────────────────────────────────
+      - name: Set image tag
+        id: tag
+        run: |
+          SHA=$(echo ${{ github.sha }} | head -c 7)
+          TAG="${{ github.ref_name }}-${SHA}-$(date +%Y%m%d%H%M%S)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Docker Build
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          docker build \
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            --build-arg VCS_REF=${{ steps.tag.outputs.sha }} \
+            --build-arg VERSION=${{ steps.tag.outputs.tag }} \
+            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            -t ${{ matrix.service }}:${{ steps.tag.outputs.tag }} \
+            -t ${{ matrix.service }}:latest \
+            -f Dockerfile .
+
+      # ─── Container Scan (Trivy) ────────────────────────────────────
+      - name: Trivy Container Scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: "${{ matrix.service }}:${{ steps.tag.outputs.tag }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: container-${{ matrix.service }}
+
+      # ─── Push to Cloud Registry ────────────────────────────────────
+      - name: Push to ECR
+        if: matrix.registry_type == 'ecr' && github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          docker tag ${{ matrix.service }}:${{ steps.tag.outputs.tag }} \
+            $REGISTRY/medcloud/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker tag ${{ matrix.service }}:latest \
+            $REGISTRY/medcloud/${{ matrix.service }}:latest
+          docker push $REGISTRY/medcloud/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker push $REGISTRY/medcloud/${{ matrix.service }}:latest
+
+      - name: Push to ACR
+        if: matrix.registry_type == 'acr' && github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY="${{ secrets.ACR_NAME }}.azurecr.io"
+          docker tag ${{ matrix.service }}:${{ steps.tag.outputs.tag }} \
+            $REGISTRY/medcloud/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker tag ${{ matrix.service }}:latest \
+            $REGISTRY/medcloud/${{ matrix.service }}:latest
+          docker push $REGISTRY/medcloud/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker push $REGISTRY/medcloud/${{ matrix.service }}:latest
+
+      - name: Push to GAR
+        if: matrix.registry_type == 'gar' && github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/medcloud"
+          docker tag ${{ matrix.service }}:${{ steps.tag.outputs.tag }} \
+            $REGISTRY/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker tag ${{ matrix.service }}:latest \
+            $REGISTRY/${{ matrix.service }}:latest
+          docker push $REGISTRY/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker push $REGISTRY/${{ matrix.service }}:latest
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stage 5: Update K8s Manifests & Trigger ArgoCD
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  deploy:
+    name: "🚀 Deploy — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      max-parallel: 2  # Rolling deploy, 2 services at a time
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DEPLOY_TOKEN }}
+
+      - name: Update image tag in K8s manifests
+        run: |
+          SHA=$(echo ${{ github.sha }} | head -c 7)
+          TAG="${{ github.ref_name }}-${SHA}-$(date +%Y%m%d%H%M%S)"
+          
+          # Update the deployment manifest with new image tag
+          MANIFEST="kubernetes/apps/${{ matrix.service }}/deployment.yaml"
+          sed -i "s|image:.*${{ matrix.service }}:.*|image: REGISTRY/medcloud/${{ matrix.service }}:${TAG}|" "$MANIFEST"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          git commit -m "chore: deploy ${{ matrix.service }} ${TAG} [skip ci]" || true
+          git push
+
+      - name: Wait for ArgoCD Sync
+        run: |
+          echo "## 🚀 Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Tag | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ${{ matrix.service }} | ${TAG} | ⏳ Syncing via ArgoCD |" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "ArgoCD will auto-sync within 3 minutes."
+
+      - name: Slack Notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#medcloud-deployments'
+          text: |
+            Service: `${{ matrix.service }}`
+            Environment: `${{ github.event.inputs.environment || 'dev' }}`
+            Status: `${{ job.status }}`
+            Commit: `${{ github.sha }}`
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

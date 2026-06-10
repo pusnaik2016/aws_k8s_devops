@@ -1,0 +1,99 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Notification Service — Alerts, SMS, Email (Deployed on AWS EKS)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service
+  namespace: medcloud
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/medcloud-notification-role
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: medcloud
+  labels:
+    app: notification-service
+    version: v1
+    cloud: aws
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        version: v1
+        cloud: aws
+    spec:
+      serviceAccountName: notification-service
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "e-commerce"
+          effect: "NoSchedule"
+      nodeSelector:
+        role: application
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notification-service
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/medcloud/notification-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: SNS_TOPIC_ARN
+              value: "arn:aws:sns:us-east-1:ACCOUNT_ID:medcloud-notifications"
+            - name: SES_FROM_EMAIL
+              value: "noreply@medcloud.example.com"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: medcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: notification-service

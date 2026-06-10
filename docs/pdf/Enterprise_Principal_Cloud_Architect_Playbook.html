@@ -1,0 +1,3091 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Enterprise Cloud Architect Playbook</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Enterprise Cloud Architect Playbook</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#enterprise-principal-cloud-architect-playbook"
+id="toc-enterprise-principal-cloud-architect-playbook">Enterprise /
+Principal Cloud Architect Playbook</a>
+<ul>
+<li><a
+href="#how-an-architect-thinks-from-customer-requirement-to-project-closure"
+id="toc-how-an-architect-thinks-from-customer-requirement-to-project-closure">How
+an Architect Thinks: From Customer Requirement to Project
+Closure</a></li>
+<li><a href="#table-of-contents" id="toc-table-of-contents">Table of
+Contents</a></li>
+<li><a href="#part-1-the-architects-mindset"
+id="toc-part-1-the-architects-mindset">Part 1 — The Architect’s
+Mindset</a>
+<ul>
+<li><a href="#first-principles-how-a-principal-architect-thinks"
+id="toc-first-principles-how-a-principal-architect-thinks">1.1 First
+Principles — How a Principal Architect Thinks</a></li>
+<li><a href="#the-architects-role-vs.-other-roles"
+id="toc-the-architects-role-vs.-other-roles">1.2 The Architect’s Role
+vs. Other Roles</a></li>
+<li><a href="#the-three-lenses-of-an-enterprise-architect"
+id="toc-the-three-lenses-of-an-enterprise-architect">1.3 The Three
+Lenses of an Enterprise Architect</a></li>
+<li><a href="#decision-making-framework-rapid"
+id="toc-decision-making-framework-rapid">1.4 Decision-Making Framework —
+RAPID</a></li>
+<li><a href="#the-architects-communication-cadence"
+id="toc-the-architects-communication-cadence">1.5 The Architect’s
+Communication Cadence</a></li>
+</ul></li>
+<li><a href="#part-2-phase-0-pre-engagement-customer-discovery"
+id="toc-part-2-phase-0-pre-engagement-customer-discovery">Part 2 — Phase
+0: Pre-Engagement &amp; Customer Discovery</a>
+<ul>
+<li><a href="#first-classify-the-engagement-type"
+id="toc-first-classify-the-engagement-type">2.0 First — Classify the
+Engagement Type</a></li>
+<li><a href="#when-you-first-hear-the-customer-requirement"
+id="toc-when-you-first-hear-the-customer-requirement">2.1 When You First
+Hear the Customer Requirement</a></li>
+<li><a href="#mapping-business-drivers-to-technical-strategy"
+id="toc-mapping-business-drivers-to-technical-strategy">2.2 Mapping
+Business Drivers to Technical Strategy</a></li>
+<li><a href="#deliverables-from-phase-0"
+id="toc-deliverables-from-phase-0">2.3 Deliverables from Phase
+0</a></li>
+</ul></li>
+<li><a
+href="#part-3-phase-1-assess-understand-what-you-have-migration-track"
+id="toc-part-3-phase-1-assess-understand-what-you-have-migration-track">Part
+3 — Phase 1: Assess — Understand What You Have (Migration Track)</a>
+<ul>
+<li><a href="#migration-readiness-assessment-mra"
+id="toc-migration-readiness-assessment-mra">3.1 Migration Readiness
+Assessment (MRA)</a></li>
+<li><a href="#portfolio-discovery-analysis"
+id="toc-portfolio-discovery-analysis">3.2 Portfolio Discovery &amp;
+Analysis</a></li>
+<li><a href="#the-7-rs-of-migration-decision-framework"
+id="toc-the-7-rs-of-migration-decision-framework">3.3 The 7 R’s of
+Migration — Decision Framework</a></li>
+<li><a href="#the-architects-assessment-decision-a-real-example"
+id="toc-the-architects-assessment-decision-a-real-example">3.4 The
+Architect’s Assessment Decision — A Real Example</a></li>
+<li><a href="#building-the-business-case"
+id="toc-building-the-business-case">3.5 Building the Business
+Case</a></li>
+<li><a href="#deliverables-from-phase-1-assess"
+id="toc-deliverables-from-phase-1-assess">3.6 Deliverables from Phase 1
+(Assess)</a></li>
+</ul></li>
+<li><a href="#part-3b-greenfield-cloud-native-from-zero-to-production"
+id="toc-part-3b-greenfield-cloud-native-from-zero-to-production">Part 3B
+— Greenfield Cloud-Native: From Zero to Production</a>
+<ul>
+<li><a href="#b.1-why-greenfield-is-harder-than-migration"
+id="toc-b.1-why-greenfield-is-harder-than-migration">3B.1 Why Greenfield
+Is Harder Than Migration</a></li>
+<li><a href="#b.2-the-greenfield-lifecycle-phases"
+id="toc-b.2-the-greenfield-lifecycle-phases">3B.2 The Greenfield
+Lifecycle — Phases</a></li>
+<li><a href="#b.3-phase-g1-discover-define-requirements-engineering"
+id="toc-b.3-phase-g1-discover-define-requirements-engineering">3B.3
+Phase G1: Discover &amp; Define — Requirements Engineering</a></li>
+<li><a href="#b.4-phase-g2-architecture-design-making-the-big-decisions"
+id="toc-b.4-phase-g2-architecture-design-making-the-big-decisions">3B.4
+Phase G2: Architecture Design — Making the Big Decisions</a></li>
+<li><a
+href="#b.5-phase-g2-continued-proof-of-concept-validate-before-you-commit"
+id="toc-b.5-phase-g2-continued-proof-of-concept-validate-before-you-commit">3B.5
+Phase G2 (continued): Proof of Concept — Validate Before You
+Commit</a></li>
+<li><a
+href="#b.6-phase-g3-platform-runway-build-the-foundation-before-features"
+id="toc-b.6-phase-g3-platform-runway-build-the-foundation-before-features">3B.6
+Phase G3: Platform Runway — Build the Foundation Before
+Features</a></li>
+<li><a href="#b.7-phase-g4-build-iterate-mvp-to-production"
+id="toc-b.7-phase-g4-build-iterate-mvp-to-production">3B.7 Phase G4:
+Build &amp; Iterate — MVP to Production</a></li>
+<li><a
+href="#b.8-greenfield-cost-estimation-the-architects-responsibility"
+id="toc-b.8-greenfield-cost-estimation-the-architects-responsibility">3B.8
+Greenfield Cost Estimation — The Architect’s Responsibility</a></li>
+<li><a href="#b.9-greenfield-anti-patterns"
+id="toc-b.9-greenfield-anti-patterns">3B.9 Greenfield
+Anti-Patterns</a></li>
+<li><a href="#b.10-greenfield-vs.-migration-deliverables-comparison"
+id="toc-b.10-greenfield-vs.-migration-deliverables-comparison">3B.10
+Greenfield vs. Migration — Deliverables Comparison</a></li>
+</ul></li>
+<li><a href="#part-4-phase-2-mobilize-prepare-the-foundation"
+id="toc-part-4-phase-2-mobilize-prepare-the-foundation">Part 4 — Phase
+2: Mobilize — Prepare the Foundation</a>
+<ul>
+<li><a href="#landing-zone-the-foundation-of-everything"
+id="toc-landing-zone-the-foundation-of-everything">4.1 Landing Zone —
+The Foundation of Everything</a></li>
+<li><a href="#security-baseline-non-negotiable-controls"
+id="toc-security-baseline-non-negotiable-controls">4.2 Security Baseline
+— Non-Negotiable Controls</a></li>
+<li><a
+href="#cloud-center-of-excellence-ccoe-the-organizational-backbone"
+id="toc-cloud-center-of-excellence-ccoe-the-organizational-backbone">4.3
+Cloud Center of Excellence (CCoE) — The Organizational Backbone</a></li>
+<li><a href="#building-shared-terraform-modules-the-paved-road"
+id="toc-building-shared-terraform-modules-the-paved-road">4.4 Building
+Shared Terraform Modules (The “Paved Road”)</a></li>
+<li><a href="#wave-planning-grouping-applications-for-migration"
+id="toc-wave-planning-grouping-applications-for-migration">4.5 Wave
+Planning — Grouping Applications for Migration</a></li>
+<li><a href="#deliverables-from-phase-2-mobilize"
+id="toc-deliverables-from-phase-2-mobilize">4.6 Deliverables from Phase
+2 (Mobilize)</a></li>
+</ul></li>
+<li><a href="#part-5-phase-3-migrate-modernize-execute-in-waves"
+id="toc-part-5-phase-3-migrate-modernize-execute-in-waves">Part 5 —
+Phase 3: Migrate &amp; Modernize — Execute in Waves</a>
+<ul>
+<li><a href="#the-migration-factory-model"
+id="toc-the-migration-factory-model">5.1 The Migration Factory
+Model</a></li>
+<li><a href="#the-architects-role-during-execution"
+id="toc-the-architects-role-during-execution">5.2 The Architect’s Role
+During Execution</a></li>
+<li><a href="#critical-decision-points-during-migration"
+id="toc-critical-decision-points-during-migration">5.3 Critical Decision
+Points During Migration</a></li>
+<li><a
+href="#architecture-review-checklist-what-the-architect-checks-for-every-workload"
+id="toc-architecture-review-checklist-what-the-architect-checks-for-every-workload">5.4
+Architecture Review Checklist — What the Architect Checks for Every
+Workload</a></li>
+</ul></li>
+<li><a href="#part-6-phase-4-go-live-readiness-cutover"
+id="toc-part-6-phase-4-go-live-readiness-cutover">Part 6 — Phase 4:
+Go-Live Readiness &amp; Cutover</a>
+<ul>
+<li><a href="#go-live-readiness-assessment"
+id="toc-go-live-readiness-assessment">6.1 Go-Live Readiness
+Assessment</a></li>
+<li><a href="#cutover-execution-the-architects-orchestration"
+id="toc-cutover-execution-the-architects-orchestration">6.2 Cutover
+Execution — The Architect’s Orchestration</a></li>
+<li><a href="#rollback-strategy-the-safety-net"
+id="toc-rollback-strategy-the-safety-net">6.3 Rollback Strategy — The
+Safety Net</a></li>
+</ul></li>
+<li><a href="#part-7-phase-5-hypercare-stabilization"
+id="toc-part-7-phase-5-hypercare-stabilization">Part 7 — Phase 5:
+Hypercare &amp; Stabilization</a>
+<ul>
+<li><a href="#hypercare-period-the-first-2-4-weeks-post-go-live"
+id="toc-hypercare-period-the-first-2-4-weeks-post-go-live">7.1 Hypercare
+Period — The First 2-4 Weeks Post Go-Live</a></li>
+<li><a href="#hypercare-exit-criteria"
+id="toc-hypercare-exit-criteria">7.2 Hypercare Exit Criteria</a></li>
+<li><a href="#post-migration-optimization-the-work-continues"
+id="toc-post-migration-optimization-the-work-continues">7.3
+Post-Migration Optimization — The Work Continues</a></li>
+</ul></li>
+<li><a href="#part-8-phase-6-project-closure-transition-to-bau"
+id="toc-part-8-phase-6-project-closure-transition-to-bau">Part 8 — Phase
+6: Project Closure &amp; Transition to BAU</a>
+<ul>
+<li><a href="#formal-project-closure"
+id="toc-formal-project-closure">8.1 Formal Project Closure</a></li>
+<li><a
+href="#the-closure-report-what-the-architect-presents-to-leadership"
+id="toc-the-closure-report-what-the-architect-presents-to-leadership">8.2
+The Closure Report — What the Architect Presents to Leadership</a></li>
+<li><a href="#transition-to-bau-the-architect-steps-back"
+id="toc-transition-to-bau-the-architect-steps-back">8.3 Transition to
+BAU — The Architect Steps Back</a></li>
+</ul></li>
+<li><a href="#part-9-aws-frameworks-references"
+id="toc-part-9-aws-frameworks-references">Part 9 — AWS Frameworks &amp;
+References</a>
+<ul>
+<li><a href="#key-aws-frameworks-an-enterprise-architect-must-know"
+id="toc-key-aws-frameworks-an-enterprise-architect-must-know">9.1 Key
+AWS Frameworks an Enterprise Architect Must Know</a></li>
+<li><a href="#aws-well-architected-framework-the-6-pillars"
+id="toc-aws-well-architected-framework-the-6-pillars">9.2 AWS
+Well-Architected Framework — The 6 Pillars</a></li>
+<li><a href="#key-aws-services-by-migration-phase"
+id="toc-key-aws-services-by-migration-phase">9.3 Key AWS Services by
+Migration Phase</a></li>
+</ul></li>
+<li><a href="#part-10-anti-patterns-hard-lessons"
+id="toc-part-10-anti-patterns-hard-lessons">Part 10 — Anti-Patterns
+&amp; Hard Lessons</a>
+<ul>
+<li><a href="#migration-anti-patterns-the-architect-must-prevent"
+id="toc-migration-anti-patterns-the-architect-must-prevent">10.1
+Migration Anti-Patterns the Architect Must Prevent</a></li>
+<li><a
+href="#questions-an-enterprise-architect-should-ask-at-every-stage"
+id="toc-questions-an-enterprise-architect-should-ask-at-every-stage">10.2
+Questions an Enterprise Architect Should Ask at Every Stage</a></li>
+<li><a href="#the-architects-career-rule"
+id="toc-the-architects-career-rule">10.3 The Architect’s Career
+Rule</a></li>
+</ul></li>
+<li><a href="#summary-the-complete-journey-at-a-glance"
+id="toc-summary-the-complete-journey-at-a-glance">Summary — The Complete
+Journey at a Glance</a>
+<ul>
+<li><a href="#migration-modernization-track"
+id="toc-migration-modernization-track">Migration / Modernization
+Track</a></li>
+<li><a href="#greenfield-cloud-native-track"
+id="toc-greenfield-cloud-native-track">Greenfield Cloud-Native
+Track</a></li>
+<li><a href="#both-tracks-share" id="toc-both-tracks-share">Both Tracks
+Share</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="enterprise-principal-cloud-architect-playbook">Enterprise /
+Principal Cloud Architect Playbook</h1>
+<h2
+id="how-an-architect-thinks-from-customer-requirement-to-project-closure">How
+an Architect Thinks: From Customer Requirement to Project Closure</h2>
+<blockquote>
+<p><strong>Author:</strong> Pushparaj Naik <strong>Scope:</strong> AWS
+Cloud Projects — Greenfield, Migration &amp; Modernization — End-to-End
+Lifecycle <strong>Audience:</strong> Enterprise Architects, Principal
+Cloud Architects, Solution Architects aspiring to senior roles</p>
+</blockquote>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#part-1--the-architects-mindset">Part 1 — The Architect’s
+Mindset</a></li>
+<li><a href="#part-2--phase-0-pre-engagement--customer-discovery">Part 2
+— Phase 0: Pre-Engagement &amp; Customer Discovery</a></li>
+<li><a
+href="#part-3--phase-1-assess--understand-what-you-have-migration-track">Part
+3 — Phase 1: Assess — Understand What You Have (Migration
+Track)</a></li>
+<li><a
+href="#part-3b--greenfield-cloud-native-from-zero-to-production">Part 3B
+— Greenfield Cloud-Native: From Zero to Production</a></li>
+<li><a href="#part-4--phase-2-mobilize--prepare-the-foundation">Part 4 —
+Phase 2: Mobilize — Prepare the Foundation</a></li>
+<li><a href="#part-5--phase-3-migrate--modernize--execute-in-waves">Part
+5 — Phase 3: Migrate &amp; Modernize — Execute in Waves</a></li>
+<li><a href="#part-6--phase-4-go-live-readiness--cutover">Part 6 — Phase
+4: Go-Live Readiness &amp; Cutover</a></li>
+<li><a href="#part-7--phase-5-hypercare--stabilization">Part 7 — Phase
+5: Hypercare &amp; Stabilization</a></li>
+<li><a href="#part-8--phase-6-project-closure--transition-to-bau">Part 8
+— Phase 6: Project Closure &amp; Transition to BAU</a></li>
+<li><a href="#part-9--aws-frameworks--references">Part 9 — AWS
+Frameworks &amp; References</a></li>
+<li><a href="#part-10--anti-patterns--hard-lessons">Part 10 —
+Anti-Patterns &amp; Hard Lessons</a></li>
+</ul>
+<hr />
+<h2 id="part-1-the-architects-mindset">Part 1 — The Architect’s
+Mindset</h2>
+<h3 id="first-principles-how-a-principal-architect-thinks">1.1 First
+Principles — How a Principal Architect Thinks</h3>
+<p>A Principal/Enterprise Architect does <strong>not</strong> think in
+services or configurations. They think in <strong>outcomes, constraints,
+risks, and trade-offs</strong>. Before touching any technology, they ask
+five fundamental questions:</p>
+<pre><code>1. What BUSINESS OUTCOME is the customer trying to achieve?
+   (Cost reduction? Agility? Compliance? Global expansion? M&amp;A integration? New product launch?)
+
+2. What are the NON-NEGOTIABLE CONSTRAINTS?
+   (Regulatory, latency, data residency, budget ceiling, timeline, existing contracts)
+
+3. What is the RISK APPETITE of this organization?
+   (Startup vs. bank vs. government — entirely different risk postures)
+
+4. What is the ORGANIZATIONAL READINESS?
+   (Skills, culture, change management, executive sponsorship)
+
+5. What does SUCCESS look like, and how will we MEASURE it?
+   (KPIs, not vague goals — &quot;reduce TCO by 30%&quot; not &quot;save money&quot;)
+
+6. Is this MIGRATION, MODERNIZATION, or GREENFIELD?
+   (Moving existing systems? Rearchitecting them? Building something entirely new?)</code></pre>
+<h3 id="the-architects-role-vs.-other-roles">1.2 The Architect’s Role
+vs. Other Roles</h3>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 46%" />
+<col style="width: 32%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>Thinks About</th>
+<th>Horizon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Developer</strong></td>
+<td>Features, code quality, sprint delivery</td>
+<td>Days–Weeks</td>
+</tr>
+<tr>
+<td><strong>DevOps Engineer</strong></td>
+<td>Pipelines, automation, reliability</td>
+<td>Weeks–Months</td>
+</tr>
+<tr>
+<td><strong>Solutions Architect</strong></td>
+<td>Technical design for a specific workload</td>
+<td>Months</td>
+</tr>
+<tr>
+<td><strong>Enterprise/Principal Architect</strong></td>
+<td>Organization-wide strategy, standards, guardrails, long-term vision,
+trade-off decisions</td>
+<td><strong>1–5 Years</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-three-lenses-of-an-enterprise-architect">1.3 The Three
+Lenses of an Enterprise Architect</h3>
+<p>Every decision is evaluated through three lenses simultaneously:</p>
+<pre><code>                    ┌─────────────┐
+                    │  BUSINESS   │
+                    │  Value, ROI │
+                    │  Timeline   │
+                    └──────┬──────┘
+                           │
+              ┌────────────┼────────────┐
+              │                         │
+       ┌──────▼──────┐          ┌──────▼──────┐
+       │  TECHNOLOGY │          │  PEOPLE &amp;   │
+       │  Fit, Risk  │          │  PROCESS    │
+       │  Debt, Scale│          │  Skills,    │
+       └─────────────┘          │  Culture,   │
+                                │  Change Mgmt│
+                                └─────────────┘</code></pre>
+<p><strong>Critical Rule:</strong> If you solve the technology problem
+but ignore the people/process problem, the project will fail. The #1
+reason cloud projects fail — whether migration or greenfield — is
+<strong>organizational readiness</strong>, not technology.</p>
+<h3 id="decision-making-framework-rapid">1.4 Decision-Making Framework —
+RAPID</h3>
+<p>For every significant architectural decision, use a clear ownership
+model:</p>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 45%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>Meaning</th>
+<th>Who</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>R</strong> — Recommend</td>
+<td>Proposes the decision</td>
+<td>Solution Architect / Tech Lead</td>
+</tr>
+<tr>
+<td><strong>A</strong> — Agree</td>
+<td>Must agree (has veto)</td>
+<td>Security, Compliance, Finance</td>
+</tr>
+<tr>
+<td><strong>P</strong> — Perform</td>
+<td>Executes the decision</td>
+<td>Engineering team</td>
+</tr>
+<tr>
+<td><strong>I</strong> — Input</td>
+<td>Provides input but no veto</td>
+<td>Stakeholders, SMEs</td>
+</tr>
+<tr>
+<td><strong>D</strong> — Decide</td>
+<td>Makes the final call</td>
+<td><strong>Enterprise/Principal Architect</strong> or CTO</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-architects-communication-cadence">1.5 The Architect’s
+Communication Cadence</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 28%" />
+<col style="width: 23%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Frequency</th>
+<th>Content</th>
+<th>Format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>C-Suite / VP</strong></td>
+<td>Bi-weekly / Monthly</td>
+<td>Progress, risks, budget, business outcomes</td>
+<td>Executive dashboard, 3-slide summary</td>
+</tr>
+<tr>
+<td><strong>Program Manager</strong></td>
+<td>Weekly</td>
+<td>Milestone tracking, dependencies, blockers</td>
+<td>Status report, RAID log</td>
+</tr>
+<tr>
+<td><strong>Engineering Leads</strong></td>
+<td>Weekly</td>
+<td>Technical decisions, standards, patterns</td>
+<td>ADRs, architecture diagrams</td>
+</tr>
+<tr>
+<td><strong>Engineering Teams</strong></td>
+<td>On-demand</td>
+<td>Guidance, reviews, unblocking</td>
+<td>Design reviews, office hours</td>
+</tr>
+<tr>
+<td><strong>Security &amp; Compliance</strong></td>
+<td>Bi-weekly</td>
+<td>Control implementation, audit readiness</td>
+<td>Compliance matrix, evidence pack</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-2-phase-0-pre-engagement-customer-discovery">Part 2 — Phase
+0: Pre-Engagement &amp; Customer Discovery</h2>
+<h3 id="first-classify-the-engagement-type">2.0 First — Classify the
+Engagement Type</h3>
+<p>Before diving into discovery, the architect must classify the
+engagement. This fundamentally changes the approach, tools, team
+composition, and timeline:</p>
+<pre><code>┌──────────────────────────────────────────────────────────────────────────────┐
+│                     THREE ENGAGEMENT TYPES                                  │
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐   │
+│  │  🟢 GREENFIELD   │  │  🟡 MIGRATION    │  │  🔴 MODERNIZATION        │   │
+│  │                  │  │                  │  │                          │   │
+│  │ No existing      │  │ Existing apps    │  │ Existing apps on cloud   │   │
+│  │ system. Build    │  │ on-prem/colo.    │  │ or on-prem. Re-architect │   │
+│  │ cloud-native     │  │ Move them to     │  │ for agility, scale,      │   │
+│  │ from scratch.    │  │ AWS as-is or     │  │ cost, or new business    │   │
+│  │                  │  │ with minimal     │  │ capabilities.            │   │
+│  │ Examples:        │  │ changes.         │  │                          │   │
+│  │ - New SaaS       │  │                  │  │ Examples:                │   │
+│  │   product        │  │ Examples:        │  │ - Monolith → microsvcs   │   │
+│  │ - New AI/ML      │  │ - DC exit        │  │ - Oracle → Aurora        │   │
+│  │   platform       │  │ - Lease expiry   │  │ - VMs → containers       │   │
+│  │ - New mobile     │  │ - M&amp;A            │  │ - Add AI/ML to existing  │   │
+│  │   backend        │  │ - DR to cloud    │  │   platform               │   │
+│  │ - IoT platform   │  │                  │  │ - Multi-region expansion │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────────────┘   │
+│                                                                              │
+│  KEY DIFFERENCE IN ARCHITECT&#39;S APPROACH:                                     │
+│                                                                              │
+│  Greenfield:     Requirements → Architecture → Build → Ship                 │
+│  Migration:      Discover → Assess → Mobilize → Migrate → Optimize         │
+│  Modernization:  Assess current → Target design → Strangler/Refactor → Ship │
+│                                                                              │
+│  Greenfield is HARDER than migration because there&#39;s no existing system      │
+│  to benchmark. Every decision is a design decision. Every pattern choice     │
+│  has 10-year consequences.                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="when-you-first-hear-the-customer-requirement">2.1 When You First
+Hear the Customer Requirement</h3>
+<p>The very first conversation with the customer is the most critical.
+An Enterprise Architect <strong>listens 80%, talks 20%</strong>. You are
+not selling technology — you are understanding the problem.</p>
+<h4 id="what-to-listen-for">What to Listen For</h4>
+<pre><code>SIGNALS TO DETECT IN THE FIRST MEETING:
+
+✅ GOOD SIGNALS                          ❌ RED FLAGS
+─────────────────────────────────────    ─────────────────────────────────────
+&quot;We want to reduce time-to-market&quot;       &quot;Just move everything to the cloud&quot;
+&quot;Our CTO is sponsoring this&quot;             &quot;No executive sponsor yet&quot;
+&quot;We have compliance requirements&quot;        &quot;We&#39;ll figure out compliance later&quot;
+&quot;We&#39;ve tried PoCs already&quot;               &quot;We&#39;ve never touched cloud&quot;
+&quot;Budget is approved for 18 months&quot;       &quot;Can we do this in 3 months?&quot;
+&quot;We want to modernize incrementally&quot;     &quot;Rewrite everything from scratch&quot;
+
+GREENFIELD-SPECIFIC SIGNALS:
+✅ GOOD SIGNALS                          ❌ RED FLAGS
+─────────────────────────────────────    ─────────────────────────────────────
+&quot;We have product requirements defined&quot;   &quot;We don&#39;t know what we want yet&quot;
+&quot;Target users are identified&quot;            &quot;Build it and they will come&quot;
+&quot;We understand cloud-native patterns&quot;    &quot;Can we just deploy a VM?&quot;
+&quot;We&#39;ve done competitive analysis&quot;        &quot;Nobody else does this&quot;
+&quot;MVP first, then iterate&quot;                &quot;We need all features for launch&quot;
+&quot;We have a product owner&quot;                &quot;Engineering will figure it out&quot;</code></pre>
+<h4 id="the-discovery-question-framework">The Discovery Question
+Framework</h4>
+<p>Use this structured questioning approach in the first 2-3
+meetings:</p>
+<p><strong>Business Context</strong> (All engagement types) - What is
+driving this initiative? (Cost? Agility? Compliance? End-of-life
+hardware? New market opportunity?) - Who is the executive sponsor? What
+is their success metric? - What is the approved budget and timeline? -
+Are there any contractual obligations (data center leases, vendor
+contracts)?</p>
+<p><strong>Current State (As-Is)</strong> (Migration/Modernization) -
+How many applications are in scope? (10? 100? 1000?) - What is the
+current infrastructure landscape? (On-prem? Colo? Hybrid? Multi-cloud?)
+- What databases are in use? (Oracle? SQL Server? PostgreSQL?
+Mainframe?) - What are the current SLAs and RPO/RTO requirements? - What
+compliance/regulatory frameworks apply? (HIPAA, PCI-DSS, SOX, GDPR,
+FedRAMP?)</p>
+<p><strong>Product &amp; Requirements</strong> (Greenfield) - What
+problem does this product/platform solve? Who are the target users? -
+What are the non-functional requirements? (Latency, throughput,
+availability SLAs) - What is the expected traffic profile? (Steady,
+bursty, seasonal, unpredictable?) - What is the data strategy? (Volume,
+velocity, variety, retention, sovereignty) - Are there integration
+requirements with existing systems? (APIs, data feeds, SSO) - What
+compliance frameworks apply from Day 1? (Not “we’ll add later”) - What
+is the go-to-market timeline? (MVP date, GA date) - Is there an existing
+competitive product we’re replacing or competing with?</p>
+<p><strong>Desired State (To-Be)</strong> (All engagement types) - What
+does “done” look like for you? - Which workloads are highest priority?
+Why? - Are there specific AWS services already in mind? - Is there
+appetite for refactoring/modernizing or strictly lift-and-shift? -
+(Greenfield) What does the 1-year, 3-year, and 5-year vision look
+like?</p>
+<p><strong>Organizational Readiness</strong> (All engagement types) -
+What is the team’s current cloud skills level? - Do you have a Cloud
+Center of Excellence (CCoE)? - What is the change management process? -
+How are teams currently deploying software? - (Greenfield) Do you have
+product management, UX design, and DevOps capabilities?</p>
+<h3 id="mapping-business-drivers-to-technical-strategy">2.2 Mapping
+Business Drivers to Technical Strategy</h3>
+<p>After discovery, the architect maps business drivers to technical
+approach:</p>
+<table>
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 35%" />
+<col style="width: 9%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr>
+<th>Business Driver</th>
+<th>Architect’s Translation</th>
+<th>Type</th>
+<th>Likely Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>“Reduce data center costs — lease expiring in 14 months”</td>
+<td>Hard timeline constraint, lift-and-shift first, optimize later</td>
+<td>Migration</td>
+<td><strong>Rehost (7 R’s)</strong> with post-migration optimization
+wave</td>
+</tr>
+<tr>
+<td>“We need to ship features faster”</td>
+<td>Modernization play — break monoliths, adopt CI/CD</td>
+<td>Modernization</td>
+<td><strong>Refactor/Re-architect</strong> to microservices +
+containers</td>
+</tr>
+<tr>
+<td>“We’re acquiring a company and need to integrate”</td>
+<td>M&amp;A integration — multi-account strategy, network
+connectivity</td>
+<td>Migration</td>
+<td><strong>Landing Zone</strong> + network transit architecture</td>
+</tr>
+<tr>
+<td>“Regulators require us to encrypt everything”</td>
+<td>Compliance-driven — security-first architecture</td>
+<td>All</td>
+<td><strong>Compliance-first Landing Zone</strong> with SCPs, KMS,
+CloudTrail</td>
+</tr>
+<tr>
+<td>“We want AI/ML capabilities”</td>
+<td>Data platform modernization — data lake, ML pipelines</td>
+<td>Modernization</td>
+<td><strong>Replatform</strong> databases + build data/ML platform</td>
+</tr>
+<tr>
+<td>“Disaster recovery for our on-prem systems”</td>
+<td>Hybrid architecture — pilot light or warm standby in AWS</td>
+<td>Migration</td>
+<td><strong>DR architecture</strong> with cross-region replication</td>
+</tr>
+<tr>
+<td>“We’re launching a new SaaS product”</td>
+<td>Cloud-native from Day 1 — no legacy baggage, design for scale</td>
+<td><strong>Greenfield</strong></td>
+<td>Cloud-native architecture (EKS/Serverless + managed services)</td>
+</tr>
+<tr>
+<td>“We need an IoT platform for our factories”</td>
+<td>Edge + cloud, real-time ingestion, time-series analytics</td>
+<td><strong>Greenfield</strong></td>
+<td>IoT Core + Greengrass + Timestream + S3 Data Lake</td>
+</tr>
+<tr>
+<td>“Build an AI-powered customer support system”</td>
+<td>LLM + RAG + real-time channel integration</td>
+<td><strong>Greenfield</strong></td>
+<td>Bedrock + OpenSearch/pgvector + EKS + WebSocket API</td>
+</tr>
+<tr>
+<td>“We want a data platform for analytics”</td>
+<td>Data lake/lakehouse, ETL pipelines, BI integration</td>
+<td><strong>Greenfield</strong></td>
+<td>S3 Data Lake + Glue + Athena + Redshift + QuickSight</td>
+</tr>
+<tr>
+<td>“Build a mobile backend for 10M users”</td>
+<td>High-scale API, auth, push notifications, global CDN</td>
+<td><strong>Greenfield</strong></td>
+<td>API Gateway + Lambda/ECS + Cognito + DynamoDB + CloudFront</td>
+</tr>
+<tr>
+<td>“We need a multi-tenant platform”</td>
+<td>Tenant isolation, noisy neighbor prevention, billing per tenant</td>
+<td><strong>Greenfield</strong></td>
+<td>Account-per-tenant or namespace isolation + SaaS control plane</td>
+</tr>
+</tbody>
+</table>
+<h3 id="deliverables-from-phase-0">2.3 Deliverables from Phase 0</h3>
+<table>
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 21%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Owner</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Engagement Charter</strong></td>
+<td>Principal Architect</td>
+<td>Problem statement, scope, success criteria, RACI, timeline</td>
+</tr>
+<tr>
+<td><strong>Stakeholder Map</strong></td>
+<td>Enterprise Architect</td>
+<td>Decision-makers, influencers, blockers, champions</td>
+</tr>
+<tr>
+<td><strong>Initial Risk Register</strong></td>
+<td>Principal Architect</td>
+<td>Top 10 risks with probability, impact, mitigation</td>
+</tr>
+<tr>
+<td><strong>High-Level Approach</strong></td>
+<td>Enterprise Architect</td>
+<td>2-page summary: assess → mobilize → migrate/modernize (or:
+requirements → design → build → ship for greenfield)</td>
+</tr>
+<tr>
+<td><strong>Engagement Type Classification</strong></td>
+<td>Enterprise Architect</td>
+<td>Greenfield vs. Migration vs. Modernization — with rationale</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2
+id="part-3-phase-1-assess-understand-what-you-have-migration-track">Part
+3 — Phase 1: Assess — Understand What You Have (Migration Track)</h2>
+<blockquote>
+<p><strong>AWS Framework:</strong> This maps to the
+<strong>Assess</strong> phase of the AWS Migration Acceleration Program
+(MAP). <strong>Note:</strong> This part covers assessment for
+<strong>migration/modernization</strong> engagements. For
+<strong>greenfield</strong> cloud-native projects, see <strong>Part
+3B</strong> below.</p>
+</blockquote>
+<h3 id="migration-readiness-assessment-mra">3.1 Migration Readiness
+Assessment (MRA)</h3>
+<p>The first formal assessment. AWS provides the <strong>Migration
+Readiness Assessment</strong> tool to evaluate organizational readiness
+across 6 dimensions:</p>
+<pre><code>┌────────────────────────────────────────────────────────────────┐
+│              Migration Readiness Assessment (MRA)               │
+│                                                                 │
+│   BUSINESS                    PEOPLE                            │
+│   ┌──────────────────┐       ┌──────────────────┐              │
+│   │ Business Case    │       │ Skills &amp; CoE     │              │
+│   │ Executive Sponsor│       │ Org Structure    │              │
+│   │ Success Metrics  │       │ Training Plan    │              │
+│   └──────────────────┘       └──────────────────┘              │
+│                                                                 │
+│   GOVERNANCE                  PLATFORM                          │
+│   ┌──────────────────┐       ┌──────────────────┐              │
+│   │ Change Mgmt      │       │ Landing Zone     │              │
+│   │ Decision-Making  │       │ Networking       │              │
+│   │ Risk Framework   │       │ Security Baseline│              │
+│   └──────────────────┘       └──────────────────┘              │
+│                                                                 │
+│   PROCESS                     OPERATIONS                        │
+│   ┌──────────────────┐       ┌──────────────────┐              │
+│   │ CI/CD Maturity   │       │ Monitoring       │              │
+│   │ Testing Strategy │       │ Incident Mgmt    │              │
+│   │ Release Cadence  │       │ Runbook Culture  │              │
+│   └──────────────────┘       └──────────────────┘              │
+└────────────────────────────────────────────────────────────────┘
+
+Scoring: Each dimension scored 1-5 (1=Not Started, 5=Optimized)
+Target:  All dimensions ≥ 3 before starting migration execution</code></pre>
+<h3 id="portfolio-discovery-analysis">3.2 Portfolio Discovery &amp;
+Analysis</h3>
+<p>This is where you <strong>catalog everything</strong>. The architect
+must resist the temptation to start designing before understanding the
+full portfolio.</p>
+<h4 id="tools-for-discovery">Tools for Discovery</h4>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 40%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Tool</th>
+<th>What It Does</th>
+<th>When to Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AWS Application Discovery Service</strong></td>
+<td>Agent-based or agentless — discovers servers, dependencies,
+performance data</td>
+<td>On-prem workloads with no CMDB</td>
+</tr>
+<tr>
+<td><strong>AWS Migration Hub</strong></td>
+<td>Central dashboard for tracking migration across tools</td>
+<td>Throughout the migration</td>
+</tr>
+<tr>
+<td><strong>AWS Migration Portfolio Assessment (MPA)</strong></td>
+<td>TCO analysis, right-sizing, migration strategy recommendation</td>
+<td>Business case and wave planning</td>
+</tr>
+<tr>
+<td><strong>CloudEndure / AWS MGN</strong></td>
+<td>Continuous replication for lift-and-shift</td>
+<td>Rehost migrations</td>
+</tr>
+<tr>
+<td><strong>AWS DMS (Database Migration Service)</strong></td>
+<td>Database migration and continuous replication</td>
+<td>Database tier migrations</td>
+</tr>
+<tr>
+<td><strong>AWS SCT (Schema Conversion Tool)</strong></td>
+<td>Schema conversion for heterogeneous DB migrations</td>
+<td>Oracle → PostgreSQL, SQL Server → Aurora</td>
+</tr>
+<tr>
+<td><strong>Manual interviews + CMDB</strong></td>
+<td>Application owners know things tools can’t discover</td>
+<td>Always — tools supplement, not replace</td>
+</tr>
+</tbody>
+</table>
+<h4 id="the-discovery-matrix">The Discovery Matrix</h4>
+<p>For each application, the architect needs to fill this matrix:</p>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 25%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Example</th>
+<th>Why It Matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Application Name</strong></td>
+<td>OrderManagement-v3</td>
+<td>Identification</td>
+</tr>
+<tr>
+<td><strong>Business Criticality</strong></td>
+<td>Tier 1 (Revenue-generating)</td>
+<td>Determines migration priority and risk tolerance</td>
+</tr>
+<tr>
+<td><strong>Current Infra</strong></td>
+<td>4 VMs on VMware, Oracle 12c</td>
+<td>Determines migration tool and strategy</td>
+</tr>
+<tr>
+<td><strong>Dependencies</strong></td>
+<td>Calls PaymentGateway API, reads from SharedOracleDB</td>
+<td>Determines wave grouping — dependent apps move together</td>
+</tr>
+<tr>
+<td><strong>Data Volume</strong></td>
+<td>2.3 TB database, growing 50 GB/month</td>
+<td>Determines migration window and replication strategy</td>
+</tr>
+<tr>
+<td><strong>Compliance</strong></td>
+<td>PCI-DSS Level 1, SOX</td>
+<td>Determines target account structure and security controls</td>
+</tr>
+<tr>
+<td><strong>SLA</strong></td>
+<td>99.95% availability, RPO 15 min, RTO 1 hr</td>
+<td>Determines target architecture (Multi-AZ, cross-region)</td>
+</tr>
+<tr>
+<td><strong>Technology Stack</strong></td>
+<td>Java 8, Spring Boot, Oracle 12c, Tomcat</td>
+<td>Determines modernization feasibility</td>
+</tr>
+<tr>
+<td><strong>Team Ownership</strong></td>
+<td>Team Payments (6 engineers)</td>
+<td>Determines who needs training, who is accountable</td>
+</tr>
+<tr>
+<td><strong>License Costs</strong></td>
+<td>Oracle EE: $47K/year per core</td>
+<td>Opportunity for cost savings via open-source migration</td>
+</tr>
+<tr>
+<td><strong>Technical Debt</strong></td>
+<td>Java 8 EOL, unpatched Oracle, no CI/CD</td>
+<td>Risk assessment, determines if modernization is needed</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-7-rs-of-migration-decision-framework">3.3 The 7 R’s of
+Migration — Decision Framework</h3>
+<p>This is the <strong>most critical decision</strong> the architect
+makes for each workload. The 7 R’s are not a menu — they are a decision
+tree:</p>
+<pre><code>                            ┌──────────────────────────┐
+                            │  Is this application     │
+                            │  still needed?            │
+                            └────────────┬─────────────┘
+                                         │
+                              ┌──── NO ──┴── YES ────┐
+                              ▼                       ▼
+                     ┌────────────────┐    ┌──────────────────────┐
+                     │   R7: RETIRE   │    │  Can it be replaced  │
+                     │   Decommission │    │  by a SaaS product?  │
+                     └────────────────┘    └──────────┬───────────┘
+                                                      │
+                                           ┌── YES ──┴── NO ────┐
+                                           ▼                     ▼
+                                  ┌────────────────┐  ┌──────────────────────┐
+                                  │  R6: RETAIN /  │  │  Does the business   │
+                                  │  REPURCHASE    │  │  need it modernized? │
+                                  │  (Buy SaaS)    │  └──────────┬───────────┘
+                                  └────────────────┘             │
+                                                      ┌── YES ──┴── NO ────┐
+                                                      ▼                     ▼
+                                            ┌──────────────┐     ┌──────────────────┐
+                                            │ Worth a full  │     │  R1: REHOST      │
+                                            │ rewrite?      │     │  Lift-and-Shift  │
+                                            └──────┬───────┘     │  (AWS MGN)       │
+                                                   │              └──────────────────┘
+                                        ┌── YES ──┴── NO ──┐
+                                        ▼                    ▼
+                              ┌──────────────┐    ┌──────────────────┐
+                              │ R5: REFACTOR │    │ Can we swap the  │
+                              │ Re-architect │    │ underlying       │
+                              │ (Containers, │    │ platform?        │
+                              │ Serverless)  │    └──────┬───────────┘
+                              └──────────────┘           │
+                                              ┌── YES ──┴── NO ──┐
+                                              ▼                    ▼
+                                    ┌──────────────┐    ┌──────────────┐
+                                    │R3: REPLATFORM│    │R2: RELOCATE  │
+                                    │ Lift-Tinker- │    │ VMware Cloud │
+                                    │ Shift        │    │ on AWS       │
+                                    │ (e.g. RDS)   │    └──────────────┘
+                                    └──────────────┘</code></pre>
+<h4 id="decision-criteria-for-each-r">Decision Criteria for Each R</h4>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 31%" />
+<col style="width: 19%" />
+<col style="width: 12%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>When to Choose</th>
+<th>Example</th>
+<th>Risk</th>
+<th>Speed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>R1: Rehost</strong></td>
+<td>DC exit deadline, no budget for changes, low-risk apps</td>
+<td>EC2 lift-and-shift with AWS MGN</td>
+<td>Low</td>
+<td>Fast (weeks)</td>
+</tr>
+<tr>
+<td><strong>R2: Relocate</strong></td>
+<td>Heavy VMware investment, need speed</td>
+<td>VMware Cloud on AWS</td>
+<td>Low</td>
+<td>Fast</td>
+</tr>
+<tr>
+<td><strong>R3: Replatform</strong></td>
+<td>Quick wins with managed services, no code changes</td>
+<td>Move MySQL to RDS, Tomcat to Elastic Beanstalk</td>
+<td>Low-Med</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>R4: Repurchase</strong></td>
+<td>Better SaaS exists, not core competency</td>
+<td>On-prem CRM → Salesforce, On-prem email → O365</td>
+<td>Med</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>R5: Refactor</strong></td>
+<td>Strategic apps that need agility, scale, or modernization</td>
+<td>Monolith → Microservices on EKS, Oracle → Aurora</td>
+<td>High</td>
+<td>Slow (months)</td>
+</tr>
+<tr>
+<td><strong>R6: Retain</strong></td>
+<td>Not ready to move, regulatory, or needs more analysis</td>
+<td>Mainframe (plan later), apps under vendor lock-in</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><strong>R7: Retire</strong></td>
+<td>No business value, duplicate functionality</td>
+<td>Legacy reporting tool replaced by new analytics platform</td>
+<td>Low</td>
+<td>Fast</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-architects-assessment-decision-a-real-example">3.4 The
+Architect’s Assessment Decision — A Real Example</h3>
+<pre><code>SCENARIO: Customer has 150 applications. Discovery reveals:
+
+  ┌──────────────────────────────────────────────────────┐
+  │  Portfolio Breakdown:                                 │
+  │                                                       │
+  │  Retire:     23 apps (15%) — no users in 6+ months   │
+  │  Repurchase: 12 apps (8%)  — replaced by SaaS        │
+  │  Retain:      8 apps (5%)  — mainframe, move later   │
+  │  Rehost:     62 apps (41%) — lift-and-shift           │
+  │  Replatform: 31 apps (21%) — swap DB/runtime only    │
+  │  Refactor:   14 apps (9%)  — strategic modernization │
+  │                                                       │
+  │  TOTAL IN-SCOPE FOR CLOUD: 107 apps                   │
+  │  TOTAL TO MIGRATE:         107 apps in 5 waves        │
+  └──────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Architect’s Thinking:</strong> - “23 apps can be retired —
+that’s immediate cost savings. Include it in the business case.” - “62
+rehost apps should go in waves 1-3. Low risk, builds confidence,
+demonstrates velocity.” - “14 refactor apps go in waves 4-5. By then,
+the team has cloud skills and patterns established.” - “The 8 retained
+mainframe apps need a separate workstream — don’t let them block the
+migration.”</p>
+<h3 id="building-the-business-case">3.5 Building the Business Case</h3>
+<p>The architect <strong>must</strong> translate technical analysis into
+financial language. This is what gets executive approval.</p>
+<table>
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 36%" />
+<col style="width: 22%" />
+<col style="width: 15%" />
+</colgroup>
+<thead>
+<tr>
+<th>Cost Category</th>
+<th>On-Premises (Annual)</th>
+<th>AWS (Annual)</th>
+<th>Savings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Compute</strong></td>
+<td>$1.2M (servers, VMware licenses)</td>
+<td>$680K (Reserved Instances + Savings Plans)</td>
+<td>43%</td>
+</tr>
+<tr>
+<td><strong>Database Licenses</strong></td>
+<td>$470K (Oracle EE)</td>
+<td>$95K (Aurora PostgreSQL)</td>
+<td>80%</td>
+</tr>
+<tr>
+<td><strong>Storage</strong></td>
+<td>$180K (SAN)</td>
+<td>$42K (S3 + EBS gp3)</td>
+<td>77%</td>
+</tr>
+<tr>
+<td><strong>Networking</strong></td>
+<td>$90K (load balancers, firewalls)</td>
+<td>$65K (ALB + NACLs + SGs)</td>
+<td>28%</td>
+</tr>
+<tr>
+<td><strong>Data Center</strong></td>
+<td>$350K (power, cooling, lease, staff)</td>
+<td>$0</td>
+<td>100%</td>
+</tr>
+<tr>
+<td><strong>DR</strong></td>
+<td>$400K (secondary DC)</td>
+<td>$85K (cross-region, pilot light)</td>
+<td>79%</td>
+</tr>
+<tr>
+<td><strong>Staff Reallocation</strong></td>
+<td>—</td>
+<td>+$120K (cloud training)</td>
+<td>Investment</td>
+</tr>
+<tr>
+<td><strong>Migration Cost</strong></td>
+<td>—</td>
+<td>$450K (one-time)</td>
+<td>Investment</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>$2.69M/year</strong></td>
+<td><strong>$1.54M/year</strong></td>
+<td><strong>43% ($1.15M/year)</strong></td>
+</tr>
+<tr>
+<td><strong>3-Year TCO</strong></td>
+<td>$8.07M</td>
+<td>$5.07M</td>
+<td><strong>$3.0M saved</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="deliverables-from-phase-1-assess">3.6 Deliverables from Phase 1
+(Assess)</h3>
+<table>
+<colgroup>
+<col style="width: 43%" />
+<col style="width: 23%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Owner</th>
+<th>Audience</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Migration Readiness Assessment (MRA) Report</strong></td>
+<td>Principal Architect</td>
+<td>Executive Sponsor, CTO</td>
+</tr>
+<tr>
+<td><strong>Application Portfolio Analysis</strong></td>
+<td>Principal Architect + App Owners</td>
+<td>Program Manager, Engineering Leads</td>
+</tr>
+<tr>
+<td><strong>7 R’s Classification</strong> (per application)</td>
+<td>Principal Architect</td>
+<td>All stakeholders</td>
+</tr>
+<tr>
+<td><strong>Wave Plan</strong> (grouping apps into migration waves)</td>
+<td>Principal Architect</td>
+<td>Program Manager</td>
+</tr>
+<tr>
+<td><strong>Business Case / TCO Analysis</strong></td>
+<td>Principal Architect + Finance</td>
+<td>CFO, CTO, Executive Sponsor</td>
+</tr>
+<tr>
+<td><strong>Risk Assessment</strong> (updated)</td>
+<td>Principal Architect</td>
+<td>Steering Committee</td>
+</tr>
+<tr>
+<td><strong>High-Level Target Architecture</strong></td>
+<td>Principal Architect</td>
+<td>Engineering, Security</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-3b-greenfield-cloud-native-from-zero-to-production">Part 3B
+— Greenfield Cloud-Native: From Zero to Production</h2>
+<blockquote>
+<p><strong>When there is no existing system to assess.</strong> The
+customer wants to build something entirely new on the cloud. This is a
+fundamentally different engagement that requires a different architect’s
+playbook.</p>
+</blockquote>
+<h3 id="b.1-why-greenfield-is-harder-than-migration">3B.1 Why Greenfield
+Is Harder Than Migration</h3>
+<pre><code>MIGRATION:     You have a reference architecture — the existing system.
+               The question is &quot;how do we move THIS to the cloud?&quot;
+               The existing system constrains your decisions (which is helpful).
+
+GREENFIELD:    You have a blank canvas — and that&#39;s the problem.
+               The question is &quot;what SHOULD we build?&quot;
+               Every decision has 5+ valid options. Choice paralysis is real.
+               Bad decisions made here live for 5-10 years.</code></pre>
+<p><strong>Architect’s Mindset Shift:</strong></p>
+<table>
+<colgroup>
+<col style="width: 48%" />
+<col style="width: 51%" />
+</colgroup>
+<thead>
+<tr>
+<th>Migration Mindset</th>
+<th>Greenfield Mindset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>“How do we replicate this in the cloud?”</td>
+<td>“What is the right architecture for this problem?”</td>
+</tr>
+<tr>
+<td>“What is the current state?”</td>
+<td>“What are the requirements and constraints?”</td>
+</tr>
+<tr>
+<td>“Minimize risk, minimize change”</td>
+<td>“Optimize for the future, not the past”</td>
+</tr>
+<tr>
+<td>“Reuse existing patterns”</td>
+<td>“Select the best patterns for this context”</td>
+</tr>
+<tr>
+<td>“Move fast, optimize later”</td>
+<td>“Get the foundation right — it’s permanent”</td>
+</tr>
+<tr>
+<td>“The team knows the application”</td>
+<td>“The team needs to align on the domain model”</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b.2-the-greenfield-lifecycle-phases">3B.2 The Greenfield
+Lifecycle — Phases</h3>
+<pre><code>┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ DISCOVER │──▶│  DESIGN  │──▶│ PLATFORM │──▶│  BUILD   │──▶│  LAUNCH  │──▶│  SCALE   │
+│ &amp; DEFINE │   │          │   │  RUNWAY  │   │  ITERATE │   │          │   │          │
+│          │   │ Arch     │   │          │   │          │   │ Go-Live  │   │ Optimize │
+│ Require- │   │ patterns │   │ Landing  │   │ MVP →    │   │ Hyper-   │   │ FinOps   │
+│ ments    │   │ PoC      │   │ Zone     │   │ Feature  │   │ care     │   │ Multi-   │
+│ Domain   │   │ ADRs     │   │ CI/CD    │   │ sprints  │   │ Monitor  │   │ region   │
+│ model    │   │ NFRs     │   │ Modules  │   │ Security │   │ Feedback │   │ Cost     │
+│ Personas │   │ Cost est │   │ Security │   │ scanning │   │ Loop     │   │ Perf     │
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+   2-4 wks       3-6 wks       4-8 wks       8-16+ wks     1-2 days       Ongoing</code></pre>
+<h3 id="b.3-phase-g1-discover-define-requirements-engineering">3B.3
+Phase G1: Discover &amp; Define — Requirements Engineering</h3>
+<p>In greenfield, the architect is part product thinker, part
+technologist. You must translate business ambitions into architectural
+requirements.</p>
+<h4 id="the-requirements-pyramid">The Requirements Pyramid</h4>
+<pre><code>                    ┌──────────────────┐
+                    │   BUSINESS       │  ← CEO/VP cares about this
+                    │   REQUIREMENTS   │
+                    │   &quot;What problem  │
+                    │    do we solve?&quot; │
+                    └────────┬─────────┘
+                             │
+                    ┌────────▼─────────┐
+                    │   FUNCTIONAL     │  ← Product Owner cares about this
+                    │   REQUIREMENTS   │
+                    │   &quot;What features │
+                    │    does it need?&quot;│
+                    └────────┬─────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │   NON-FUNCTIONAL REQUIREMENTS│  ← ARCHITECT cares about this
+              │   (The &quot;-ilities&quot;)           │
+              │                              │
+              │   Performance  Security      │
+              │   Scalability  Availability  │
+              │   Reliability  Compliance    │
+              │   Observability  Cost        │
+              │   Maintainability  Latency   │
+              └──────────────────────────────┘</code></pre>
+<p><strong>Architect’s Rule:</strong> Business and product teams define
+WHAT to build. The architect defines HOW to build it — and specifically
+the <strong>non-functional requirements</strong> that determine
+architecture.</p>
+<h4
+id="non-functional-requirements-template-the-architects-checklist">Non-Functional
+Requirements Template (The Architect’s Checklist)</h4>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 18%" />
+<col style="width: 27%" />
+<col style="width: 36%" />
+</colgroup>
+<thead>
+<tr>
+<th>Category</th>
+<th>Question</th>
+<th>Example Answer</th>
+<th>Architecture Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scale</strong></td>
+<td>Peak concurrent users?</td>
+<td>50K concurrent, 500K DAU</td>
+<td>Need auto-scaling, CDN, connection pooling</td>
+</tr>
+<tr>
+<td><strong>Throughput</strong></td>
+<td>Requests per second at peak?</td>
+<td>10K RPS API, 50K RPS reads</td>
+<td>Need caching layer, read replicas</td>
+</tr>
+<tr>
+<td><strong>Latency</strong></td>
+<td>P99 latency target?</td>
+<td>&lt; 200ms API, &lt; 50ms cache</td>
+<td>Need regional deployment, edge caching</td>
+</tr>
+<tr>
+<td><strong>Availability</strong></td>
+<td>SLA target?</td>
+<td>99.95% (21.9 min downtime/month)</td>
+<td>Multi-AZ mandatory, cross-region optional</td>
+</tr>
+<tr>
+<td><strong>Data Volume</strong></td>
+<td>How much data? Growth rate?</td>
+<td>500 GB now, 2 TB/year growth</td>
+<td>S3 tiering, DB partitioning strategy</td>
+</tr>
+<tr>
+<td><strong>Data Residency</strong></td>
+<td>Where must data live?</td>
+<td>EU data stays in eu-west-1</td>
+<td>Region selection, data sovereignty controls</td>
+</tr>
+<tr>
+<td><strong>Compliance</strong></td>
+<td>Regulatory frameworks?</td>
+<td>HIPAA + SOC 2</td>
+<td>Encryption, audit logging, BAA with AWS</td>
+</tr>
+<tr>
+<td><strong>Recovery</strong></td>
+<td>RPO and RTO?</td>
+<td>RPO: 1 hour, RTO: 4 hours</td>
+<td>Cross-region backups, DR strategy</td>
+</tr>
+<tr>
+<td><strong>Multi-Tenancy</strong></td>
+<td>How are tenants isolated?</td>
+<td>SaaS: 500 tenants, some enterprise</td>
+<td>Silo vs. Pool isolation model</td>
+</tr>
+<tr>
+<td><strong>Budget</strong></td>
+<td>Monthly cloud spend target?</td>
+<td>&lt; $5K/month Year 1, &lt; $50K Year 3</td>
+<td>Serverless vs. containers decision</td>
+</tr>
+</tbody>
+</table>
+<h4
+id="domain-driven-design-the-architects-secret-weapon-for-greenfield">Domain-Driven
+Design — The Architect’s Secret Weapon for Greenfield</h4>
+<p>For any non-trivial greenfield system, the architect should run a
+<strong>domain modeling exercise</strong> before drawing architecture
+diagrams:</p>
+<pre><code>DOMAIN-DRIVEN DESIGN (DDD) — APPLIED TO ARCHITECTURE
+
+Step 1: EVENT STORMING (Workshop with business + engineering)
+  └── Identify domain events: &quot;OrderPlaced&quot;, &quot;PaymentProcessed&quot;, &quot;ShipmentDispatched&quot;
+  └── Group events into bounded contexts (future microservices)
+  └── Identify aggregates, commands, and queries
+
+Step 2: CONTEXT MAP
+  └── Map relationships between bounded contexts
+  └── Identify: Customer, Supplier, Shared Kernel, Anti-Corruption Layer
+  └── THIS MAP BECOMES YOUR MICROSERVICE BOUNDARY MAP
+
+Step 3: MAP TO AWS SERVICES
+  ┌─────────────────────┐     ┌─────────────────────┐
+  │ Order Context        │     │ Payment Context      │
+  │                     │     │                     │
+  │ ECS Service         │     │ Lambda + Step Fns   │
+  │ Aurora PostgreSQL   │────▶│ DynamoDB            │
+  │ SQS (async events)  │     │ Stripe Integration  │
+  └─────────────────────┘     └─────────────────────┘
+  
+  ┌─────────────────────┐     ┌─────────────────────┐
+  │ Notification Context │     │ Analytics Context    │
+  │                     │     │                     │
+  │ Lambda              │     │ Kinesis Firehose    │
+  │ SES / SNS / Pinpoint│     │ S3 Data Lake        │
+  │ EventBridge         │     │ Athena + QuickSight │
+  └─────────────────────┘     └─────────────────────┘
+
+ARCHITECT&#39;S RULE: &quot;If you can&#39;t draw the domain model,
+you can&#39;t draw the architecture. And if you can&#39;t draw
+the architecture, you definitely shouldn&#39;t be writing code.&quot;</code></pre>
+<h3 id="b.4-phase-g2-architecture-design-making-the-big-decisions">3B.4
+Phase G2: Architecture Design — Making the Big Decisions</h3>
+<p>This is where the Principal Architect earns their title. Every
+decision made here echoes for years.</p>
+<h4 id="the-10-critical-architecture-decisions-for-greenfield">The 10
+Critical Architecture Decisions for Greenfield</h4>
+<table>
+<colgroup>
+<col style="width: 6%" />
+<col style="width: 20%" />
+<col style="width: 18%" />
+<col style="width: 55%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Options</th>
+<th>How the Architect Decides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Compute Model</strong></td>
+<td>Containers (EKS/ECS) vs. Serverless (Lambda) vs. Hybrid</td>
+<td>Scale pattern, latency needs, team skills, cost model</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Database Strategy</strong></td>
+<td>Relational (Aurora/RDS) vs. NoSQL (DynamoDB) vs. Both</td>
+<td>Data model complexity, query patterns, scale requirements</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>API Strategy</strong></td>
+<td>REST vs. GraphQL vs. gRPC vs. WebSocket</td>
+<td>Client types, real-time needs, mobile/web requirements</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Event Architecture</strong></td>
+<td>Synchronous vs. Event-driven vs. CQRS/Event Sourcing</td>
+<td>Consistency needs, coupling tolerance, audit requirements</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Multi-Tenancy</strong></td>
+<td>Silo (account-per-tenant) vs. Pool (shared infra) vs. Bridge</td>
+<td>Tenant count, isolation requirements, compliance, cost</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Data Platform</strong></td>
+<td>Transactional only vs. Analytics lake vs. Lakehouse</td>
+<td>BI needs, ML requirements, data team maturity</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Frontend Strategy</strong></td>
+<td>SPA (React/Vue) + API vs. SSR (Next.js) vs. Mobile-first</td>
+<td>SEO needs, target devices, offline requirements</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>Auth &amp; Identity</strong></td>
+<td>Cognito vs. Auth0/Okta vs. Custom</td>
+<td>Enterprise SSO needs, B2B vs. B2C, compliance</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>Deployment Strategy</strong></td>
+<td>GitOps (ArgoCD) vs. Push (GitHub Actions → deploy)
+vs. Blue/Green</td>
+<td>Team maturity, rollback speed, environment count</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>Observability</strong></td>
+<td>CloudWatch-native vs. Grafana/Prometheus vs. Datadog/New Relic</td>
+<td>Budget, K8s presence, custom metrics needs</td>
+</tr>
+</tbody>
+</table>
+<h4
+id="reference-architecture-patterns-for-common-greenfield-projects">Reference
+Architecture Patterns for Common Greenfield Projects</h4>
+<p><strong>Pattern A: SaaS Platform (Multi-Tenant B2B)</strong></p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│                     SaaS PLATFORM ARCHITECTURE                      │
+│                                                                     │
+│  ┌─────────┐   ┌─────────────┐   ┌────────────────────────────────┐│
+│  │CloudFront│──▶│ API Gateway │──▶│ EKS (Private)                  ││
+│  │  + S3    │   │ + WAF       │   │                                ││
+│  │ (React)  │   │ + Cognito   │   │  ┌──────┐ ┌──────┐ ┌────────┐ ││
+│  └─────────┘   └─────────────┘   │  │Tenant│ │Billing│ │Workflow│ ││
+│                                   │  │ Svc  │ │ Svc  │ │  Svc   │ ││
+│                                   │  └──┬───┘ └──┬───┘ └───┬────┘ ││
+│                                   └─────┼────────┼─────────┼──────┘│
+│                                         │        │         │       │
+│  ┌──────────────────────────────────────▼────────▼─────────▼──────┐│
+│  │ Aurora PostgreSQL (RLS for tenant isolation)                    ││
+│  │ + ElastiCache Redis (session + cache)                          ││
+│  │ + S3 (tenant data, isolated by prefix + IAM policy)            ││
+│  └────────────────────────────────────────────────────────────────┘│
+│                                                                     │
+│  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────────┐ │
+│  │ EventBridge    │  │ SQS + Lambda    │  │ CloudWatch + Grafana │ │
+│  │ (domain events)│  │ (async workers) │  │ (observability)      │ │
+│  └────────────────┘  └─────────────────┘  └──────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Pattern B: Event-Driven Serverless Platform</strong></p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│               SERVERLESS EVENT-DRIVEN ARCHITECTURE                  │
+│                                                                     │
+│  ┌─────────┐   ┌──────────────┐   ┌─────────────┐                 │
+│  │API GW   │──▶│ Lambda       │──▶│ DynamoDB    │                 │
+│  │(REST/WS)│   │ (handlers)   │   │ (main store)│                 │
+│  └─────────┘   └──────┬───────┘   └─────────────┘                 │
+│                        │                                            │
+│                        ▼                                            │
+│               ┌────────────────┐                                    │
+│               │  EventBridge   │                                    │
+│               │  (event bus)   │                                    │
+│               └───┬────┬───┬──┘                                    │
+│                   │    │   │                                        │
+│            ┌──────▼┐ ┌─▼──┐ ┌▼──────────┐                         │
+│            │Lambda │ │SQS │ │Kinesis    │                          │
+│            │Notif. │ │→λ  │ │Firehose   │                          │
+│            │(SES)  │ │Proc│ │→ S3 Lake  │                          │
+│            └───────┘ └────┘ │→ Athena   │                          │
+│                              └───────────┘                          │
+│                                                                     │
+│  Cost: ~$50-200/month at low scale, scales linearly with usage     │
+│  Best for: Startups, variable traffic, event-driven workflows      │
+└─────────────────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Pattern C: AI/ML Platform</strong></p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│                    AI/ML PLATFORM ARCHITECTURE                       │
+│                                                                     │
+│  DATA INGESTION          PROCESSING           SERVING               │
+│  ┌──────────┐           ┌───────────┐        ┌───────────────┐     │
+│  │ Kinesis  │──────────▶│ Glue ETL  │───────▶│ S3 Data Lake  │     │
+│  │ Data     │           │ / Spark   │        │ (Bronze/Silver│     │
+│  │ Streams  │           └───────────┘        │  /Gold)       │     │
+│  └──────────┘                                └───────┬───────┘     │
+│  ┌──────────┐                                        │             │
+│  │ S3 Batch │────────────────────────────────────────▶│             │
+│  │ Upload   │                                        │             │
+│  └──────────┘                                        │             │
+│                                                      ▼             │
+│  ML TRAINING              INFERENCE          ┌───────────────┐     │
+│  ┌──────────┐            ┌──────────┐        │ Bedrock       │     │
+│  │SageMaker │───models──▶│SageMaker │        │ (Claude/Titan)│     │
+│  │Training  │            │Endpoints │        │ + RAG         │     │
+│  └──────────┘            └──────────┘        └───────┬───────┘     │
+│                                                      │             │
+│  ┌───────────────────────────────────────────────────▼───────────┐ │
+│  │ API Gateway → Lambda/ECS → Model Inference → Response         │ │
+│  │ + Bedrock Guardrails (PII, content filtering, grounding)      │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Pattern D: Real-Time IoT Platform</strong></p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│                    IOT PLATFORM ARCHITECTURE                         │
+│                                                                     │
+│  EDGE                      CLOUD                     ANALYTICS     │
+│  ┌──────────────┐         ┌───────────────┐         ┌────────────┐ │
+│  │ IoT Greengrass│───MQTT─▶│ IoT Core     │────────▶│ Timestream │ │
+│  │ (edge compute)│        │ + Rules Engine│         │ (time-     │ │
+│  │              │         └───────┬───────┘         │  series)   │ │
+│  │ - Local ML   │                 │                  └────────────┘ │
+│  │ - Filtering  │                 ▼                                 │
+│  │ - Aggregation│         ┌───────────────┐         ┌────────────┐ │
+│  └──────────────┘         │ Kinesis Data  │────────▶│ S3 Data    │ │
+│                           │ Streams       │         │ Lake       │ │
+│  ┌──────────────┐         └───────┬───────┘         └────────────┘ │
+│  │ Device Shadow│                 │                                 │
+│  │ (state sync) │                 ▼                                 │
+│  └──────────────┘         ┌───────────────┐         ┌────────────┐ │
+│                           │ Lambda        │────────▶│ SNS/SES    │ │
+│  Fleet: Thing Groups      │ (alerting)    │         │ (alerts)   │ │
+│  Security: X.509 + mTLS   └───────────────┘         └────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘</code></pre>
+<h3
+id="b.5-phase-g2-continued-proof-of-concept-validate-before-you-commit">3B.5
+Phase G2 (continued): Proof of Concept — Validate Before You Commit</h3>
+<p><strong>Architect’s Rule:</strong> “Never commit to a greenfield
+architecture without a PoC that validates your riskiest
+assumptions.”</p>
+<pre><code>POC STRATEGY — VALIDATE THE UNKNOWNS
+
+What to PoC (pick the TOP 3 riskiest assumptions):
+
+├── Performance: &quot;Can DynamoDB handle our access patterns at 10K RPS?&quot;
+│   └── Build: Load test with realistic data, measure P99 latency
+│
+├── Integration: &quot;Can we integrate with the legacy ERP via API Gateway?&quot;
+│   └── Build: End-to-end data flow through the integration point
+│
+├── Cost: &quot;Will Bedrock costs stay under $2K/month at our query volume?&quot;
+│   └── Build: Simulate 30 days of production traffic, measure token usage
+│
+├── Security: &quot;Can we achieve HIPAA compliance with our proposed architecture?&quot;
+│   └── Build: Deploy with all security controls, run compliance scan
+│
+└── Team: &quot;Can the team build and operate Kubernetes?&quot;
+    └── Build: Deploy a sample app on EKS, simulate an incident, measure MTTR
+
+PoC Timeline: 2-4 weeks (MAX). If it takes longer, scope is too big.
+PoC Output: Go/No-Go decision + validated architecture + cost projections
+
+WHAT IS NOT A POC:
+  ✗ Building the entire MVP and calling it a PoC
+  ✗ Validating things that are already well-known (&quot;can we deploy to EC2?&quot;)
+  ✗ A PoC that never ends and turns into production code</code></pre>
+<h3
+id="b.6-phase-g3-platform-runway-build-the-foundation-before-features">3B.6
+Phase G3: Platform Runway — Build the Foundation Before Features</h3>
+<p>Just like migration needs a Landing Zone, greenfield needs a
+<strong>Platform Runway</strong> — the infrastructure and tooling
+foundation that all feature work builds on.</p>
+<pre><code>PLATFORM RUNWAY CHECKLIST — Must be done BEFORE sprint 1 of feature development
+
+INFRASTRUCTURE FOUNDATION:
+□ AWS Organization + accounts (dev, staging, prod — minimum)
+□ Landing Zone (Control Tower or custom)
+□ VPC architecture deployed (networking, subnets, NAT, endpoints)
+□ DNS strategy (Route53 hosted zones, domain purchased/configured)
+□ SSL/TLS certificates (ACM) provisioned
+□ KMS keys created for each data classification level
+
+DEVELOPER EXPERIENCE:
+□ CI/CD pipeline working end-to-end (commit → deploy to dev)
+□ IaC (Terraform) repo structure defined, modules bootstrapped
+□ Local development environment documented and tested
+□ Feature branch → PR → review → merge → auto-deploy workflow
+□ Secrets management strategy implemented (Secrets Manager / SSM)
+
+OBSERVABILITY (Day 0, not Day 90):
+□ Centralized logging (CloudWatch Logs / OpenSearch)
+□ Metrics collection (CloudWatch Metrics / Prometheus)
+□ Distributed tracing (X-Ray / OpenTelemetry)
+□ Alerting configured (at minimum: 5xx errors, high latency, infra health)
+□ Dashboard for each service (even if empty — structure matters)
+
+SECURITY (Shift-Left):
+□ SAST/SCA scanning in CI pipeline
+□ Container image scanning (Trivy/ECR native)
+□ IaC scanning (Checkov/tfsec)
+□ IAM roles per service (IRSA for EKS, execution roles for Lambda)
+□ WAF configured for all internet-facing endpoints
+
+DATA:
+□ Database provisioned with encryption, backups, multi-AZ
+□ Schema migration tool integrated (Flyway, Alembic, Prisma)
+□ Seed data / test data strategy defined
+□ Data backup and restore tested
+
+ARCHITECT&#39;S RULE: &quot;If your platform runway isn&#39;t ready,
+your feature teams will build on quicksand. Every shortcut
+taken here becomes a 10x cost later.&quot;</code></pre>
+<h3 id="b.7-phase-g4-build-iterate-mvp-to-production">3B.7 Phase G4:
+Build &amp; Iterate — MVP to Production</h3>
+<p>Greenfield projects follow an iterative build model, not the
+wave-based factory model of migration:</p>
+<pre><code>ITERATIVE BUILD MODEL:
+
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
+│  MVP    │───▶│ Alpha   │───▶│  Beta   │───▶│   RC    │───▶│   GA    │
+│         │    │         │    │         │    │         │    │         │
+│ Core    │    │ Core +  │    │ Feature │    │ Perf    │    │ Prod    │
+│ features│    │ integr- │    │ complete│    │ tested  │    │ ready   │
+│ only    │    │ ations  │    │ + UX    │    │ Secure  │    │ Scaled  │
+│         │    │         │    │ polished│    │ DR done │    │ Support │
+│ 6-8 wks │    │ 4-6 wks │    │ 4-6 wks │    │ 2-4 wks │    │ Launch  │
+└─────────┘    └─────────┘    └─────────┘    └─────────┘    └─────────┘
+
+MVP SCOPE — What&#39;s In vs. What&#39;s Out:
+
+  IN (MUST HAVE):                    OUT (DEFER):
+  ├── Core user workflow (happy path)├── Admin dashboard
+  ├── Authentication &amp; authorization ├── Advanced analytics
+  ├── Basic API (CRUD + core logic)  ├── Multi-region
+  ├── Essential integrations         ├── Advanced search
+  ├── Monitoring &amp; alerting          ├── Notification preferences
+  ├── Security baseline              ├── Batch processing
+  └── CI/CD deployment               └── Performance optimization</code></pre>
+<h4 id="the-architects-role-in-greenfield-build-phase">The Architect’s
+Role in Greenfield Build Phase</h4>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 23%" />
+<col style="width: 55%" />
+</colgroup>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Frequency</th>
+<th>Greenfield-Specific Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Architecture Review</strong></td>
+<td>Per feature</td>
+<td>Ensure new features don’t create architectural debt</td>
+</tr>
+<tr>
+<td><strong>API Design Review</strong></td>
+<td>Per endpoint group</td>
+<td>Consistency, versioning, backward compatibility</td>
+</tr>
+<tr>
+<td><strong>Data Model Review</strong></td>
+<td>Per schema change</td>
+<td>Normalization, indexing strategy, query patterns</td>
+</tr>
+<tr>
+<td><strong>Dependency Decisions</strong></td>
+<td>As needed</td>
+<td>“Should we build this or buy/integrate?”</td>
+</tr>
+<tr>
+<td><strong>Non-Functional Validation</strong></td>
+<td>Per milestone</td>
+<td>Load testing, security scanning, cost review</td>
+</tr>
+<tr>
+<td><strong>Technical Debt Tracking</strong></td>
+<td>Sprint-over-sprint</td>
+<td>Maintain a debt register, schedule paydown sprints</td>
+</tr>
+<tr>
+<td><strong>Architecture Decision Records</strong></td>
+<td>Per significant decision</td>
+<td>Document WHY, not just WHAT — future you will thank you</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="b.8-greenfield-cost-estimation-the-architects-responsibility">3B.8
+Greenfield Cost Estimation — The Architect’s Responsibility</h3>
+<p>Unlike migration (where you compare against on-prem TCO), greenfield
+requires <strong>ground-up cost modeling</strong>:</p>
+<pre><code>COST ESTIMATION FRAMEWORK FOR GREENFIELD:
+
+Step 1: Estimate traffic → compute costs
+  ├── Users: 10K DAU → ~100 RPS average → ~500 RPS peak
+  ├── Compute: 3x m6i.large (EKS) or 1M Lambda invocations/month
+  └── Estimated: $150-400/month
+
+Step 2: Estimate data → storage + DB costs
+  ├── Data: 50 GB initial, growing 10 GB/month
+  ├── Database: Aurora Serverless v2 (0.5-4 ACU)
+  ├── Object storage: S3 Standard (~$0.023/GB)
+  └── Estimated: $80-250/month
+
+Step 3: Estimate data transfer → networking costs
+  ├── Ingress: Free
+  ├── Egress: ~500 GB/month × $0.09 = $45
+  ├── CloudFront: Reduces egress costs by ~60%
+  └── Estimated: $20-80/month
+
+Step 4: Estimate managed services
+  ├── Bedrock/AI: Tokens × price per 1K tokens
+  ├── ElastiCache: cache.t3.medium (2 nodes) = $70
+  ├── Secrets Manager: $0.40/secret/month
+  ├── KMS: $1/key/month + API calls
+  └── Estimated: $50-500/month (AI is wildly variable)
+
+Step 5: Add 30% buffer for unknowns
+
+TOTAL ESTIMATE: $400-1,600/month (Year 1, pre-scale)
+
+PRESENT TO STAKEHOLDERS AS A RANGE, NEVER A SINGLE NUMBER.
+Include scaling projections: &quot;At 100K users, cost grows to $X-Y/month&quot;</code></pre>
+<h3 id="b.9-greenfield-anti-patterns">3B.9 Greenfield Anti-Patterns</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr>
+<th>Anti-Pattern</th>
+<th>Why It’s Dangerous</th>
+<th>What to Do Instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>“Design everything upfront”</strong></td>
+<td>6-month design phase = 6 months of zero value delivery +
+requirements will change</td>
+<td>Design the core, build MVP, iterate. Use ADRs for decisions</td>
+</tr>
+<tr>
+<td><strong>“Microservices from Day 1”</strong></td>
+<td>3 engineers building 15 microservices = distributed monolith</td>
+<td>Start with a modular monolith. Extract services when you feel the
+pain</td>
+</tr>
+<tr>
+<td><strong>“Build everything custom”</strong></td>
+<td>Building auth, payments, notifications from scratch</td>
+<td>Use managed services: Cognito, Stripe, SES. Build only your
+differentiator</td>
+</tr>
+<tr>
+<td><strong>“Skip the platform runway”</strong></td>
+<td>Teams start coding before CI/CD, IaC, monitoring exist</td>
+<td>Invest 4-8 weeks in platform runway. It pays back 10x</td>
+</tr>
+<tr>
+<td><strong>“We’ll add security later”</strong></td>
+<td>Security retrofit is 10x more expensive than security by design</td>
+<td>Security in sprint 0: IAM, encryption, scanning in CI/CD</td>
+</tr>
+<tr>
+<td><strong>“Use the newest technology”</strong></td>
+<td>Team has no experience with the new stack</td>
+<td>Use boring technology for infrastructure. Innovate in your product,
+not your platform</td>
+</tr>
+<tr>
+<td><strong>“We don’t need docs yet”</strong></td>
+<td>6 months later, nobody knows why decisions were made</td>
+<td>ADRs from Day 1. Architecture diagrams updated weekly</td>
+</tr>
+<tr>
+<td><strong>“One environment is enough”</strong></td>
+<td>Devs testing in production, no staging for QA</td>
+<td>Minimum 3 environments: dev, staging, prod. Even for MVP</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b.10-greenfield-vs.-migration-deliverables-comparison">3B.10
+Greenfield vs. Migration — Deliverables Comparison</h3>
+<table>
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 41%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Migration Deliverables</th>
+<th>Greenfield Deliverables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Discovery</strong></td>
+<td>Portfolio inventory, MRA report, 7 R’s classification</td>
+<td>Requirements doc, domain model, persona map, NFR matrix</td>
+</tr>
+<tr>
+<td><strong>Design</strong></td>
+<td>Target architecture per app, wave plan</td>
+<td>Reference architecture, PoC results, ADRs, API contracts</td>
+</tr>
+<tr>
+<td><strong>Foundation</strong></td>
+<td>Landing Zone, shared modules, wave runbooks</td>
+<td>Platform runway, CI/CD, IaC, observability baseline</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>Migration factory (rehost/replatform per app)</td>
+<td>Iterative sprints (MVP → Alpha → Beta → RC → GA)</td>
+</tr>
+<tr>
+<td><strong>Go-Live</strong></td>
+<td>Cutover plan, rollback plan per app</td>
+<td>Launch plan, feature flags, gradual rollout</td>
+</tr>
+<tr>
+<td><strong>Post-Launch</strong></td>
+<td>Optimization wave, decommission source</td>
+<td>Scale, optimize, iterate on features</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-4-phase-2-mobilize-prepare-the-foundation">Part 4 — Phase
+2: Mobilize — Prepare the Foundation</h2>
+<blockquote>
+<p><strong>AWS Framework:</strong> This maps to the
+<strong>Mobilize</strong> phase of MAP and the <strong>AWS Cloud
+Adoption Framework (CAF)</strong>. <strong>Note:</strong> The Landing
+Zone, security baseline, CCoE, and shared modules described below apply
+equally to migration AND greenfield projects. Every enterprise cloud
+engagement needs this foundation.</p>
+</blockquote>
+<h3 id="landing-zone-the-foundation-of-everything">4.1 Landing Zone —
+The Foundation of Everything</h3>
+<p><strong>The most important architectural decision in the entire
+migration.</strong> Get this wrong, and you will be refactoring your AWS
+organization for years.</p>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                    AWS LANDING ZONE ARCHITECTURE                   │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    AWS Organizations                          │  │
+│  │  ┌──────────────┐                                            │  │
+│  │  │ Management   │  SCPs, CloudTrail Org Trail, AWS Config    │  │
+│  │  │ Account      │  Billing, IAM Identity Center (SSO)        │  │
+│  │  └──────┬───────┘                                            │  │
+│  │         │                                                     │  │
+│  │  ┌──────┴──────────────────────────────────────────────────┐  │  │
+│  │  │                  Organizational Units (OUs)              │  │  │
+│  │  │                                                          │  │  │
+│  │  │  ┌────────────┐  ┌────────────┐  ┌────────────────────┐ │  │  │
+│  │  │  │ Security   │  │ Shared     │  │ Workload OUs       │ │  │  │
+│  │  │  │ OU         │  │ Services   │  │                    │ │  │  │
+│  │  │  │            │  │ OU         │  │  ┌──────────────┐  │ │  │  │
+│  │  │  │ - Log      │  │            │  │  │ Prod OU      │  │ │  │  │
+│  │  │  │   Archive  │  │ - Network  │  │  │ - App1 Acct  │  │ │  │  │
+│  │  │  │ - Security │  │   Hub      │  │  │ - App2 Acct  │  │ │  │  │
+│  │  │  │   Tooling  │  │ - Shared   │  │  └──────────────┘  │ │  │  │
+│  │  │  │ - Audit    │  │   DNS      │  │  ┌──────────────┐  │ │  │  │
+│  │  │  │            │  │ - CI/CD    │  │  │ Non-Prod OU  │  │ │  │  │
+│  │  │  │            │  │   Tooling  │  │  │ - Dev Acct   │  │ │  │  │
+│  │  │  │            │  │            │  │  │ - QA Acct    │  │ │  │  │
+│  │  │  │            │  │            │  │  │ - Stage Acct │  │ │  │  │
+│  │  │  └────────────┘  └────────────┘  │  └──────────────┘  │ │  │  │
+│  │  │                                  │  ┌──────────────┐  │ │  │  │
+│  │  │                                  │  │ Sandbox OU   │  │ │  │  │
+│  │  │                                  │  │ - Sandbox1   │  │ │  │  │
+│  │  │                                  │  │ - Sandbox2   │  │ │  │  │
+│  │  │                                  │  └──────────────┘  │ │  │  │
+│  │  │                                  └────────────────────┘ │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                    │
+│  NETWORK HUB (Transit Gateway):                                    │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │  On-Prem ←→ Direct Connect / VPN ←→ Transit Gateway         │  │
+│  │  Transit GW ←→ Shared Services VPC                           │  │
+│  │  Transit GW ←→ Workload VPCs (spoke model)                  │  │
+│  │  Inspection VPC (Network Firewall) for N-S traffic           │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘</code></pre>
+<h4 id="key-landing-zone-decisions-the-architect-must-make">Key Landing
+Zone Decisions the Architect Must Make</h4>
+<table>
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 20%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Options</th>
+<th>Architect’s Consideration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Account Strategy</strong></td>
+<td>Single account vs. Multi-account</td>
+<td><strong>Always multi-account</strong> for enterprise. Blast radius
+isolation, billing separation, security boundaries</td>
+</tr>
+<tr>
+<td><strong>OU Structure</strong></td>
+<td>Flat vs. nested OUs</td>
+<td>Start with Security, Shared Services, Workloads (Prod/Non-Prod),
+Sandbox. Don’t over-nest</td>
+</tr>
+<tr>
+<td><strong>Network Topology</strong></td>
+<td>Hub-spoke (TGW) vs. Mesh vs. VPC Peering</td>
+<td><strong>Transit Gateway hub-spoke</strong> for enterprise. VPC
+peering doesn’t scale beyond 10 connections</td>
+</tr>
+<tr>
+<td><strong>Connectivity</strong></td>
+<td>Direct Connect vs. Site-to-Site VPN</td>
+<td>Direct Connect for production (dedicated, consistent latency). VPN
+as backup/failover</td>
+</tr>
+<tr>
+<td><strong>DNS</strong></td>
+<td>Route53 Private Hosted Zones vs. on-prem DNS</td>
+<td>Hybrid DNS with Route53 Resolver Endpoints + on-prem conditional
+forwarding</td>
+</tr>
+<tr>
+<td><strong>Identity</strong></td>
+<td>IAM Identity Center (SSO) vs. per-account IAM users</td>
+<td><strong>IAM Identity Center</strong> (AWS SSO) + federation with
+existing IdP (Okta, Azure AD)</td>
+</tr>
+<tr>
+<td><strong>Guardrails</strong></td>
+<td>SCPs vs. Config Rules vs. both</td>
+<td><strong>Both.</strong> SCPs for preventive (“cannot”), Config Rules
+for detective (“notify if”)</td>
+</tr>
+<tr>
+<td><strong>Automation</strong></td>
+<td>Control Tower vs. custom</td>
+<td>Control Tower for most enterprises. Custom only if requirements
+exceed CT capabilities</td>
+</tr>
+<tr>
+<td><strong>Logging</strong></td>
+<td>Per-account vs. centralized</td>
+<td><strong>Centralized</strong> logging account. CloudTrail Org Trail +
+Config + VPC Flow Logs → central S3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="security-baseline-non-negotiable-controls">4.2 Security Baseline
+— Non-Negotiable Controls</h3>
+<p>The architect defines the <strong>security baseline</strong> that
+applies to EVERY account, EVERY workload, no exceptions:</p>
+<pre><code>SECURITY BASELINE — ENFORCED VIA SCPs + CONFIG RULES + TERRAFORM MODULES
+
+PREVENTIVE (SCPs — Cannot Bypass):
+├── Cannot disable CloudTrail in any account
+├── Cannot delete VPC Flow Logs
+├── Cannot create IAM users with console access (SSO only)
+├── Cannot launch EC2 without IMDSv2
+├── Cannot create S3 buckets with public access
+├── Cannot create unencrypted EBS volumes
+├── Cannot use unapproved regions (restrict to eu-west-1, us-east-1, etc.)
+└── Cannot modify Security OU resources from workload accounts
+
+DETECTIVE (Config Rules — Alert + Auto-Remediate):
+├── EC2 instances must be in a VPC
+├── RDS instances must be encrypted
+├── Security groups must not allow 0.0.0.0/0 ingress on port 22/3389
+├── IAM policies must not have * resources
+├── S3 buckets must have versioning enabled
+├── ELB must have access logging enabled
+├── Lambda functions must be in a VPC (for data-processing functions)
+└── Root account must have MFA enabled
+
+MANDATORY SERVICES (Every Account):
+├── AWS CloudTrail (Org Trail → central logging)
+├── AWS Config (recording all resource types)
+├── Amazon GuardDuty (threat detection)
+├── AWS Security Hub (aggregated findings)
+├── IAM Access Analyzer (external access detection)
+├── VPC Flow Logs (network monitoring)
+└── AWS SSM Session Manager (no SSH bastion needed)</code></pre>
+<h3 id="cloud-center-of-excellence-ccoe-the-organizational-backbone">4.3
+Cloud Center of Excellence (CCoE) — The Organizational Backbone</h3>
+<p>The architect advocates for — and often helps build — the CCoE:</p>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                    Cloud Center of Excellence (CCoE)              │
+│                                                                    │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐  │
+│  │ Cloud Platform │  │ Cloud Security │  │ Cloud FinOps       │  │
+│  │ Engineering    │  │ &amp; Governance   │  │                    │  │
+│  │                │  │                │  │ - Cost allocation  │  │
+│  │ - Landing Zone │  │ - SCPs, Config │  │ - Budgets &amp; alerts │  │
+│  │ - IaC modules  │  │ - Compliance   │  │ - RI/SP purchasing │  │
+│  │ - CI/CD Golden │  │ - Incident     │  │ - Chargeback model │  │
+│  │   Pipelines    │  │   response     │  │ - Optimization     │  │
+│  │ - Golden AMIs  │  │ - Audit prep   │  │   recommendations  │  │
+│  └────────────────┘  └────────────────┘  └────────────────────┘  │
+│                                                                    │
+│  ┌────────────────┐  ┌────────────────┐                          │
+│  │ Cloud Adoption │  │ Cloud Ops /    │                          │
+│  │ &amp; Enablement   │  │ SRE            │                          │
+│  │                │  │                │                          │
+│  │ - Training     │  │ - Monitoring   │                          │
+│  │ - Certifications│ │ - Alerting     │                          │
+│  │ - Patterns lib │  │ - On-call      │                          │
+│  │ - Office hours │  │ - Runbooks     │                          │
+│  └────────────────┘  └────────────────┘                          │
+└──────────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="building-shared-terraform-modules-the-paved-road">4.4 Building
+Shared Terraform Modules (The “Paved Road”)</h3>
+<p>The architect doesn’t let every team reinvent infrastructure. They
+create <strong>opinionated, shared Terraform modules</strong> — the
+“paved road”:</p>
+<pre><code>terraform-modules/  (internal registry or Git monorepo)
+├── vpc/                    # Standard VPC: 3-AZ, public/private/data subnets, flow logs
+├── eks-cluster/            # EKS with managed nodes, IRSA, ALB controller, Karpenter
+├── rds-aurora/             # Aurora with encryption, backups, multi-AZ, parameter groups
+├── s3-bucket/              # S3 with encryption, versioning, lifecycle, public access block
+├── lambda-function/        # Lambda with VPC, KMS, X-Ray, dead-letter queue
+├── api-gateway/            # API Gateway with WAF, throttling, Cognito auth
+├── github-actions-oidc/    # OIDC provider for keyless GitHub Actions → AWS
+├── cloudwatch-alarms/      # Standard alarm set for each service type
+└── security-baseline/      # Config Rules, GuardDuty, Security Hub per account</code></pre>
+<p><strong>Architect’s Rule:</strong> “You CAN build your own VPC
+module. But if you use our paved-road module, you get security
+compliance for free, your PR is approved in 1 day instead of 5, and you
+don’t need to justify your design to the security team.”</p>
+<h3 id="wave-planning-grouping-applications-for-migration">4.5 Wave
+Planning — Grouping Applications for Migration</h3>
+<pre><code>WAVE PLANNING PRINCIPLES:
+
+Wave 0 (Foundation):
+  └── Landing Zone, Network, Security Baseline, CI/CD, Monitoring
+      Duration: 4-8 weeks
+
+Wave 1 (Pilot — Low Risk, High Learning):
+  └── 3-5 non-critical applications
+  └── Purpose: Validate tooling, processes, runbooks
+  └── Success criteria: Migrated, stable for 2 weeks, team confident
+      Duration: 4-6 weeks
+
+Wave 2 (Build Confidence — Medium Complexity):
+  └── 10-15 applications (mostly rehost + replatform)
+  └── Purpose: Build velocity, identify repeatable patterns
+  └── Start parallelizing — 2-3 apps migrating concurrently
+      Duration: 6-8 weeks
+
+Wave 3-4 (Scale — High Volume):
+  └── 30-50 applications per wave
+  └── Purpose: Factory model — repeatable, templated migrations
+  └── Multiple teams running in parallel
+      Duration: 8-12 weeks per wave
+
+Wave 5 (Complex — Modernization):
+  └── Strategic applications requiring refactoring
+  └── Monolith → microservices, Oracle → Aurora, etc.
+  └── Longer timelines, more risk, more testing
+      Duration: 12-16+ weeks
+
+Post-Migration:
+  └── Optimization wave: right-sizing, Reserved Instances, cost cleanup
+      Duration: Ongoing</code></pre>
+<h3 id="deliverables-from-phase-2-mobilize">4.6 Deliverables from Phase
+2 (Mobilize)</h3>
+<table>
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 21%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Owner</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Landing Zone (deployed)</strong></td>
+<td>Platform Engineering / CCoE</td>
+<td>Multi-account org, SCPs, network, security baseline</td>
+</tr>
+<tr>
+<td><strong>Network Architecture</strong></td>
+<td>Principal Architect</td>
+<td>Transit Gateway, Direct Connect, DNS, VPN</td>
+</tr>
+<tr>
+<td><strong>Shared Terraform Module Library</strong></td>
+<td>Platform Engineering</td>
+<td>Paved-road modules for common infrastructure patterns</td>
+</tr>
+<tr>
+<td><strong>CI/CD Pipeline Templates</strong></td>
+<td>Platform Engineering</td>
+<td>Golden pipelines for Terraform and application deployments</td>
+</tr>
+<tr>
+<td><strong>Security Baseline</strong> (deployed)</td>
+<td>Cloud Security Team</td>
+<td>Config Rules, GuardDuty, Security Hub, CloudTrail</td>
+</tr>
+<tr>
+<td><strong>Wave Plan</strong> (detailed)</td>
+<td>Principal Architect + PMO</td>
+<td>App-to-wave mapping with dates, dependencies, team assignments</td>
+</tr>
+<tr>
+<td><strong>Runbook Templates</strong></td>
+<td>SRE / Cloud Ops</td>
+<td>Migration runbook, rollback runbook, cutover checklist</td>
+</tr>
+<tr>
+<td><strong>Training Plan</strong> (executed)</td>
+<td>Cloud Enablement</td>
+<td>AWS certifications, hands-on labs, team readiness</td>
+</tr>
+<tr>
+<td><strong>CCoE Charter</strong></td>
+<td>Enterprise Architect</td>
+<td>Team structure, responsibilities, escalation paths</td>
+</tr>
+<tr>
+<td><strong>Architecture Decision Records (ADRs)</strong></td>
+<td>Principal Architect</td>
+<td>Documented decisions with rationale and alternatives considered</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-5-phase-3-migrate-modernize-execute-in-waves">Part 5 —
+Phase 3: Migrate &amp; Modernize — Execute in Waves</h2>
+<h3 id="the-migration-factory-model">5.1 The Migration Factory
+Model</h3>
+<p>For each application in a wave, the migration follows a standardized
+pipeline:</p>
+<pre><code>┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ DISCOVER │──▶│  DESIGN  │──▶│  BUILD   │──▶│  TEST    │──▶│ CUTOVER  │──▶│ OPTIMIZE │
+│          │   │          │   │          │   │          │   │          │   │          │
+│ App deep │   │ Target   │   │ Infra    │   │ Functio- │   │ DNS/LB   │   │ Right-   │
+│ dive     │   │ arch     │   │ Terraform│   │ nal, Perf│   │ switchover│  │ size     │
+│ Depen-   │   │ Security │   │ Data     │   │ Security │   │ Rollback │   │ Cost     │
+│ dencies  │   │ review   │   │ replicatn│   │ DR drill │   │ plan     │   │ Tags     │
+│ Data map │   │ Sizing   │   │ CI/CD    │   │ UAT      │   │ Verify   │   │ Reservatn│
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+    2-3 days      3-5 days      1-2 weeks     1-2 weeks      1 day          Ongoing</code></pre>
+<h3 id="the-architects-role-during-execution">5.2 The Architect’s Role
+During Execution</h3>
+<p>During execution, the Principal Architect shifts from
+<strong>designing</strong> to <strong>reviewing, unblocking, and
+ensuring consistency</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 36%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Frequency</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Architecture Review Board</strong></td>
+<td>Weekly</td>
+<td>Review designs for each wave’s applications. Ensure consistency with
+patterns</td>
+</tr>
+<tr>
+<td><strong>Design Reviews</strong></td>
+<td>Per application</td>
+<td>Approve target architecture before build starts</td>
+</tr>
+<tr>
+<td><strong>Exception Management</strong></td>
+<td>As needed</td>
+<td>Handle “this app doesn’t fit any pattern” situations</td>
+</tr>
+<tr>
+<td><strong>Risk Review</strong></td>
+<td>Weekly</td>
+<td>Review migration risks, update risk register, escalate blockers</td>
+</tr>
+<tr>
+<td><strong>Standards Enforcement</strong></td>
+<td>Continuous</td>
+<td>Ensure teams use shared modules, follow naming conventions, tag
+resources</td>
+</tr>
+<tr>
+<td><strong>Dependency Resolution</strong></td>
+<td>As needed</td>
+<td>Unblock cross-team dependencies (e.g., network changes, shared
+databases)</td>
+</tr>
+<tr>
+<td><strong>Stakeholder Communication</strong></td>
+<td>Weekly</td>
+<td>Migration dashboard, burndown charts, risk flags to executives</td>
+</tr>
+</tbody>
+</table>
+<h3 id="critical-decision-points-during-migration">5.3 Critical Decision
+Points During Migration</h3>
+<h4 id="database-migration-the-hardest-part">Database Migration — The
+Hardest Part</h4>
+<pre><code>DATABASE MIGRATION DECISION TREE:
+
+Q1: Are you changing the database engine?
+    ├── NO (Homogeneous: Oracle → Oracle, MySQL → MySQL)
+    │   └── Use AWS DMS for continuous replication
+    │       Cutover: Stop writes → DMS catches up → Switch endpoint → Resume
+    │
+    └── YES (Heterogeneous: Oracle → Aurora PostgreSQL)
+        └── Q2: How complex is the schema?
+            ├── Simple (no stored procs, standard SQL)
+            │   └── AWS SCT for schema conversion + DMS for data
+            │
+            └── Complex (PL/SQL stored procs, Oracle-specific features)
+                └── Manual conversion required (weeks-months of effort)
+                    ├── Convert stored procs to PostgreSQL PL/pgSQL
+                    ├── Rewrite Oracle-specific SQL (CONNECT BY, ROWNUM, etc.)
+                    ├── Replace Oracle sequences with PostgreSQL sequences
+                    └── Extensive regression testing required
+
+ARCHITECT&#39;S RULE: Never underestimate database migration.
+  - Schema conversion is 20% of the effort
+  - Data migration is 20% of the effort
+  - Application testing against the new DB is 60% of the effort</code></pre>
+<h4 id="modernization-decision-containers-vs.-serverless">Modernization
+Decision — Containers vs. Serverless</h4>
+<pre><code>Q: Should this app go to containers (EKS/ECS) or serverless (Lambda)?
+
+CONTAINERS (EKS/ECS) when:
+├── Long-running processes (&gt;15 min)
+├── Need consistent latency (no cold starts)
+├── Complex networking (service mesh, mTLS)
+├── Team has Kubernetes expertise
+├── Need to run the same code on-prem and cloud
+└── Stateful workloads
+
+SERVERLESS (Lambda + API GW + DynamoDB) when:
+├── Event-driven, sporadic traffic
+├── Request-response pattern (&lt;15 min execution)
+├── Want zero operational overhead
+├── Highly variable traffic (0 to 10K RPS)
+├── Cost-sensitive (pay only when invoked)
+└── Team is small, can&#39;t afford K8s ops overhead
+
+ECS FARGATE when:
+├── Want containers but NOT Kubernetes complexity
+├── Simple deployment model (task definitions)
+├── Don&#39;t need Helm, service mesh, custom operators
+└── Team has Docker skills but not K8s skills</code></pre>
+<h3
+id="architecture-review-checklist-what-the-architect-checks-for-every-workload">5.4
+Architecture Review Checklist — What the Architect Checks for Every
+Workload</h3>
+<pre><code>ARCHITECTURE REVIEW GATE — Every workload must pass before Go-Live
+
+RELIABILITY
+□ Multi-AZ deployment (no single-AZ anything in production)
+□ Health checks configured (ALB + application-level)
+□ Auto-scaling policies defined and tested
+□ Graceful degradation for downstream failures (circuit breakers, retries, timeouts)
+□ Backup strategy defined (RPO/RTO validated)
+□ DR tested (not just designed — actually tested)
+
+SECURITY
+□ No public IPs on compute (use ALB/NLB for ingress)
+□ No IAM users — IRSA, OIDC, or instance profiles only
+□ All storage encrypted (KMS CMK, not AWS-managed keys for regulated workloads)
+□ Security groups are least-privilege (no 0.0.0.0/0)
+□ Secrets in Secrets Manager or SSM Parameter Store (not env vars or config files)
+□ WAF configured for internet-facing endpoints
+□ Vulnerability scanning in CI/CD pipeline (container + dependency)
+□ CloudTrail, Config, GuardDuty enabled (should be via landing zone baseline)
+
+PERFORMANCE
+□ Right-sized instances (not over-provisioned from on-prem sizing)
+□ Caching strategy (ElastiCache, CloudFront, application-level)
+□ Database connection pooling configured
+□ Latency targets validated with load testing
+
+OPERATIONS
+□ Monitoring dashboard exists (CloudWatch or Grafana)
+□ Alerting configured for critical metrics (CPU, memory, error rate, latency)
+□ Runbook exists for common failure scenarios
+□ Deployment pipeline is automated (no manual deployments)
+□ Log aggregation configured (CloudWatch Logs or ELK/OpenSearch)
+□ Tagging compliant (Environment, Project, Owner, CostCenter, ManagedBy)
+
+COST
+□ Right-sizing applied (not 1:1 from on-prem)
+□ Storage tier appropriate (gp3 not gp2, S3 lifecycle policies)
+□ Reserved capacity or Savings Plans evaluated for steady-state workloads
+□ Cost allocation tags applied for chargeback
+□ Budget alerts configured</code></pre>
+<hr />
+<h2 id="part-6-phase-4-go-live-readiness-cutover">Part 6 — Phase 4:
+Go-Live Readiness &amp; Cutover</h2>
+<h3 id="go-live-readiness-assessment">6.1 Go-Live Readiness
+Assessment</h3>
+<p><strong>No cutover happens without a formal Go-Live Readiness
+Review.</strong> The architect chairs this review with all
+stakeholders.</p>
+<pre><code>GO-LIVE READINESS CHECKLIST
+
+FUNCTIONAL READINESS
+□ All functional test cases passed (UAT sign-off from business owner)
+□ Data migration validated (row counts, checksums, data quality)
+□ Integration tests passed (all upstream/downstream systems verified)
+□ Performance test completed (meets or exceeds SLA targets)
+□ Security scan completed (no CRITICAL/HIGH findings unresolved)
+
+OPERATIONAL READINESS
+□ Monitoring dashboards deployed and validated
+□ Alerting configured and tested (PagerDuty/OpsGenie integration)
+□ Runbooks reviewed and accessible to on-call team
+□ On-call rotation defined for hypercare period
+□ Escalation matrix documented and distributed
+
+ROLLBACK READINESS
+□ Rollback plan documented step-by-step
+□ Rollback tested and time-boxed (must complete within RTO)
+□ Rollback decision criteria defined (&quot;if X happens within Y minutes, rollback&quot;)
+□ Rollback decision owner identified (usually: Principal Architect or App Owner)
+□ Data rollback strategy defined (especially for DB migrations with writes)
+
+COMMUNICATION READINESS
+□ Go-Live communication sent to all stakeholders (24h before)
+□ War room / bridge line set up
+□ Status update cadence defined (every 30 min during cutover)
+□ Customer communication prepared (if external-facing)
+□ Rollback communication prepared (just in case)
+
+SIGN-OFF
+□ Application Owner: __________ Date: __________
+□ Engineering Lead: __________ Date: __________
+□ Security Team: __________ Date: __________
+□ Operations / SRE: __________ Date: __________
+□ Principal Architect: __________ Date: __________</code></pre>
+<h3 id="cutover-execution-the-architects-orchestration">6.2 Cutover
+Execution — The Architect’s Orchestration</h3>
+<pre><code>CUTOVER TIMELINE (Example: Database Migration with Cutover Window)
+
+T-24h:  Final pre-cutover checks
+        ├── Verify DMS replication lag &lt; 1 second
+        ├── Confirm all target infrastructure is healthy
+        ├── Brief war room participants
+        └── Send &quot;Go-Live Tomorrow&quot; communication
+
+T-4h:   Pre-cutover
+        ├── Scale up target environment (handle potential spike)
+        ├── Warm connection pools
+        └── Final monitoring check
+
+T-0:    CUTOVER START (typically Friday 10 PM or Saturday morning)
+        ├── Step 1: Enable maintenance page (or read-only mode)
+        ├── Step 2: Stop application writes to source DB
+        ├── Step 3: Wait for DMS replication to reach zero lag
+        ├── Step 4: Validate data consistency (checksums, row counts)
+        ├── Step 5: Update application config to point to new DB/endpoints
+        ├── Step 6: Deploy application to new environment
+        ├── Step 7: Smoke tests (critical path validation)
+        ├── Step 8: Switch DNS / Load Balancer to new environment
+        ├── Step 9: Monitor for 30 minutes (error rates, latency, logs)
+        └── Step 10: Confirm GO or ROLLBACK decision
+
+T+30m:  GO / NO-GO DECISION POINT
+        ├── GO: Remove maintenance page, notify stakeholders
+        └── NO-GO: Execute rollback plan, root cause analysis
+
+T+1h:   Post-cutover monitoring (elevated alerting thresholds)
+
+T+24h:  Day 1 business hours validation
+        ├── Business users validate key workflows
+        ├── Performance metrics baseline comparison
+        └── Any issues escalated to war room</code></pre>
+<h3 id="rollback-strategy-the-safety-net">6.3 Rollback Strategy — The
+Safety Net</h3>
+<p><strong>Architect’s Rule:</strong> “Hope for the best, plan for the
+worst. A migration without a tested rollback plan is a career-ending
+event.”</p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 21%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr>
+<th>Rollback Scenario</th>
+<th>Strategy</th>
+<th>Time to Rollback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rehost (EC2)</strong></td>
+<td>Keep source servers running (powered off) for 7 days</td>
+<td>&lt; 30 min (re-point DNS/LB)</td>
+</tr>
+<tr>
+<td><strong>Replatform (RDS)</strong></td>
+<td>DMS reverse replication to source DB</td>
+<td>1-4 hours</td>
+</tr>
+<tr>
+<td><strong>Refactor (new app)</strong></td>
+<td>Blue-green: old environment stays warm for 7 days</td>
+<td>&lt; 5 min (DNS switch)</td>
+</tr>
+<tr>
+<td><strong>Database (homogeneous)</strong></td>
+<td>DMS reverse replication</td>
+<td>1-2 hours</td>
+</tr>
+<tr>
+<td><strong>Database (heterogeneous)</strong></td>
+<td>Keep source DB read-only, reverse ETL if needed</td>
+<td>2-8 hours (risky)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-7-phase-5-hypercare-stabilization">Part 7 — Phase 5:
+Hypercare &amp; Stabilization</h2>
+<h3 id="hypercare-period-the-first-2-4-weeks-post-go-live">7.1 Hypercare
+Period — The First 2-4 Weeks Post Go-Live</h3>
+<pre><code>HYPERCARE OPERATING MODEL
+
+Week 1 (Critical — War Room Mode):
+├── 24/7 monitoring with dedicated on-call rotation
+├── Architect available on-call for escalations
+├── Daily standup at 9:00 AM (30 min) — review overnight issues
+├── Hourly monitoring of error rates, latency, infrastructure health
+├── Any P1/P2 incident: war room activation within 15 minutes
+├── Daily executive status update (green/amber/red)
+└── No other changes allowed (change freeze on migrated workload)
+
+Week 2 (Elevated — Reduced Intensity):
+├── 12/7 monitoring (business hours + evening)
+├── Daily standup continues
+├── Begin performance baseline comparison (on-prem vs. cloud)
+├── Address accumulated non-critical issues
+├── Start right-sizing analysis (actual usage data now available)
+└── Change freeze relaxed for non-critical changes
+
+Week 3-4 (Stabilization):
+├── Standard monitoring + alerting (normal on-call rotation)
+├── Weekly review instead of daily
+├── Performance optimization recommendations
+├── Cost optimization (right-sizing, reserved instances)
+├── Knowledge transfer to BAU operations team
+└── Hypercare exit criteria validation</code></pre>
+<h3 id="hypercare-exit-criteria">7.2 Hypercare Exit Criteria</h3>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 31%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Criteria</th>
+<th>Threshold</th>
+<th>Validated By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Availability</strong></td>
+<td>≥ SLA target (e.g., 99.95%) for 14 consecutive days</td>
+<td>Monitoring data</td>
+</tr>
+<tr>
+<td><strong>Error Rate</strong></td>
+<td>≤ pre-migration baseline</td>
+<td>APM / CloudWatch</td>
+</tr>
+<tr>
+<td><strong>Latency</strong></td>
+<td>≤ 110% of pre-migration baseline (10% margin for network path
+change)</td>
+<td>Load balancer metrics</td>
+</tr>
+<tr>
+<td><strong>No P1 Incidents</strong></td>
+<td>Zero P1 incidents in last 7 days</td>
+<td>Incident management system</td>
+</tr>
+<tr>
+<td><strong>No P2 Incidents</strong></td>
+<td>≤ 2 P2 incidents in last 7 days, all resolved</td>
+<td>Incident management system</td>
+</tr>
+<tr>
+<td><strong>Runbooks Validated</strong></td>
+<td>All critical runbooks executed at least once</td>
+<td>Operations team sign-off</td>
+</tr>
+<tr>
+<td><strong>Knowledge Transfer</strong></td>
+<td>BAU team can operate without migration team support</td>
+<td>BAU team sign-off</td>
+</tr>
+<tr>
+<td><strong>Rollback Decommissioned</strong></td>
+<td>Source environment powered down (after exit approval)</td>
+<td>Infrastructure team</td>
+</tr>
+</tbody>
+</table>
+<h3 id="post-migration-optimization-the-work-continues">7.3
+Post-Migration Optimization — The Work Continues</h3>
+<pre><code>OPTIMIZATION ACTIVITIES (Ongoing After Hypercare):
+
+COST OPTIMIZATION:
+├── Right-size instances based on 2-4 weeks of actual CloudWatch data
+│   (Most on-prem servers are 70-80% over-provisioned)
+├── Purchase Savings Plans or Reserved Instances for steady-state workloads
+├── Implement S3 Intelligent-Tiering or lifecycle policies
+├── Review and eliminate unused EBS volumes, EIPs, idle load balancers
+├── Enable gp3 for all EBS volumes (20% cheaper than gp2, better performance)
+├── Evaluate Graviton instances for compatible workloads (20% cheaper)
+└── Set up AWS Cost Explorer reports and budgets
+
+PERFORMANCE OPTIMIZATION:
+├── Enable CloudFront for static content (reduce origin load)
+├── Implement ElastiCache for frequently-accessed data
+├── Review database query performance (Performance Insights)
+├── Evaluate Aurora Serverless v2 for variable workloads
+└── Implement connection pooling (RDS Proxy or PgBouncer)
+
+OPERATIONAL OPTIMIZATION:
+├── Automate patching with AWS Systems Manager Patch Manager
+├── Implement AWS Backup for centralized backup management
+├── Set up AWS Health Dashboard integration
+├── Automate compliance checks with AWS Config conformance packs
+└── Implement Infrastructure as Code for any manually-created resources</code></pre>
+<hr />
+<h2 id="part-8-phase-6-project-closure-transition-to-bau">Part 8 — Phase
+6: Project Closure &amp; Transition to BAU</h2>
+<h3 id="formal-project-closure">8.1 Formal Project Closure</h3>
+<pre><code>PROJECT CLOSURE CHECKLIST
+
+DELIVERABLE VALIDATION:
+□ All applications migrated per scope (or formally de-scoped with sign-off)
+□ All Terraform code in version control (Git) with documentation
+□ Architecture documentation up-to-date (diagrams, ADRs, network maps)
+□ Runbooks complete and validated by BAU team
+□ Monitoring and alerting fully operational
+
+SOURCE ENVIRONMENT DECOMMISSION:
+□ Source servers powered off for 30 days (safety net)
+□ Data retention requirements verified before deletion
+□ License release/cancellation initiated (Oracle, VMware, Windows)
+□ Data center contract termination notice sent (if applicable)
+□ Final backup of source environment stored in S3 Glacier (if required)
+
+KNOWLEDGE TRANSFER:
+□ Operations playbook handed to BAU team
+□ Architecture walk-through completed (recorded)
+□ On-call handover completed
+□ Escalation matrix updated with BAU contacts
+□ CCoE patterns library updated with lessons learned
+
+FINANCIAL CLOSURE:
+□ Actual vs. projected cost comparison documented
+□ Savings realization report presented to executive sponsor
+□ FinOps handover (tagging, budgets, Reserved Instance management)
+□ Vendor contract changes documented (new AWS, cancelled legacy)
+
+RETROSPECTIVE:
+□ Project retrospective conducted (what went well, what didn&#39;t)
+□ Lessons learned document published
+□ Recommendations for future waves/projects documented
+□ Team recognition and celebration</code></pre>
+<h3
+id="the-closure-report-what-the-architect-presents-to-leadership">8.2
+The Closure Report — What the Architect Presents to Leadership</h3>
+<pre><code>MIGRATION CLOSURE EXECUTIVE SUMMARY
+
+PROJECT: Enterprise Cloud Migration Program — Phase 1
+DURATION: 9 months (Oct 2024 — Jun 2025)
+SPONSOR: [CTO Name]
+
+SCOPE DELIVERED:
+  ├── 107 applications migrated to AWS (of 107 planned — 100%)
+  ├── 23 applications retired (immediate cost savings)
+  ├── 12 applications replaced with SaaS
+  ├── 3 data centers consolidated to 1 (2 fully decommissioned)
+  └── 8 applications retained on-prem (mainframe — Phase 2)
+
+FINANCIAL OUTCOME:
+  ├── Projected annual savings: $1.15M/year
+  ├── Actual annual run-rate savings: $1.32M/year (exceeded by 15%)
+  ├── Migration investment: $420K (under $450K budget)
+  ├── Payback period: 3.8 months
+  └── 3-year projected savings: $3.54M
+
+OPERATIONAL METRICS:
+  ├── Average availability post-migration: 99.97% (target: 99.95%)
+  ├── P1 incidents during migration: 2 (both resolved within SLA)
+  ├── Zero data loss events
+  ├── Zero unplanned rollbacks
+  └── Mean cutover time: 2.3 hours (target: 4 hours)
+
+KEY ACHIEVEMENTS:
+  ├── Eliminated Oracle licensing: $470K/year saved
+  ├── CCoE established with 8 certified team members
+  ├── 100% Infrastructure as Code — zero manual provisioning
+  ├── CI/CD pipelines for all migrated applications
+  └── Security posture improved: GuardDuty + Security Hub baseline
+
+RECOMMENDATIONS FOR PHASE 2:
+  ├── Mainframe modernization assessment (8 retained apps)
+  ├── Kubernetes adoption for 14 refactored applications
+  ├── Data lake implementation for analytics workloads
+  └── Multi-region DR implementation for Tier-1 applications</code></pre>
+<h3 id="transition-to-bau-the-architect-steps-back">8.3 Transition to
+BAU — The Architect Steps Back</h3>
+<pre><code>BAU OPERATING MODEL (Post-Migration)
+
+                    ┌────────────────────────────┐
+                    │       CCoE (Ongoing)       │
+                    │                            │
+                    │  Platform Engineering       │
+                    │  ├── Module maintenance     │
+                    │  ├── New service onboarding │
+                    │  └── Landing Zone updates   │
+                    │                            │
+                    │  Cloud Security             │
+                    │  ├── SCP updates            │
+                    │  ├── Compliance audits      │
+                    │  └── Incident response      │
+                    │                            │
+                    │  FinOps                     │
+                    │  ├── Monthly cost reviews   │
+                    │  ├── RI/SP management       │
+                    │  └── Chargeback reporting   │
+                    └──────────────┬─────────────┘
+                                   │
+                    ┌──────────────▼─────────────┐
+                    │    Application Teams        │
+                    │    (Self-Service Model)     │
+                    │                            │
+                    │  Use CCoE modules           │
+                    │  Deploy via CI/CD pipelines  │
+                    │  Own their workloads         │
+                    │  Follow guardrails           │
+                    │  Request exceptions via ADR  │
+                    └────────────────────────────┘</code></pre>
+<hr />
+<h2 id="part-9-aws-frameworks-references">Part 9 — AWS Frameworks &amp;
+References</h2>
+<h3 id="key-aws-frameworks-an-enterprise-architect-must-know">9.1 Key
+AWS Frameworks an Enterprise Architect Must Know</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 27%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr>
+<th>Framework</th>
+<th>Purpose</th>
+<th>When to Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AWS Cloud Adoption Framework (CAF)</strong></td>
+<td>Organizational readiness across 6 perspectives (Business, People,
+Governance, Platform, Security, Operations)</td>
+<td>Phase 0-1: Initial assessment</td>
+</tr>
+<tr>
+<td><strong>AWS Migration Acceleration Program (MAP)</strong></td>
+<td>Structured 3-phase migration methodology (Assess → Mobilize →
+Migrate)</td>
+<td>Entire migration lifecycle</td>
+</tr>
+<tr>
+<td><strong>AWS Well-Architected Framework</strong></td>
+<td>6-pillar review of individual workloads</td>
+<td>Phase 3-4: Design reviews before go-live</td>
+</tr>
+<tr>
+<td><strong>AWS Prescriptive Guidance</strong></td>
+<td>Detailed patterns for specific migration scenarios</td>
+<td>Phase 3: Implementation patterns</td>
+</tr>
+<tr>
+<td><strong>AWS Migration Readiness Assessment (MRA)</strong></td>
+<td>Organizational readiness scoring tool</td>
+<td>Phase 1: Assessment</td>
+</tr>
+<tr>
+<td><strong>AWS Migration Portfolio Assessment (MPA)</strong></td>
+<td>Portfolio analysis and business case tool</td>
+<td>Phase 1: Assessment</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aws-well-architected-framework-the-6-pillars">9.2 AWS
+Well-Architected Framework — The 6 Pillars</h3>
+<p>Every workload review should assess against all 6 pillars:</p>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                AWS WELL-ARCHITECTED FRAMEWORK                     │
+│                                                                    │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐  │
+│  │ 1. OPERATIONAL │  │ 2. SECURITY    │  │ 3. RELIABILITY     │  │
+│  │    EXCELLENCE   │  │                │  │                    │  │
+│  │                │  │ - IAM           │  │ - Multi-AZ         │  │
+│  │ - IaC          │  │ - Encryption    │  │ - Auto-scaling     │  │
+│  │ - CI/CD        │  │ - Network       │  │ - Backup/DR        │  │
+│  │ - Monitoring   │  │ - Detection     │  │ - Fault isolation  │  │
+│  │ - Runbooks     │  │ - Compliance    │  │ - Graceful degrade │  │
+│  │ - Automation   │  │ - Incident resp │  │ - Chaos engineering│  │
+│  └────────────────┘  └────────────────┘  └────────────────────┘  │
+│                                                                    │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐  │
+│  │ 4. PERFORMANCE │  │ 5. COST        │  │ 6. SUSTAINABILITY  │  │
+│  │    EFFICIENCY   │  │    OPTIMIZATION│  │                    │  │
+│  │                │  │                │  │ - Right-sizing     │  │
+│  │ - Right type   │  │ - Right-sizing │  │ - Managed services │  │
+│  │ - Caching      │  │ - Savings Plans│  │ - Graviton (ARM)   │  │
+│  │ - CDN          │  │ - Spot/Graviton│  │ - Serverless       │  │
+│  │ - DB optimize  │  │ - Storage tiers│  │ - Region selection │  │
+│  │ - Load testing │  │ - FinOps       │  │ - Code efficiency  │  │
+│  └────────────────┘  └────────────────┘  └────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="key-aws-services-by-migration-phase">9.3 Key AWS Services by
+Migration Phase</h3>
+<table>
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 70%" />
+</colgroup>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Key AWS Services</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Assess</strong></td>
+<td>Application Discovery Service, Migration Hub, Migration Evaluator
+(TSO Logic)</td>
+</tr>
+<tr>
+<td><strong>Mobilize</strong></td>
+<td>Control Tower, Organizations, IAM Identity Center, Transit Gateway,
+Direct Connect</td>
+</tr>
+<tr>
+<td><strong>Migrate (Rehost)</strong></td>
+<td>Application Migration Service (MGN), CloudEndure</td>
+</tr>
+<tr>
+<td><strong>Migrate (Replatform)</strong></td>
+<td>DMS, SCT, RDS, ElastiCache, Elastic Beanstalk</td>
+</tr>
+<tr>
+<td><strong>Migrate (Refactor)</strong></td>
+<td>EKS, ECS, Lambda, API Gateway, Aurora, DynamoDB</td>
+</tr>
+<tr>
+<td><strong>Optimize</strong></td>
+<td>Compute Optimizer, Cost Explorer, Trusted Advisor, Savings
+Plans</td>
+</tr>
+<tr>
+<td><strong>Operate</strong></td>
+<td>CloudWatch, Systems Manager, Config, GuardDuty, Security Hub, AWS
+Backup</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-10-anti-patterns-hard-lessons">Part 10 — Anti-Patterns
+&amp; Hard Lessons</h2>
+<h3 id="migration-anti-patterns-the-architect-must-prevent">10.1
+Migration Anti-Patterns the Architect Must Prevent</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr>
+<th>Anti-Pattern</th>
+<th>Why It’s Dangerous</th>
+<th>What to Do Instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>“Lift-and-shift everything, optimize later”</strong></td>
+<td>“Later” never comes. You end up running overprovisioned EC2 at 10%
+utilization for years</td>
+<td>Rehost + immediate right-sizing. Schedule optimization wave</td>
+</tr>
+<tr>
+<td><strong>“Let’s rewrite it all in microservices”</strong></td>
+<td>3-year rewrite projects fail 70% of the time. Business can’t
+wait</td>
+<td>Strangler fig pattern — incrementally extract services</td>
+</tr>
+<tr>
+<td><strong>“Each team designs their own VPC”</strong></td>
+<td>200 VPCs with overlapping CIDRs, no connectivity, inconsistent
+security</td>
+<td>Shared VPC patterns or centralized network architecture</td>
+</tr>
+<tr>
+<td><strong>“We don’t need a landing zone”</strong></td>
+<td>6 months in, you discover you need consolidated logging, SCPs, and
+multi-account — and refactoring is painful</td>
+<td>Always build the foundation first (even if it takes 6-8 weeks)</td>
+</tr>
+<tr>
+<td><strong>“Security will review after we migrate”</strong></td>
+<td>Security finds 200 findings, blocks go-live, delays project by
+months</td>
+<td>Security embedded from Day 1. Shared modules enforce security</td>
+</tr>
+<tr>
+<td><strong>“We’ll do DR later”</strong></td>
+<td>First outage happens before DR is built. Executives ask why</td>
+<td>DR architecture defined in Phase 2, tested before go-live</td>
+</tr>
+<tr>
+<td><strong>“1:1 instance mapping from on-prem”</strong></td>
+<td>On-prem servers are 70-80% overprovisioned. 1:1 wastes money</td>
+<td>Right-size based on actual utilization data (CloudWatch, Application
+Discovery)</td>
+</tr>
+<tr>
+<td><strong>“One big account for everything”</strong></td>
+<td>One compromised credential = everything compromised. No blast
+radius</td>
+<td>Multi-account from Day 1. Account-per-workload or
+account-per-environment</td>
+</tr>
+<tr>
+<td><strong>“Skip the pilot wave”</strong></td>
+<td>First wave with 50 apps = 50 unknown risks simultaneously</td>
+<td>Always start with 3-5 low-risk apps. Validate tooling, processes,
+runbooks</td>
+</tr>
+<tr>
+<td><strong>“The architect designs, someone else builds”</strong></td>
+<td>Ivory tower architecture = designs that don’t work in reality</td>
+<td>Architect reviews PRs, joins design sessions, stays hands-on</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="questions-an-enterprise-architect-should-ask-at-every-stage">10.2
+Questions an Enterprise Architect Should Ask at Every Stage</h3>
+<p><strong>During Assessment:</strong> - “What happens to this
+application if we DON’T migrate it?” - “Who will be accountable for this
+application in the cloud?” - “What is the actual utilization of these
+servers — not what was spec’d, but what’s running?”</p>
+<p><strong>During Design:</strong> - “What is the blast radius if this
+component fails?” - “Can we recover from a complete region failure?” -
+“Is this the simplest design that meets the requirements?” - “What would
+we need to change if traffic doubles tomorrow?”</p>
+<p><strong>During Migration:</strong> - “What is our rollback plan, and
+have we tested it?” - “What is the maximum tolerable downtime for this
+cutover?” - “Who is the single decision-maker for go/no-go?”</p>
+<p><strong>During Hypercare:</strong> - “Is this issue a
+migration-related regression or a pre-existing problem?” - “Are our
+monitoring baselines accurate, or are we comparing against incomplete
+on-prem data?” - “At what point do we declare hypercare complete and
+move to BAU?”</p>
+<p><strong>During Closure:</strong> - “Did we achieve the business
+outcome we committed to?” - “What would we do differently if we started
+over?” - “What institutional knowledge needs to be documented before the
+team disperses?”</p>
+<h3 id="the-architects-career-rule">10.3 The Architect’s Career
+Rule</h3>
+<blockquote>
+<p><strong>“A Principal Architect’s reputation is built on three things:
+decisions that age well, risks they saw coming, and the disasters they
+prevented — not the ones they responded to.”</strong></p>
+</blockquote>
+<p>The best architects are not the ones who design the most complex
+systems. They are the ones who:</p>
+<ol type="1">
+<li><strong>Make complexity invisible</strong> — Teams don’t feel the
+complexity because the shared modules and guardrails handle it</li>
+<li><strong>Say “no” at the right time</strong> — Prevent scope creep,
+technology fads, and premature optimization</li>
+<li><strong>Build trust through transparency</strong> — Surface risks
+early, communicate trade-offs honestly, never hide bad news</li>
+<li><strong>Leave the organization better than they found it</strong> —
+CCoE, modules, patterns, documentation, trained team</li>
+<li><strong>Make themselves replaceable</strong> — If the project can’t
+function without you, you failed as an architect</li>
+</ol>
+<hr />
+<h2 id="summary-the-complete-journey-at-a-glance">Summary — The Complete
+Journey at a Glance</h2>
+<h3 id="migration-modernization-track">Migration / Modernization
+Track</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  PHASE 0          PHASE 1         PHASE 2         PHASE 3              │
+│  Pre-Engagement   Assess          Mobilize        Migrate/Modernize    │
+│  ─────────────    ──────          ────────        ─────────────────    │
+│  2-4 weeks        4-8 weeks       6-10 weeks      12-40+ weeks         │
+│                                                                         │
+│  ┌──────┐        ┌──────┐        ┌──────┐        ┌──────┐             │
+│  │Listen│───────▶│Assess│───────▶│Build │───────▶│Exec  │             │
+│  │Learn │        │Plan  │        │Found-│        │Waves │             │
+│  │Align │        │Case  │        │ation │        │Review│             │
+│  └──────┘        └──────┘        └──────┘        └──┬───┘             │
+│                                                      │                  │
+│  PHASE 4          PHASE 5         PHASE 6           │                  │
+│  Go-Live          Hypercare       Closure            │                  │
+│  ───────          ─────────       ───────            │                  │
+│  1-2 days/app     2-4 weeks       2-4 weeks         │                  │
+│                                                      │                  │
+│  ┌──────┐        ┌──────┐        ┌──────┐           │                  │
+│  │Cut-  │◀───────│Stabi-│◀───────│Close │◀──────────┘                  │
+│  │over  │        │lize  │        │Hand- │                              │
+│  │Verify│        │Optim │        │over  │                              │
+│  └──────┘        └──────┘        └──────┘                              │
+│                                                                         │
+│  ARCHITECT&#39;S ROLE:                                                      │
+│  Strategy ──▶ Design ──▶ Review ──▶ Orchestrate ──▶ Validate ──▶ Exit │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="greenfield-cloud-native-track">Greenfield Cloud-Native
+Track</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  PHASE G0         PHASE G1        PHASE G2        PHASE G3             │
+│  Discovery &amp;      Architecture    Platform        Build &amp;              │
+│  Requirements     Design &amp; PoC    Runway          Iterate              │
+│  ────────────     ────────────    ────────        ───────              │
+│  2-4 weeks        3-6 weeks       4-8 weeks       8-16+ weeks          │
+│                                                                         │
+│  ┌──────┐        ┌──────┐        ┌──────┐        ┌──────┐             │
+│  │Define│───────▶│Design│───────▶│Build │───────▶│Build │             │
+│  │NFRs  │        │Arch  │        │Found-│        │MVP → │             │
+│  │Domain│        │PoC   │        │ation │        │Beta →│             │
+│  │Model │        │ADRs  │        │CI/CD │        │GA    │             │
+│  └──────┘        └──────┘        └──────┘        └──┬───┘             │
+│                                                      │                  │
+│  PHASE G4         PHASE G5        PHASE G6          │                  │
+│  Go-Live &amp;        Hypercare       Scale &amp;            │                  │
+│  Launch           &amp; Stabilize     Optimize           │                  │
+│  ─────────        ────────────    ────────           │                  │
+│  1-2 weeks        2-4 weeks       Ongoing            │                  │
+│                                                      │                  │
+│  ┌──────┐        ┌──────┐        ┌──────┐           │                  │
+│  │Launch│◀───────│Stabi-│◀───────│Scale │◀──────────┘                  │
+│  │Grad- │        │lize  │        │Multi-│                              │
+│  │ual   │        │Perf  │        │region│                              │
+│  │Roll- │        │tune  │        │FinOps│                              │
+│  │out   │        │      │        │Iter- │                              │
+│  └──────┘        └──────┘        │ate   │                              │
+│                                   └──────┘                              │
+│                                                                         │
+│  ARCHITECT&#39;S ROLE:                                                      │
+│  Envision ──▶ Design ──▶ Establish ──▶ Guide ──▶ Launch ──▶ Evolve   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="both-tracks-share">Both Tracks Share</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│  SHARED ACROSS BOTH TRACKS (regardless of Migration or Greenfield):    │
+│                                                                         │
+│  ✅ Landing Zone &amp; Multi-Account Strategy                              │
+│  ✅ Security Baseline (SCPs, Config Rules, GuardDuty, Security Hub)    │
+│  ✅ CCoE (Cloud Center of Excellence)                                  │
+│  ✅ Shared Terraform Modules (&quot;Paved Road&quot;)                           │
+│  ✅ CI/CD Golden Pipelines                                             │
+│  ✅ Observability Stack                                                │
+│  ✅ FinOps &amp; Cost Governance                                           │
+│  ✅ Architecture Decision Records (ADRs)                               │
+│  ✅ Go-Live Readiness Review                                           │
+│  ✅ Hypercare Period                                                   │
+│  ✅ Project Closure &amp; BAU Transition                                   │
+│                                                                         │
+│  The FOUNDATION is the same. The JOURNEY to get there differs.         │
+└─────────────────────────────────────────────────────────────────────────┘</code></pre>
+<hr />
+<p><strong>Built with precision by Pushparaj Naik</strong> | Principal
+Cloud Architect Playbook</p>
+</body>
+</html>

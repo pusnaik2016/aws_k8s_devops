@@ -1,0 +1,199 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Kubernetes Network Policies — Zero-Trust Microsegmentation (HIPAA)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Default deny all ingress and egress in medcloud namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: medcloud
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow DNS resolution for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: medcloud
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# Storefront API: allow inbound from Istio ingress, outbound to order-service, patient-service, Redis, Aurora
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: storefront-api-policy
+  namespace: medcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: storefront-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: order-service
+        - podSelector:
+            matchLabels:
+              app: patient-service
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - port: 8080
+    # Aurora PostgreSQL
+    - to:
+        - ipBlock:
+            cidr: 10.0.20.0/22
+      ports:
+        - port: 5432
+    # ElastiCache Redis
+    - to:
+        - ipBlock:
+            cidr: 10.0.20.0/22
+      ports:
+        - port: 6379
+    # DynamoDB (VPC endpoint)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+
+---
+# Patient Service: allow from storefront/order/imaging, outbound to Cosmos DB, OpenAI
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: patient-service-policy
+  namespace: medcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: patient-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: storefront-api
+        - podSelector:
+            matchLabels:
+              app: order-service
+        - podSelector:
+            matchLabels:
+              app: imaging-service
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: imaging-service
+      ports:
+        - port: 8080
+    # Azure PaaS (Cosmos DB, OpenAI via private endpoints)
+    - to:
+        - ipBlock:
+            cidr: 10.1.4.0/24
+      ports:
+        - port: 443
+        - port: 10255
+
+---
+# AI Gateway: allow from storefront/imaging, outbound to BigQuery, Vertex AI
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-gateway-policy
+  namespace: medcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: ai-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: storefront-api
+        - podSelector:
+            matchLabels:
+              app: imaging-service
+      ports:
+        - port: 8080
+  egress:
+    # GCP APIs (BigQuery, Vertex AI via Private Google Access)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+
+---
+# Order Service: allow from storefront, outbound to patient-service, notification, Aurora
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-policy
+  namespace: medcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: storefront-api
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: patient-service
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - port: 8080
+    - to:
+        - ipBlock:
+            cidr: 10.0.20.0/22
+      ports:
+        - port: 5432
+        - port: 6379

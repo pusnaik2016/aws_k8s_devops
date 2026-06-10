@@ -1,0 +1,119 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ArgoCD Project — MedCloud Platform
+# ─────────────────────────────────────────────────────────────────────────────
+# Defines RBAC boundaries, allowed source repos, and destination clusters
+# for the MedCloud application portfolio.
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: medcloud
+  namespace: argocd
+  labels:
+    platform: medcloud
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "MedCloud Global Healthcare Platform — Multi-Cloud"
+
+  # Allowed source repositories
+  sourceRepos:
+    - "https://github.com/ORG/medcloud-global-platform.git"
+    - "https://charts.helm.sh/stable"
+
+  # Allowed destination clusters and namespaces
+  destinations:
+    # AWS EKS cluster
+    - server: "https://eks-cluster.us-east-1.eks.amazonaws.com"
+      namespace: medcloud
+      name: aws-eks
+    - server: "https://eks-cluster.us-east-1.eks.amazonaws.com"
+      namespace: istio-system
+      name: aws-eks
+    - server: "https://eks-cluster.us-east-1.eks.amazonaws.com"
+      namespace: observability
+      name: aws-eks
+
+    # Azure AKS cluster
+    - server: "https://aks-cluster.eastus.azmk8s.io"
+      namespace: medcloud
+      name: azure-aks
+    - server: "https://aks-cluster.eastus.azmk8s.io"
+      namespace: istio-system
+      name: azure-aks
+
+    # GCP GKE cluster
+    - server: "https://gke-cluster.us-central1.gke.io"
+      namespace: medcloud
+      name: gcp-gke
+    - server: "https://gke-cluster.us-central1.gke.io"
+      namespace: istio-system
+      name: gcp-gke
+
+  # Allowed cluster-scoped resources
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: security.istio.io
+      kind: PeerAuthentication
+
+  # Denied namespace-scoped resources (prevent accidental quota/limit changes)
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+
+  # RBAC roles within the project
+  roles:
+    - name: deployer
+      description: "CI/CD automated deployment role"
+      policies:
+        - p, proj:medcloud:deployer, applications, sync, medcloud/*, allow
+        - p, proj:medcloud:deployer, applications, get, medcloud/*, allow
+        - p, proj:medcloud:deployer, applications, override, medcloud/*, allow
+      groups:
+        - medcloud-cicd
+        - github-actions
+
+    - name: developer
+      description: "Developer read-only access"
+      policies:
+        - p, proj:medcloud:developer, applications, get, medcloud/*, allow
+        - p, proj:medcloud:developer, logs, get, medcloud/*, allow
+      groups:
+        - medcloud-developers
+
+    - name: sre
+      description: "SRE full access"
+      policies:
+        - p, proj:medcloud:sre, applications, *, medcloud/*, allow
+        - p, proj:medcloud:sre, logs, get, medcloud/*, allow
+      groups:
+        - medcloud-sre-team
+
+  # Sync windows (restrict production deployments to maintenance windows)
+  syncWindows:
+    - kind: allow
+      schedule: "* * * * *"      # Allow sync anytime for dev
+      duration: 24h
+      clusters: ["aws-eks"]
+      namespaces: ["medcloud"]
+      manualSync: true
+
+    - kind: deny
+      schedule: "0 0-6 * * 1-5"  # Deny deployments Mon-Fri midnight-6am
+      duration: 6h
+      clusters: ["*"]
+      namespaces: ["medcloud"]
+
+  # Orphaned resources monitoring
+  orphanedResources:
+    warn: true

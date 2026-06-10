@@ -28,19 +28,19 @@ Each project is self-contained with its own README, Terraform modules, CI/CD pip
 ```
 aws_k8s_devops/
 │
-├── eks-gitops-quiz-app/                   # 🌐 3-Tier App on EKS with ArgoCD GitOps
-├── eks-multiregion-devsecops/             # 🛡️ Multi-Region EKS with DevSecOps Pipelines
-├── java-eks-devsecops-pipeline/           # ☕ Java DevSecOps Pipeline (WAF + Cognito + ArgoCD)
-├── multicloud-clearing-engine/            # 🏗️ Multi-Cloud Healthcare/Financial Clearing Engine
-├── omnichannel-ai-support-platform/       # 🤖 Omnichannel AI Customer Support Platform
-├── bedrock-agent-memory-system/           # 🧠 3-Layer Memory System for Bedrock Agents
-├── bedrock-rag-chatbot/                   # 💬 Enterprise RAG Chatbot on Amazon Bedrock
-├── aws-cost-anomaly-detector/             # 🔍 AWS Cost Anomaly Detector (Bedrock + Z-score)
-├── iot-greengrass-edge-telemetry/         # 📡 IoT Greengrass v2 Edge Telemetry PoC
-├── claude-code-devops-workflows/          # 🤖 AI-Driven DevOps Workflows with Claude Code
-├── devops-debug-toolkit/                  # 🔧 10-in-1 Offline DevOps Debug Toolkit
-├── interview-prep-docs/                   # 📚 Technical Interview Guides & References
-└── README.md                              # ← You are here
+├── aws-cost-anomaly-detector/                    # 🔍 **Intelligent AWS cost monitoring for ~$2/month** — powered 
+├── bedrock-agent-memory-system/                  # 🤖 **Build AI Agents That Actually Remember** — A production-gr
+├── bedrock-rag-chatbot/                          # 🤖 **Author:** Pushparaj Naik
+├── claude-code-devops-workflows/                 # 🤖 **"Stop babysitting your automation. Configure your AI agent
+├── devops-debug-toolkit/                         # 🔧 **10-in-1 DevOps Automation Toolkit** — Scan, Debug, Optimiz
+├── eks-gitops-quiz-app/                          # 🌐 Production-ready 3-tier application deployed on AWS EKS with
+├── eks-multiregion-devsecops/                    # 🌐 Production-grade, multi-region AWS infrastructure for a Java
+├── interview-prep-docs/                          # 📚 Project directory
+├── iot-greengrass-edge-telemetry/                # 📡 **Production-grade IoT edge connectivity using AWS IoT Core 
+├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
+├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
+└── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
+└── README.md                                     # ← You are here
 ```
 
 ---

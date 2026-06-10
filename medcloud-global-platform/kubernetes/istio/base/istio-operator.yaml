@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Istio Multi-Cluster Service Mesh — Cross-Cloud Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Multi-primary Istio mesh across AWS EKS, Azure AKS, and GCP GKE
+# with mTLS enforcement for HIPAA compliance.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: medcloud-istio-control-plane
+  namespace: istio-system
+spec:
+  profile: default
+  meshConfig:
+    # HIPAA: Enforce mTLS everywhere
+    defaultConfig:
+      holdApplicationUntilProxyStarts: true
+    enableAutoMtls: true
+    accessLogFile: /dev/stdout
+    accessLogFormat: |
+      [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+      %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+      %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%
+      "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%"
+      "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+      "%DOWNSTREAM_REMOTE_ADDRESS%" "%DOWNSTREAM_LOCAL_ADDRESS%"
+
+    # Tracing configuration
+    defaultConfig:
+      tracing:
+        zipkin:
+          address: jaeger-collector.observability.svc.cluster.local:9411
+        sampling: 100.0
+
+    # Outbound traffic policy — restrict external access
+    outboundTrafficPolicy:
+      mode: REGISTRY_ONLY
+
+  components:
+    # East-West gateway for cross-cluster communication
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        k8s:
+          service:
+            type: LoadBalancer
+          serviceAnnotations:
+            # AWS: NLB for production
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+      - name: istio-eastwestgateway
+        enabled: true
+        label:
+          istio: eastwestgateway
+          app: istio-eastwestgateway
+          topology.istio.io/network: network-aws  # Change per cluster
+        k8s:
+          env:
+            - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+              value: network-aws  # Change per cluster
+          service:
+            type: LoadBalancer
+            ports:
+              - name: status-port
+                port: 15021
+                targetPort: 15021
+              - name: tls
+                port: 15443
+                targetPort: 15443
+              - name: tls-istiod
+                port: 15012
+                targetPort: 15012
+              - name: tls-webhook
+                port: 15017
+                targetPort: 15017
+
+  values:
+    global:
+      meshID: medcloud-mesh
+      multiCluster:
+        clusterName: aws-eks  # Change per cluster: aws-eks, azure-aks, gcp-gke
+      network: network-aws    # Change per cluster: network-aws, network-azure, network-gcp

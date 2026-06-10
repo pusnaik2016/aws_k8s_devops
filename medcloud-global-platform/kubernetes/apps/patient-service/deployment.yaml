@@ -1,0 +1,218 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Patient Service — Healthcare Record Management (Deployed on Azure AKS)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: patient-service
+  namespace: medcloud
+  annotations:
+    # Azure Workload Identity — bind to managed identity for Cosmos DB, Key Vault
+    azure.workload.identity/client-id: "AZURE_CLIENT_ID"
+  labels:
+    app: patient-service
+    azure.workload.identity/use: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: patient-service
+  namespace: medcloud
+  labels:
+    app: patient-service
+    version: v1
+    cloud: azure
+    compliance: hipaa
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: patient-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: patient-service
+        version: v1
+        cloud: azure
+        azure.workload.identity/use: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: patient-service
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "healthcare"
+          effect: "NoSchedule"
+      nodeSelector:
+        role: medical
+        cloud: azure
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: patient-service
+          image: medclouddevacr.azurecr.io/medcloud/patient-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: COSMOS_DB_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: cosmosdb-credentials
+                  key: endpoint
+            - name: COSMOS_DB_DATABASE
+              value: "patient-profiles"
+            - name: AZURE_OPENAI_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: endpoint
+            - name: AZURE_OPENAI_DEPLOYMENT
+              value: "gpt-4o-clinical"
+            - name: KEY_VAULT_URI
+              value: "https://medcloud-prod-kv.vault.azure.net/"
+            # Cross-cloud service URLs (via Istio mesh)
+            - name: STOREFRONT_API_URL
+              value: "http://storefront-api.medcloud.svc.cluster.local:8080"
+            - name: IMAGING_SERVICE_URL
+              value: "http://imaging-service.medcloud.svc.cluster.local:8080"
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            # Azure Key Vault secrets mounted via CSI driver
+            - name: secrets-store
+              mountPath: /mnt/secrets
+              readOnly: true
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: azure-keyvault-patient-svc
+
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: patient-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: patient-service
+  namespace: medcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: patient-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: patient-service
+  namespace: medcloud
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: patient-service
+  minReplicas: 3
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: patient-service
+  namespace: medcloud
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: patient-service
+---
+# Azure Key Vault SecretProviderClass
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: azure-keyvault-patient-svc
+  namespace: medcloud
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "false"
+    clientID: "AZURE_CLIENT_ID"
+    keyvaultName: "medcloud-prod-kv"
+    tenantId: "AZURE_TENANT_ID"
+    objects: |
+      array:
+        - |
+          objectName: cosmosdb-connection-string
+          objectType: secret
+        - |
+          objectName: openai-api-key
+          objectType: secret
+        - |
+          objectName: encryption-key
+          objectType: secret
