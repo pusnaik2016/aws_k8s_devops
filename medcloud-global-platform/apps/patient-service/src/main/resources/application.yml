@@ -1,0 +1,46 @@
+# ─── MedCloud Patient Service — Application Configuration ───────────────────
+# Azure AKS — Cosmos DB (MongoDB API) + Azure Key Vault
+spring:
+  application:
+    name: patient-service
+  data:
+    mongodb:
+      uri: ${COSMOS_DB_CONNECTION_STRING:mongodb://localhost:27017}
+      database: ${COSMOS_DB_DATABASE:patient-profiles}
+      auto-index-creation: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:https://login.microsoftonline.com/TENANT_ID/v2.0}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        live:
+          include: livenessState
+        ready:
+          include: readinessState,mongo
+  metrics:
+    tags:
+      application: patient-service
+      cloud: azure
+
+logging:
+  level:
+    root: INFO
+    com.medcloud: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - traceId=%X{traceId} - %msg%n"

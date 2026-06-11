@@ -1,0 +1,46 @@
+# ─── MedCloud Notification Service — Application Configuration ──────────────
+spring:
+  application:
+    name: notification-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_EXAMPLE}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        live:
+          include: livenessState
+        ready:
+          include: readinessState
+  metrics:
+    tags:
+      application: notification-service
+      cloud: aws
+
+# AWS SDK
+aws:
+  region: ${AWS_REGION:us-east-1}
+  ses:
+    source-email: noreply@medcloud.example.com
+
+logging:
+  level:
+    root: INFO
+    com.medcloud: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - traceId=%X{traceId} - %msg%n"

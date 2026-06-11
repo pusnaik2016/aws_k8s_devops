@@ -10,6 +10,7 @@
 6. [Security Design Patterns](#6-security-design-patterns)
 7. [Observability Design](#7-observability-design)
 8. [FinOps & Cost Management](#8-finops--cost-management)
+9. [Application Build & Container Design](#9-application-build--container-design)
 
 ---
 
@@ -17,14 +18,14 @@
 
 ### 1.1 Service Catalog
 
-| Service | Cloud | Language | Purpose | Data Store | Compliance |
-|---------|-------|----------|---------|------------|------------|
-| **storefront-api** | AWS EKS | Go/Node.js | E-commerce frontend API, product catalog, search | Aurora PostgreSQL, DynamoDB, ElastiCache | PCI-DSS |
-| **order-service** | AWS EKS | Go | Order processing, payment orchestration, inventory | Aurora PostgreSQL | PCI-DSS |
-| **patient-service** | Azure AKS | Java/Kotlin | Patient profile CRUD, consent management, EHR integration | Cosmos DB (MongoDB) | HIPAA, GDPR |
-| **imaging-service** | Azure AKS | Python | DICOM image upload, AI Vision analysis, report generation | Blob Storage, Azure AI Vision | HIPAA |
-| **ai-gateway** | GCP GKE | Python | ML inference gateway, fraud detection, recommendations | BigQuery, Vertex AI Feature Store | De-identified |
-| **notification-service** | AWS EKS | Go | Multi-channel notifications (email, SMS, push) | SNS, SES | PCI-DSS, HIPAA |
+| Service | Cloud | Language/Framework | Purpose | Data Store | Compliance |
+|---------|-------|-------------------|---------|------------|------------|
+| **storefront-api** | AWS EKS | Java 21 / Spring Boot 3.3 | E-commerce frontend API, product catalog, search | Aurora PostgreSQL, DynamoDB, ElastiCache | PCI-DSS |
+| **order-service** | AWS EKS | Java 21 / Spring Boot 3.3 | Order processing, payment orchestration, inventory | Aurora PostgreSQL | PCI-DSS |
+| **patient-service** | Azure AKS | Java 21 / Spring Boot 3.3 | Patient profile CRUD, consent management, EHR integration | Cosmos DB (MongoDB) | HIPAA, GDPR |
+| **imaging-service** | Azure AKS | Python 3.12 / FastAPI | DICOM image upload, AI Vision analysis, report generation | Blob Storage, Azure AI Vision | HIPAA |
+| **ai-gateway** | GCP GKE | Python 3.12 / FastAPI | ML inference gateway, fraud detection, recommendations | BigQuery, Vertex AI Feature Store | De-identified |
+| **notification-service** | AWS EKS | Java 21 / Spring Boot 3.3 | Multi-channel notifications (email, SMS, push) | SNS, SES | PCI-DSS, HIPAA |
 
 ### 1.2 Service Interaction Matrix
 
@@ -512,4 +513,82 @@ THREE PILLARS OF OBSERVABILITY:
 
 ---
 
-**Document Version:** 1.0 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential
+## 9. Application Build & Container Design
+
+### 9.1 Dockerfile Strategy
+
+All services use multi-stage builds to minimize image size and attack surface:
+
+| Service | Base Image (Build) | Base Image (Runtime) | User | Image Size |
+|---------|-------------------|---------------------|------|------------|
+| **storefront-api** | `eclipse-temurin:21-jdk-alpine` | `eclipse-temurin:21-jre-alpine` | `medcloud` (non-root) | ~180MB |
+| **order-service** | `eclipse-temurin:21-jdk-alpine` | `eclipse-temurin:21-jre-alpine` | `medcloud` (non-root) | ~175MB |
+| **patient-service** | `eclipse-temurin:21-jdk-alpine` | `eclipse-temurin:21-jre-alpine` | `medcloud` (non-root) | ~185MB |
+| **imaging-service** | `python:3.12-slim` | `python:3.12-slim` | `medcloud` (non-root) | ~220MB |
+| **ai-gateway** | `python:3.12-slim` | `python:3.12-slim` | `medcloud` (non-root) | ~250MB |
+| **notification-service** | `eclipse-temurin:21-jdk-alpine` | `eclipse-temurin:21-jre-alpine` | `medcloud` (non-root) | ~170MB |
+
+### 9.2 Java/Spring Boot Build Pattern
+
+```
+MULTI-STAGE DOCKER BUILD (Java services):
+
+  Stage 1: BUILD (eclipse-temurin:21-jdk-alpine)
+  ├── Copy pom.xml → mvn dependency:go-offline (cached layer)
+  ├── Copy src/ → mvn clean package -DskipTests
+  └── Extract Spring Boot layers:
+      ├── dependencies/              (rarely changes → cached)
+      ├── spring-boot-loader/        (rarely changes → cached)
+      ├── snapshot-dependencies/     (occasionally changes)
+      └── application/              (changes every build)
+
+  Stage 2: RUNTIME (eclipse-temurin:21-jre-alpine)
+  ├── Non-root user: medcloud:medcloud
+  ├── COPY layers in order (optimal Docker caching)
+  ├── JVM flags:
+  │   ├── -XX:+UseContainerSupport (respect cgroup limits)
+  │   ├── -XX:MaxRAMPercentage=75.0 (leave headroom)
+  │   └── -Djava.security.egd=file:/dev/urandom
+  ├── HEALTHCHECK: curl -f http://localhost:8080/health/live
+  └── LABEL: OCI metadata + compliance tags (hipaa, pci-dss)
+```
+
+### 9.3 Maven POM Structure
+
+```
+Maven Dependencies (storefront-api):
+
+  Spring Boot 3.3 (Java 21)
+  ├── spring-boot-starter-web              (REST API)
+  ├── spring-boot-starter-data-jpa         (Aurora PostgreSQL)
+  ├── spring-boot-starter-data-redis       (ElastiCache)
+  ├── spring-boot-starter-security         (Authentication)
+  ├── spring-boot-starter-oauth2-resource-server (JWT/OAuth2)
+  ├── spring-boot-starter-actuator         (Health + Metrics)
+  ├── spring-boot-starter-validation       (Input validation)
+  ├── micrometer-registry-prometheus       (Prometheus metrics)
+  ├── micrometer-tracing-bridge-otel       (OpenTelemetry traces)
+  ├── aws-sdk-v2 (dynamodb-enhanced, s3)   (AWS services)
+  ├── postgresql                           (JDBC driver)
+  └── lombok                               (boilerplate reduction)
+
+  Testing:
+  ├── spring-boot-starter-test             (JUnit 5, Mockito)
+  ├── testcontainers-postgresql            (Integration tests)
+  └── jacoco-maven-plugin                  (70% min coverage)
+```
+
+### 9.4 Health Check Endpoints
+
+All services expose standard health endpoints consumed by K8s probes and Docker HEALTHCHECK:
+
+| Endpoint | Purpose | K8s Probe | Interval |
+|----------|---------|-----------|----------|
+| `/health/live` | Liveness — is the process alive? | `livenessProbe` | 15s |
+| `/health/ready` | Readiness — can it serve traffic? | `readinessProbe` | 10s |
+| `/health/startup` | Startup — has it finished initializing? | `startupProbe` | 5s (max 60 attempts) |
+| `/metrics` | Prometheus metrics (RED + JVM) | N/A (Prometheus scrape) | 15s |
+
+---
+
+**Document Version:** 2.0 | **Last Updated:** 2026-06-11 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential

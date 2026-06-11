@@ -240,33 +240,116 @@ ZERO-TRUST ARCHITECTURE:
 
 ## 7. Deployment Architecture
 
+### 7.1 CI/CD Pipeline Overview
+
+Three GitHub Actions workflows drive the entire platform:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `medcloud-infra.yml` | Terraform file changes | tfsec + Checkov scanning → Terraform plan (parallel per cloud) → Apply on merge |
+| `medcloud-app-build.yml` | Application source changes | Java/Maven build + JaCoCo → SonarQube SAST → Docker build + Trivy scan → Push to registries → ArgoCD deploy |
+| `medcloud-security-scan.yml` | Nightly schedule (02:00 UTC) | Container drift scan → Compliance audit → DAST (ZAP) |
+
+### 7.2 Application Build Pipeline (Java/Maven + Docker)
+
 ```
-GITOPS DEPLOYMENT FLOW:
+FULL APPLICATION CI/CD FLOW:
 
-Developer → GitHub PR → CI Pipeline → Merge to main → ArgoCD auto-sync
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │  Stage 1: DETECT                                                       │
+  │  └─ Changed services auto-detected via git diff (or manual select)    │
+  │                                                                        │
+  │  Stage 2: BUILD & TEST (parallel per service)                          │
+  │  ├── Java services: Maven clean verify (JDK 21, Spring Boot 3.3)     │
+  │  │   └── JaCoCo coverage enforcement (min 70%)                        │
+  │  └── Python services: pytest + coverage (ai-gateway, imaging-service) │
+  │                                                                        │
+  │  Stage 3: SECURITY SCAN (parallel per service)                        │
+  │  ├── SonarQube SAST analysis (quality gate enforced)                  │
+  │  ├── OWASP Dependency Check (fail on CVSS ≥ 7)                       │
+  │  └── Safety check (Python dependencies)                               │
+  │                                                                        │
+  │  Stage 4: DOCKER BUILD + SCAN + PUSH                                  │
+  │  ├── Multi-stage Docker build (layered for Spring Boot)               │
+  │  │   ├── Java: eclipse-temurin:21-jdk → jre-alpine (non-root)       │
+  │  │   └── Python: python:3.12-slim → slim (non-root)                  │
+  │  ├── Trivy container scan (CRITICAL/HIGH = fail)                     │
+  │  ├── OCI labels (build date, git SHA, compliance tags)                │
+  │  └── Push to cloud-specific registry:                                 │
+  │      ├── AWS ECR:  storefront-api, order-service, notification       │
+  │      ├── Azure ACR: patient-service, imaging-service                  │
+  │      └── GCP GAR:  ai-gateway                                        │
+  │                                                                        │
+  │  Stage 5: DEPLOY (GitOps)                                             │
+  │  ├── Update image tag in K8s deployment manifest (sed)                │
+  │  ├── Git commit + push → ArgoCD auto-sync within 3 min               │
+  │  └── Slack notification (#medcloud-deployments)                       │
+  └────────────────────────────────────────────────────────────────────────┘
+```
 
-┌──────────────────────────────────────────────────────────────────────┐
-│  GitHub Actions CI Pipeline                                           │
-│                                                                       │
-│  PR Created ─▶ tfsec + Checkov ─▶ Terraform Plan ─▶ Review          │
-│                                                                       │
-│  Merge to main ─▶ Docker Build ─▶ Trivy Scan ─▶ Push to Registry   │
-│                                                                       │
-│  ArgoCD detects change ─▶ Sync ─▶ Progressive Rollout               │
-│                                                                       │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐            │
-│  │ AWS ECR     │     │ Azure ACR   │     │ GCP Artifact │           │
-│  │ (storefront,│     │ (patient,   │     │  Registry    │           │
-│  │  order,     │     │  imaging)   │     │ (ai-gateway) │           │
-│  │  notification)│   │             │     │              │           │
-│  └──────┬──────┘     └──────┬──────┘     └──────┬──────┘           │
-│         │                    │                    │                   │
-│         ▼                    ▼                    ▼                   │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐           │
-│  │ ArgoCD      │     │ ArgoCD      │     │ ArgoCD      │           │
-│  │ (AWS EKS)   │     │ (Azure AKS) │     │ (GCP GKE)   │          │
-│  └─────────────┘     └─────────────┘     └─────────────┘           │
-└──────────────────────────────────────────────────────────────────────┘
+### 7.3 Infrastructure Pipeline (Terraform)
+
+```
+TERRAFORM CI/CD FLOW:
+
+  PR Created → tfsec + Checkov (SARIF upload) → Terraform Plan (parallel)
+       │              │                              │
+       │         Security scan              ┌───────┼───────┐
+       │         results as                 │       │       │
+       │         GitHub SARIF        Plan AWS  Plan Azure  Plan GCP
+       │                                │       │       │
+       │                                └───────┼───────┘
+       │                                        ▼
+  Merge to main ──────────────────────▶ Terraform Apply
+                                           │
+                                           ▼
+                                     ArgoCD auto-sync
+                                     (K8s manifest changes)
+
+  CLOUD AUTHENTICATION: OIDC (no long-lived credentials)
+  ├── AWS:   role-to-assume via aws-actions/configure-aws-credentials
+  ├── Azure: client-id + tenant-id via azure/login (federated identity)
+  └── GCP:   workload_identity_provider via google-github-actions/auth
+```
+
+### 7.4 Container Registry Strategy
+
+```
+  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+  │ AWS ECR     │     │ Azure ACR   │     │ GCP Artifact │
+  │             │     │ (Premium)   │     │  Registry    │
+  │ Immutable   │     │ Geo-repl    │     │              │
+  │ tags (v*)   │     │ (prod)      │     │              │
+  │ Scan on     │     │ Defender    │     │ Binary Auth  │
+  │ push        │     │ scanning    │     │ (prod only)  │
+  │             │     │             │     │              │
+  │ storefront  │     │ patient     │     │ ai-gateway   │
+  │ order       │     │ imaging     │     │              │
+  │ notification│     │             │     │              │
+  └─────────────┘     └─────────────┘     └─────────────┘
+```
+
+### 7.5 Environment Promotion
+
+```
+ENVIRONMENT FLOW:
+
+  dev ──────▶ staging ──────▶ prod
+  (auto)       (auto)         (manual approval)
+
+  Each environment has:
+  ├── terraform.tfvars   — instance sizes, node counts, feature flags
+  ├── backend.hcl        — state storage location (S3/GCS/Azure)
+  └── main.tf            — provider configuration + variable defaults
+
+  INSTANCE SIZING:
+  ┌───────────┬──────────────────┬─────────────────┬──────────────────┐
+  │ Env       │ AWS EKS Nodes    │ Azure AKS Nodes │ GCP GKE Nodes   │
+  ├───────────┼──────────────────┼─────────────────┼──────────────────┤
+  │ dev       │ t3.large (1-5)   │ Std_D2s_v5(1-5) │ e2-std-2 (1-5) │
+  │ staging   │ m6i.large (2-8)  │ Std_D2s_v5(2-8) │ e2-std-2 (2-8) │
+  │ prod      │ m6i.xlarge(3-15) │ Std_D4s_v5(3-15)│ e2-std-4 (3-15)│
+  └───────────┴──────────────────┴─────────────────┴──────────────────┘
 ```
 
 ---
@@ -283,4 +366,4 @@ Developer → GitHub PR → CI Pipeline → Merge to main → ArgoCD auto-sync
 
 ---
 
-**Document Version:** 1.0 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential
+**Document Version:** 2.0 | **Last Updated:** 2026-06-11 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential

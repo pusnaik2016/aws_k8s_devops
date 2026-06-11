@@ -1,0 +1,101 @@
+# ─── MedCloud Storefront API — Application Configuration ─────────────────────
+# Profile: default (overridden by production/test profiles)
+# ─────────────────────────────────────────────────────────────────────────────
+
+spring:
+  application:
+    name: storefront-api
+
+  # ─── Aurora PostgreSQL ─────────────────────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:medcloud_storefront}
+    username: ${DB_USERNAME:medcloud_admin}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+  # ─── ElastiCache Redis ─────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5 minutes
+
+  # ─── Security (OAuth2 Resource Server) ─────────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_EXAMPLE}
+
+# ─── Server Configuration ────────────────────────────────────────────────
+server:
+  port: 8080
+  shutdown: graceful
+  compression:
+    enabled: true
+    min-response-size: 1024
+
+# ─── Actuator (Health + Metrics) ─────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      group:
+        live:
+          include: livenessState
+        ready:
+          include: readinessState,db,redis
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+  metrics:
+    tags:
+      application: storefront-api
+      cloud: aws
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+
+# ─── Logging ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.medcloud: DEBUG
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - traceId=%X{traceId} spanId=%X{spanId} - %msg%n"

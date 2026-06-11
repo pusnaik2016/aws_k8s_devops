@@ -70,40 +70,33 @@ kubectl config use-context medcloud-gcp
 
 ### 2.1 Daily Health Checks
 
+Use the automated health check script:
+
 ```bash
-#!/bin/bash
-# Run this script daily or automate via cron
+# Run the cross-cloud health check (checks all 3 clusters)
+./scripts/health-check.sh
 
-echo "═══ MedCloud Daily Health Check ═══"
-echo ""
+# Verbose output
+./scripts/health-check.sh --verbose
+```
 
-# Check all clusters
+The script validates:
+- Cluster connectivity (kubectl cluster-info)
+- Node health (all nodes in Ready state)
+- Pod status in `medcloud` namespace
+- Pod restart counts (warns if > 5 restarts)
+- ArgoCD application sync status
+- Cross-cloud VPN tunnel status (AWS, GCP)
+
+For manual spot checks:
+
+```bash
+# Quick status across all clusters
 for ctx in medcloud-aws medcloud-azure medcloud-gcp; do
-  echo "── Cluster: $ctx ──"
-  kubectl --context=$ctx get nodes -o wide | head -5
+  echo "── $ctx ──"
+  kubectl --context=$ctx get nodes --no-headers | awk '{print $1, $2}'
   kubectl --context=$ctx -n medcloud get pods --field-selector=status.phase!=Running 2>/dev/null
-  kubectl --context=$ctx -n medcloud top pods --sort-by=cpu | head -5
   echo ""
-done
-
-# Check ArgoCD sync status
-echo "── ArgoCD Applications ──"
-for ctx in medcloud-aws medcloud-azure medcloud-gcp; do
-  kubectl --context=$ctx -n argocd get applications \
-    -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status'
-done
-
-# Check Istio mesh health
-echo "── Istio Mesh ──"
-for ctx in medcloud-aws medcloud-azure medcloud-gcp; do
-  kubectl --context=$ctx -n medcloud get vs,dr,authpolicy --no-headers 2>/dev/null | wc -l
-done
-
-# Check certificate expiry
-echo "── Certificate Expiry ──"
-for ctx in medcloud-aws medcloud-azure medcloud-gcp; do
-  kubectl --context=$ctx -n istio-system get secret \
-    -o jsonpath='{.items[?(@.type=="kubernetes.io/tls")].metadata.name}'
 done
 ```
 
@@ -125,22 +118,31 @@ done
 
 ## 3. Deployment Procedures
 
-### 3.1 Standard Deployment (GitOps)
+### 3.1 Standard Deployment (GitOps via CI/CD)
+
+Three GitHub Actions workflows automate all deployments:
+
+| Workflow | File | Purpose |
+|----------|------|---------|
+| **Infrastructure** | `.github/workflows/medcloud-infra.yml` | Terraform plan/apply across 3 clouds |
+| **Application** | `.github/workflows/medcloud-app-build.yml` | Java/Maven build → Docker → Registry → ArgoCD |
+| **Security** | `.github/workflows/medcloud-security-scan.yml` | Nightly container drift + compliance scan |
+
+**Application deployment flow:**
 
 ```
-DEPLOYMENT FLOW:
-
-1. Developer creates PR with changes
-2. CI pipeline runs:
-   a. Unit tests
-   b. Container build + Trivy scan
-   c. tfsec + Checkov (for infra changes)
-3. PR approved and merged to main
-4. ArgoCD auto-syncs within 3 minutes
-5. Rolling update with zero-downtime
+1. Developer pushes to apps/ directory
+2. CI auto-detects changed services
+3. Build & test (Maven/pytest) → Security scan (SonarQube/OWASP)
+4. Docker multi-stage build → Trivy container scan
+5. Push to cloud registry (ECR/ACR/GAR)
+6. Update K8s manifest with new image tag
+7. ArgoCD auto-syncs within 3 minutes
+8. Slack notification to #medcloud-deployments
 
 VERIFY:
   kubectl -n argocd get app <service-name> -o yaml | grep -A5 status
+  argocd app get <service-name>
 ```
 
 ### 3.2 Emergency Deployment (Hotfix)
@@ -509,6 +511,7 @@ done
 | **Istio Upgrade** | Quarterly | 1-2 hr | Canary upgrade — zero downtime |
 | **Security Patching** | Weekly (auto) | Varies | Bottlerocket auto-update |
 | **Certificate Rotation** | Auto (Istio 24hr, TLS 90-day) | 0 | None |
+| **Secret Rotation** | Quarterly (via `scripts/rotate-secrets.sh`) | < 5 min | None |
 
 ---
 
@@ -580,4 +583,38 @@ kubectl -n medcloud exec -it <pod> -- \
 
 ---
 
-**Document Version:** 1.0 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential
+## 11. Automation Scripts
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `scripts/health-check.sh` | Cross-cloud daily health checks (nodes, pods, ArgoCD, VPN) | `./scripts/health-check.sh` |
+| `scripts/setup-backends.sh` | One-time Terraform state backend init (S3, Azure SA, GCS) | `./scripts/setup-backends.sh <env>` |
+| `scripts/rotate-secrets.sh` | Cross-cloud secret rotation (Secrets Manager, Key Vault, Secret Manager) | `./scripts/rotate-secrets.sh <env>` |
+
+### 11.1 Initial Environment Setup
+
+```bash
+# 1. Create Terraform state backends for a new environment
+./scripts/setup-backends.sh dev
+
+# 2. Initialize Terraform
+cd terraform/environments/dev
+terraform init -backend-config=backend.hcl
+
+# 3. Plan and apply infrastructure
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
+
+# 4. Configure kubectl contexts
+aws eks update-kubeconfig --name medcloud-dev-eks --region us-east-1 --alias medcloud-aws
+az aks get-credentials --resource-group medcloud-dev-aks-rg --name medcloud-dev-aks
+gcloud container clusters get-credentials medcloud-dev-gke --region us-central1
+
+# 5. Install ArgoCD and sync applications
+kubectl apply -f kubernetes/argocd/projects/medcloud-project.yaml
+kubectl apply -f kubernetes/argocd/applications/medcloud-apps.yaml
+```
+
+---
+
+**Document Version:** 2.0 | **Last Updated:** 2026-06-11 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential

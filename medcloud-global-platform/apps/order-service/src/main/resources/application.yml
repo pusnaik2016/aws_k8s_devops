@@ -1,0 +1,61 @@
+# ─── MedCloud Order Service — Application Configuration ─────────────────────
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:medcloud_orders}
+    username: ${DB_USERNAME:medcloud_admin}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_EXAMPLE}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        live:
+          include: livenessState
+        ready:
+          include: readinessState,db,redis
+  metrics:
+    tags:
+      application: order-service
+      cloud: aws
+
+logging:
+  level:
+    root: INFO
+    com.medcloud: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - traceId=%X{traceId} - %msg%n"

@@ -74,31 +74,49 @@
 
 ## 4. Compliance Automation
 
-### 4.1 Pre-Deployment Checks (CI/CD)
+### 4.1 Pre-Deployment Checks (CI/CD Pipelines)
 
-```yaml
-# Automated compliance scanning in every PR
-compliance-checks:
-  - tool: tfsec
-    rules:
-      - aws-s3-enable-bucket-encryption       # HIPAA + PCI
-      - aws-rds-encrypt-instance-storage-data  # HIPAA
-      - azure-keyvault-ensure-secret-expiry    # HIPAA
-      - google-gke-enable-private-cluster      # HIPAA
-      
-  - tool: checkov
-    frameworks:
-      - CKV_AWS_145  # S3 encryption with CMK
-      - CKV_AWS_162  # RDS encryption
-      - CKV_AZURE_1  # Storage encryption
-      - CKV_GCP_12   # GKE private cluster
-      
-  - tool: trivy
-    severity: CRITICAL,HIGH
-    ignore-unfixed: true
-```
+Three GitHub Actions workflows enforce compliance at every stage:
 
-### 4.2 Runtime Compliance Monitoring
+**Infrastructure Pipeline** (`.github/workflows/medcloud-infra.yml`):
+
+| Tool | Check | Fail Criteria |
+|------|-------|---------------|
+| tfsec | Terraform security rules | Any HIGH/CRITICAL finding |
+| Checkov | CIS, HIPAA, PCI-DSS benchmarks | Policy violation |
+| SARIF Upload | GitHub Code Scanning integration | Findings tracked |
+
+**Application Pipeline** (`.github/workflows/medcloud-app-build.yml`):
+
+| Tool | Check | Fail Criteria |
+|------|-------|---------------|
+| SonarQube | SAST — code quality + vulnerabilities | Quality gate fails |
+| OWASP Dependency Check | SCA — known CVEs in dependencies | CVSS ≥ 7 |
+| JaCoCo | Code coverage enforcement | < 70% line coverage |
+| Trivy | Container image CVEs | CRITICAL or HIGH severity |
+
+**Nightly Security Scan** (`.github/workflows/medcloud-security-scan.yml`):
+
+| Check | Schedule | Scope |
+|-------|----------|-------|
+| Container drift scan | Daily 02:00 UTC | All 6 images across ECR/ACR/GAR |
+| Checkov + tfsec audit | Daily 02:00 UTC | All Terraform configs |
+| ZAP DAST | Daily 02:00 UTC | API endpoints |
+
+### 4.2 Container Image Compliance
+
+All Dockerfiles enforce HIPAA-hardened security:
+
+| Control | Implementation | Compliance |
+|---------|---------------|------------|
+| Non-root execution | `USER medcloud:medcloud` | HIPAA § 164.312(a) |
+| Minimal attack surface | Multi-stage build, Alpine/slim base | PCI-DSS Req 2.2 |
+| Image immutability | ECR immutable tags (`v*`), ACR content trust | PCI-DSS Req 6 |
+| Health monitoring | `HEALTHCHECK` directive + K8s probes | HIPAA § 164.312(b) |
+| Compliance labeling | OCI labels (`compliance.hipaa=true`) | Audit trail |
+| Scan on push | ECR scan-on-push, Defender for Containers | Req 6.1 |
+
+### 4.3 Runtime Compliance Monitoring
 
 ```
 CONTINUOUS COMPLIANCE:
@@ -132,6 +150,16 @@ CONTINUOUS COMPLIANCE:
 └────────────────────────┘
 ```
 
+### 4.4 Secret Rotation Compliance
+
+Secret rotation is enforced via `scripts/rotate-secrets.sh`:
+
+| Cloud | Secret Store | Rotation Period | Mechanism |
+|-------|-------------|-----------------|-----------|
+| AWS | Secrets Manager | 90 days | Lambda-based auto-rotation |
+| Azure | Key Vault | 90 days | Expiry policy + alert |
+| GCP | Secret Manager | 90 days | Version-based rotation |
+
 ---
 
 ## 5. Audit Trail Requirements
@@ -144,7 +172,14 @@ CONTINUOUS COMPLIANCE:
 | Infrastructure changes | 6 years | 1 year | As needed | Terraform state history / CloudTrail |
 | Data access (PHI) | 6 years | N/A | As needed | Istio access logs + service audit logs |
 | Security findings | 6 years | 1 year | As needed | Security Hub / Defender / SCC |
+| CI/CD pipeline runs | 6 years | 1 year | As needed | GitHub Actions audit log |
+| Container image scans | 6 years | 1 year | As needed | SARIF in GitHub Code Scanning |
+| Secret rotation events | 6 years | 1 year | As needed | CloudTrail / Key Vault Audit / Cloud Audit |
 
 ---
 
-**Document Version:** 1.0 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential
+**Document Version:** 2.0 | **Last Updated:** 2026-06-11 | **Author:** Pushparaj Naik | **Classification:** Internal — Confidential
+
+
+### 4.1 Pre-Deployment Checks (CI/CD)
+
