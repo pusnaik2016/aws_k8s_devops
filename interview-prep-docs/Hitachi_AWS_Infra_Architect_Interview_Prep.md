@@ -99,6 +99,7 @@ The Well-Architected Framework is AWS's set of best practices for building cloud
 **How I apply it in practice:**
 
 **1. Architecture reviews at project start:**
+
 - Run a Well-Architected Review before the first production deployment
 - Identify HIGH risk items; create JIRA tickets with owners
 - Prioritize: Security HIGH risks → fix immediately; Cost MEDIUM → fix within sprint
@@ -119,6 +120,7 @@ aws securityhub get-findings \
 On a previous project, a Well-Architected review flagged that our RDS database had no read replica and the application retried failed DB calls with no backoff (tight loop).
 
 Fixes:
+
 - Added RDS read replica; routed read-heavy queries to replica
 - Implemented exponential backoff with jitter in the application
 - Added CloudWatch alarm for DB connection count approaching max
@@ -172,12 +174,14 @@ Fixes:
 | **Complexity** | Simple | Requires stateless architecture |
 
 **When I use vertical scaling:**
+
 - Databases (RDS) — easier to scale up than shard; minimal application change
 - Legacy apps that cannot be made stateless
 - Quick fix for urgent capacity crisis (scale up now, architect horizontally later)
 - Single-threaded applications that benefit from faster CPU
 
 **When I use horizontal scaling:**
+
 - Application tier (web servers, API servers) — stateless by design
 - Batch processing (more workers = faster throughput)
 - Lambda (auto-scales horizontally by default)
@@ -247,6 +251,7 @@ def handler(event, context):
 | **VPC placement** | Only put Lambda in VPC if it needs to access VPC resources; adds cold start latency |
 
 **When NOT to use Lambda:**
+
 - Long-running jobs > 15 minutes (use ECS Fargate or Batch)
 - High-frequency, small jobs where startup overhead dominates (use ECS)
 - Workloads requiring GPU (use EC2/ECS with GPU instances)
@@ -338,6 +343,7 @@ def process_order_idempotently(event_id: str, order_data: dict):
 | **Business continuity** | AWS region-level outage (rare but happened: us-east-1 Dec 2021) |
 
 **When it's NOT justified:**
+
 - Most applications with RTO/RPO requirements > 1 hour → Multi-AZ is sufficient
 - Small teams that cannot operate multi-region
 - Cost is a primary constraint (doubles infrastructure cost)
@@ -390,28 +396,33 @@ resource "aws_rds_cluster" "primary" {
 **My evaluation framework:**
 
 **1. Functional fit:**
+
 - Does it solve the problem better than what we have?
 - What specific capability does it add?
 - What's the feature gap vs. what we need?
 
 **2. Operational readiness:**
+
 - Is it Generally Available (GA) or Preview? (Avoid Preview for production)
 - What's the SLA? (Most AWS managed services: 99.9% or 99.99%)
 - Does it integrate with our existing tooling (Terraform provider, CloudFormation support)?
 - Is there a managed upgrade path?
 
 **3. Security and compliance:**
+
 - Is it within scope for our compliance certifications? (PCI, HIPAA, SOC2)
 - Check: [aws.amazon.com/compliance/services-in-scope](https://aws.amazon.com/compliance/services-in-scope/)
 - Does it support encryption at rest with KMS CMK?
 - Does it support VPC endpoints (private connectivity)?
 
 **4. Cost model:**
+
 - Pricing model: per-request, per-GB, per-hour?
 - Total Cost of Ownership vs. self-managed alternative
 - Are there free tier benefits? Reserved pricing available?
 
 **5. Proof of Concept:**
+
 - Build a time-boxed PoC (1-2 weeks) in a sandbox account
 - Measure: performance, cost, operational effort
 - Involve the team that will own it day-to-day
@@ -464,6 +475,7 @@ AZ-1 (us-east-1a)          AZ-2 (us-east-1b)          AZ-3 (us-east-1c)
 **Key design decisions:**
 
 **1. CIDR planning — leave room to grow:**
+
 ```
 /16 VPC = 65K IPs (enough for large enterprise)
 /24 subnets = 251 usable IPs per subnet
@@ -472,11 +484,13 @@ Reserve /8 blocks for future VPC peering (avoid CIDR overlap)
 ```
 
 **2. Three-tier subnet model:**
+
 - **Public subnets**: Internet-facing resources only (ALB, NAT Gateway, bastion/SSM)
 - **Private app subnets**: All compute (EC2, ECS, Lambda, EKS nodes)
 - **Private DB subnets**: Data layer only; no compute allowed here
 
 **3. Internet access from private subnets — NAT Gateway:**
+
 ```hcl
 # One NAT Gateway per AZ (avoid cross-AZ NAT traffic charges)
 resource "aws_nat_gateway" "az1" {
@@ -493,6 +507,7 @@ resource "aws_route" "private_internet_az1" {
 ```
 
 **4. VPC Flow Logs enabled for all traffic:**
+
 ```hcl
 resource "aws_flow_log" "vpc" {
   vpc_id          = aws_vpc.main.id
@@ -503,6 +518,7 @@ resource "aws_flow_log" "vpc" {
 ```
 
 **5. VPC Endpoints for AWS services (avoid NAT Gateway costs + latency):**
+
 ```hcl
 # S3 Gateway Endpoint (free; avoids NAT Gateway for S3 traffic)
 resource "aws_vpc_endpoint" "s3" {
@@ -614,6 +630,7 @@ resource "aws_security_group" "db" {
 **Critical rule:** Always reference security group IDs, not CIDR ranges, for internal traffic. If you use CIDR ranges, adding a new subnet requires updating security group rules.
 
 **NACL usage:** I use NACLs sparingly — mainly to:
+
 - Block known malicious IP ranges (quick blocklist)
 - Deny specific subnet-to-subnet traffic categories as a second layer
 - For PCI-DSS: NACL on the CDE subnet to restrict outbound destinations
@@ -685,6 +702,7 @@ resource "aws_vpc_endpoint" "payments" {
 **Two primary options:**
 
 **AWS Direct Connect (dedicated):**
+
 ```
 On-premises → Direct Connect location → AWS backbone → VPC
   - Dedicated 1Gbps or 10Gbps bandwidth
@@ -696,6 +714,7 @@ On-premises → Direct Connect location → AWS backbone → VPC
 ```
 
 **AWS Site-to-Site VPN (IPsec over internet):**
+
 ```
 On-premises VPN appliance → Internet → AWS VPN endpoint → VPC
   - Encrypted IPSec tunnel (2 tunnels per connection for redundancy)
@@ -860,6 +879,7 @@ aws ec2 describe-network-insights-analyses \
 | **g4dn** | GPU (general) | g4dn.xlarge | Video rendering, ML inference |
 
 **Graviton (ARM) instances:** 20-40% better price/performance for most workloads. Always test with arm64 before choosing x86:
+
 - `m7g` (Graviton3) vs `m7i` (Intel): ~20% cheaper for same performance
 - Requires arm64-compatible binaries and Docker images
 
@@ -987,6 +1007,7 @@ aws autoscaling set-instance-protection \
 | **Service mesh** | AWS App Mesh | Istio / Linkerd / App Mesh |
 
 **Choose ECS when:**
+
 - Team is AWS-focused; no Kubernetes expertise on team
 - Simple containerized workloads (< 50 services)
 - Want minimal operational overhead
@@ -994,6 +1015,7 @@ aws autoscaling set-instance-protection \
 - AWS-specific integrations are the priority (EventBridge, Step Functions)
 
 **Choose EKS when:**
+
 - Kubernetes expertise exists on team
 - Multi-cloud portability required (may migrate to Azure/GCP later)
 - Large microservices ecosystem (50+ services)
@@ -1002,7 +1024,7 @@ aws autoscaling set-instance-protection \
 
 ---
 
-### Q18. How does AWS Lambda work under the hood? Explain cold starts and how to mitigate them.
+### Q18. How does AWS Lambda work under the hood? Explain cold starts and how to mitigate them
 
 **Answer:**
 
@@ -1166,6 +1188,7 @@ aws ecr describe-image-scan-findings \
 **Answer:**
 
 **Why SSM over SSH:**
+
 - No inbound port 22 (eliminates SSH attack surface entirely)
 - No key pair management
 - Full session audit trail in CloudTrail
@@ -1236,7 +1259,7 @@ resource "aws_ssm_patch_baseline" "amazon_linux" {
 
 ---
 
-### Q21. Compare S3 storage classes and explain when you use each.
+### Q21. Compare S3 storage classes and explain when you use each
 
 **Answer:**
 
@@ -1643,7 +1666,7 @@ resource "aws_backup_selection" "production" {
 
 ---
 
-### Q27. Explain IAM roles, policies, and best practices for an enterprise AWS environment.
+### Q27. Explain IAM roles, policies, and best practices for an enterprise AWS environment
 
 **Answer:**
 
@@ -1724,7 +1747,7 @@ resource "aws_iam_role_policy" "payment_lambda" {
 
 ---
 
-### Q28. How do you manage secrets in AWS? Compare options.
+### Q28. How do you manage secrets in AWS? Compare options
 
 **Answer:**
 
@@ -1738,6 +1761,7 @@ resource "aws_iam_role_policy" "payment_lambda" {
 | **KMS** | Encryption keys; encrypt data, not store secrets | $1/CMK/month + $0.03/10K API calls | ✅ Annual key rotation |
 
 **My guidelines:**
+
 - Database credentials → Secrets Manager (auto-rotation pays for itself)
 - Application config (non-sensitive) → SSM Parameter Store Standard
 - Encrypted application config (semi-sensitive) → SSM SecureString
@@ -2185,7 +2209,7 @@ resource "aws_s3_bucket_policy" "tfstate" {
 
 ---
 
-### Q34. Compare Terraform with AWS CloudFormation and AWS CDK.
+### Q34. Compare Terraform with AWS CloudFormation and AWS CDK
 
 **Answer:**
 
@@ -2309,7 +2333,7 @@ jobs:
 
 ---
 
-### Q36. Design a CI/CD pipeline for an application deployed to AWS. Include security scanning.
+### Q36. Design a CI/CD pipeline for an application deployed to AWS. Include security scanning
 
 **Answer:**
 
@@ -3074,7 +3098,7 @@ aws ce get-cost-and-usage \
 
 ---
 
-### Q46. Scenario: Your production RDS database is at 95% CPU. Walk through how you diagnose and resolve it.
+### Q46. Scenario: Your production RDS database is at 95% CPU. Walk through how you diagnose and resolve it
 
 **Answer:**
 
@@ -3305,7 +3329,7 @@ resource "aws_security_group" "app" {
 }
 ```
 
-5. **Runbook example:**
+1. **Runbook example:**
 
 ```markdown
 ## Runbook: EC2 Instance High CPU

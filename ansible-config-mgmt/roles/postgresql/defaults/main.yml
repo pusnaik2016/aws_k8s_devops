@@ -1,0 +1,22 @@
+# =============================================================================
+# Role: postgresql — Default Variables
+# =============================================================================
+---
+postgresql_version: "15"
+postgresql_port: 5432
+postgresql_listen_addresses: "localhost"
+postgresql_max_connections: 100
+postgresql_shared_buffers: "128MB"
+postgresql_effective_cache_size: "256MB"
+postgresql_work_mem: "4MB"
+postgresql_maintenance_work_mem: "64MB"
+postgresql_wal_level: replica
+postgresql_max_wal_senders: 3
+
+postgresql_db_name: myapp
+postgresql_db_user: myapp
+postgresql_db_encoding: UTF8
+postgresql_db_locale: en_US.UTF-8
+
+postgresql_hba_entries: []
+db_firewall_rules: []

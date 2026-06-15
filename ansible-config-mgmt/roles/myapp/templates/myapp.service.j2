@@ -1,0 +1,45 @@
+# =============================================================================
+# Systemd Service Unit — {{ app_name }} — Managed by Ansible
+# =============================================================================
+# WARNING: Do not edit manually. Changes will be overwritten.
+# =============================================================================
+
+[Unit]
+Description={{ app_name }} Application Service
+After=network.target postgresql.service
+Wants=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_home }}/current
+EnvironmentFile={{ app_home }}/shared/config/.env
+ExecStart={{ app_home }}/current/bin/{{ app_name }}
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile={{ app_pid_file }}
+
+# ---------- Restart Policy ----------
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# ---------- Resource Limits ----------
+LimitNOFILE=65535
+LimitNPROC=4096
+
+# ---------- Security Sandboxing ----------
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths={{ app_home }} {{ app_log_dir }} /run/myapp
+
+# ---------- Logging ----------
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ app_name }}
+
+[Install]
+WantedBy=multi-user.target

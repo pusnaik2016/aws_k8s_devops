@@ -1,0 +1,22 @@
+# =============================================================================
+# Role: myapp — Default Variables
+# =============================================================================
+---
+app_name: myapp
+app_user: myapp
+app_group: myapp
+app_home: /opt/myapp
+app_port: 8080
+app_env: staging
+app_version: latest
+app_artifact_url: ""
+app_java_opts: "-Xms256m -Xmx512m"
+app_log_dir: /var/log/myapp
+app_pid_file: /run/myapp/myapp.pid
+app_health_check_url: "http://localhost:8080/health"
+app_health_check_timeout: 30
+
+app_firewall_rules: []
+
+# Rollback
+app_keep_releases: 5

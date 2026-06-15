@@ -1,0 +1,42 @@
+# =============================================================================
+# Playbook: backup.yml — On-Demand Database Backup
+# =============================================================================
+# Triggers an immediate database backup outside the scheduled cron.
+# Usage:
+#   ansible-playbook -i inventories/<env>/hosts.ini playbooks/backup.yml \
+#     --vault-password-file .vault-pass
+# =============================================================================
+---
+- name: Run on-demand database backup
+  hosts: db
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+
+  tasks:
+    - name: Display backup info
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════╗
+          ║  ON-DEMAND BACKUP                         ║
+          ║  Database: {{ postgresql_db_name }}
+          ║  S3 Bucket: {{ backup_s3_bucket }}
+          ║  Host: {{ inventory_hostname }}
+          ╚═══════════════════════════════════════════╝
+      tags: [backup]
+
+    - name: Execute backup script
+      ansible.builtin.command: /usr/local/bin/backup-db.sh
+      register: backup_result
+      tags: [backup]
+
+    - name: Display backup output
+      ansible.builtin.debug:
+        msg: "{{ backup_result.stdout_lines }}"
+      tags: [backup]
+
+    - name: Backup status
+      ansible.builtin.debug:
+        msg: "{{ '✅ Backup completed successfully' if backup_result.rc == 0 else '❌ Backup FAILED' }}"
+      tags: [backup]

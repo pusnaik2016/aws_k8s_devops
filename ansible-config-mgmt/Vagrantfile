@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# =============================================================================
+# Vagrantfile — Local Multi-VM Lab for Ansible Config Management
+# =============================================================================
+# Usage:
+#   vagrant up          → provision all 3 VMs
+#   vagrant ssh web     → SSH into web server
+#   vagrant destroy -f  → tear down everything
+# =============================================================================
+
+VAGRANTFILE_API_VERSION = "2"
+
+# ---------- VM Definitions ----------
+NODES = [
+  { name: "web",  ip: "192.168.56.10", memory: 1024, cpus: 1 },
+  { name: "app",  ip: "192.168.56.11", memory: 1024, cpus: 1 },
+  { name: "db",   ip: "192.168.56.12", memory: 2048, cpus: 2 },
+]
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.box = "ubuntu/jammy64"    # Ubuntu 22.04 LTS
+
+  # Shared SSH key for all nodes (for Ansible control-node access)
+  config.ssh.insert_key = false
+
+  NODES.each do |node|
+    config.vm.define node[:name] do |srv|
+      srv.vm.hostname = "#{node[:name]}.lab.local"
+      srv.vm.network "private_network", ip: node[:ip]
+
+      srv.vm.provider "virtualbox" do |vb|
+        vb.name   = "ansible-lab-#{node[:name]}"
+        vb.memory = node[:memory]
+        vb.cpus   = node[:cpus]
+        vb.gui    = false
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      end
+
+      # Bootstrap: install Python (required by Ansible) and authorise SSH key
+      srv.vm.provision "shell", inline: <<-SHELL
+        apt-get update -qq
+        apt-get install -y -qq python3 python3-apt > /dev/null 2>&1
+        echo "#{File.read(File.expand_path('~/.ssh/id_rsa.pub')).strip}" >> /home/vagrant/.ssh/authorized_keys
+      SHELL
+    end
+  end
+end

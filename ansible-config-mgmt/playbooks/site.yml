@@ -1,0 +1,58 @@
+# =============================================================================
+# Playbook: site.yml — Full Infrastructure Convergence
+# =============================================================================
+# Applies ALL roles to ALL hosts in dependency order.
+# Usage:
+#   ansible-playbook -i inventories/<env>/hosts.ini playbooks/site.yml \
+#     --vault-password-file .vault-pass
+#
+# Dry-run:
+#   ansible-playbook ... --check --diff
+# =============================================================================
+---
+# ---------- Phase 1: Common Baseline (ALL hosts) ----------
+- name: Apply common baseline to all servers
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+  roles:
+    - role: common
+      tags: [common]
+
+# ---------- Phase 2: Web Tier ----------
+- name: Configure web servers (NGINX)
+  hosts: web
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+  roles:
+    - role: nginx
+      tags: [nginx]
+
+# ---------- Phase 3: Database Tier ----------
+- name: Configure database servers (PostgreSQL)
+  hosts: db
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+  roles:
+    - role: postgresql
+      tags: [postgresql]
+    - role: backup
+      tags: [backup]
+
+# ---------- Phase 4: Application Tier ----------
+- name: Deploy application to app servers
+  hosts: app
+  become: yes
+  gather_facts: yes
+  serial: 1                    # Rolling deployment — one host at a time
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+  roles:
+    - role: myapp
+      tags: [myapp, deploy]

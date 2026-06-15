@@ -1,0 +1,22 @@
+# =============================================================================
+# Staging — Web Server Variables
+# =============================================================================
+---
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+nginx_keepalive_timeout: 65
+nginx_client_max_body_size: 10m
+nginx_server_name: "{{ domain }}"
+
+nginx_upstream_servers:
+  - "192.168.56.11:8080"
+
+# TLS (self-signed for staging)
+nginx_ssl_enabled: true
+nginx_ssl_certificate: /etc/ssl/certs/myapp.crt
+nginx_ssl_certificate_key: /etc/ssl/private/myapp.key
+
+# Additional firewall rules for web
+nginx_firewall_rules:
+  - { rule: allow, port: "80", proto: tcp, comment: "HTTP" }
+  - { rule: allow, port: "443", proto: tcp, comment: "HTTPS" }

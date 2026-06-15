@@ -1,0 +1,11 @@
+# Logrotate — Backup Logs — Managed by Ansible
+
+{{ backup_log_file }} {
+    weekly
+    missingok
+    rotate 4
+    compress
+    delaycompress
+    notifempty
+    create 0640 root root
+}

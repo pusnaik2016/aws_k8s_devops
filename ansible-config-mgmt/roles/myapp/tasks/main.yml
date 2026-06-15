@@ -1,0 +1,183 @@
+# =============================================================================
+# Role: myapp — Application Deployment Tasks
+# =============================================================================
+---
+# -------------------- System User --------------------
+- name: Create application group
+  ansible.builtin.group:
+    name: "{{ app_group }}"
+    state: present
+  tags: [myapp, deploy]
+
+- name: Create application user (no login)
+  ansible.builtin.user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    home: "{{ app_home }}"
+    shell: /usr/sbin/nologin
+    system: yes
+    create_home: no
+    state: present
+  tags: [myapp, deploy]
+
+# -------------------- Directory Structure --------------------
+- name: Create application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop:
+    - "{{ app_home }}"
+    - "{{ app_home }}/current"
+    - "{{ app_home }}/releases"
+    - "{{ app_home }}/shared"
+    - "{{ app_home }}/shared/config"
+    - "{{ app_home }}/shared/log"
+    - "{{ app_home }}/shared/tmp"
+    - "{{ app_log_dir }}"
+  tags: [myapp, deploy]
+
+- name: Create PID directory
+  ansible.builtin.file:
+    path: "/run/myapp"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  tags: [myapp, deploy]
+
+# -------------------- Deployment --------------------
+- name: Set release timestamp
+  ansible.builtin.set_fact:
+    release_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+  tags: [myapp, deploy]
+
+- name: Create release directory
+  ansible.builtin.file:
+    path: "{{ app_home }}/releases/{{ release_timestamp }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  tags: [myapp, deploy]
+
+- name: Download application artifact
+  ansible.builtin.get_url:
+    url: "{{ app_artifact_url }}"
+    dest: "/tmp/{{ app_name }}-{{ app_version }}.tar.gz"
+    mode: "0644"
+  when: app_artifact_url | length > 0
+  tags: [myapp, deploy]
+
+- name: Extract application artifact
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ app_name }}-{{ app_version }}.tar.gz"
+    dest: "{{ app_home }}/releases/{{ release_timestamp }}"
+    remote_src: yes
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+  when: app_artifact_url | length > 0
+  tags: [myapp, deploy]
+
+- name: Copy application from local source (fallback)
+  ansible.builtin.copy:
+    src: app/
+    dest: "{{ app_home }}/releases/{{ release_timestamp }}/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  when: app_artifact_url | length == 0
+  failed_when: false
+  tags: [myapp, deploy]
+
+# -------------------- Configuration --------------------
+- name: Deploy application environment file
+  ansible.builtin.template:
+    src: myapp.env.j2
+    dest: "{{ app_home }}/shared/config/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+  notify: Restart MyApp
+  tags: [myapp, deploy, config]
+
+- name: Symlink current release
+  ansible.builtin.file:
+    src: "{{ app_home }}/releases/{{ release_timestamp }}"
+    dest: "{{ app_home }}/current"
+    state: link
+    force: yes
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+  notify: Restart MyApp
+  tags: [myapp, deploy]
+
+# -------------------- Systemd Service --------------------
+- name: Deploy systemd service unit
+  ansible.builtin.template:
+    src: myapp.service.j2
+    dest: /etc/systemd/system/{{ app_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart MyApp
+  tags: [myapp, deploy]
+
+- name: Ensure application service is running and enabled
+  ansible.builtin.systemd:
+    name: "{{ app_name }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: [myapp, deploy]
+
+# -------------------- Health Check --------------------
+- name: Wait for application to become healthy
+  ansible.builtin.uri:
+    url: "{{ app_health_check_url }}"
+    method: GET
+    status_code: 200
+  register: health_check
+  retries: 10
+  delay: "{{ (app_health_check_timeout / 10) | int }}"
+  until: health_check.status == 200
+  failed_when: false
+  tags: [myapp, deploy, healthcheck]
+
+- name: Report health check result
+  ansible.builtin.debug:
+    msg: >-
+      Health check {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}
+      — {{ app_health_check_url }} returned {{ health_check.status | default('unreachable') }}
+  tags: [myapp, deploy, healthcheck]
+
+# -------------------- Cleanup Old Releases --------------------
+- name: List existing releases
+  ansible.builtin.find:
+    paths: "{{ app_home }}/releases"
+    file_type: directory
+  register: releases
+  tags: [myapp, deploy]
+
+- name: Remove old releases (keep last {{ app_keep_releases }})
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ (releases.files | sort(attribute='mtime') | list)[:-app_keep_releases] }}"
+  when: releases.files | length > app_keep_releases
+  tags: [myapp, deploy]
+
+# -------------------- Firewall --------------------
+- name: Configure UFW rules for application
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    src: "{{ item.src | default(omit) }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ app_firewall_rules }}"
+  tags: [myapp, firewall]

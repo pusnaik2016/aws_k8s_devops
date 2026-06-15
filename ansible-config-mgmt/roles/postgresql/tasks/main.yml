@@ -1,0 +1,113 @@
+# =============================================================================
+# Role: postgresql — Tasks
+# =============================================================================
+---
+- name: Install PostgreSQL prerequisites
+  ansible.builtin.apt:
+    name:
+      - gnupg2
+      - lsb-release
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+  tags: [postgresql]
+
+- name: Add PostgreSQL APT repository key
+  ansible.builtin.apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+  tags: [postgresql]
+
+- name: Add PostgreSQL APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    state: present
+    filename: pgdg
+  tags: [postgresql]
+
+- name: Install PostgreSQL {{ postgresql_version }}
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ postgresql_version }}"
+      - "postgresql-client-{{ postgresql_version }}"
+      - "postgresql-contrib-{{ postgresql_version }}"
+    state: present
+    update_cache: yes
+  tags: [postgresql]
+
+- name: Deploy postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+  tags: [postgresql]
+
+- name: Deploy pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Reload PostgreSQL
+  tags: [postgresql]
+
+- name: Ensure PostgreSQL is running and enabled
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+  tags: [postgresql]
+
+- name: Create application database
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_db_name }}"
+    encoding: "{{ postgresql_db_encoding }}"
+    lc_collate: "{{ postgresql_db_locale }}"
+    lc_ctype: "{{ postgresql_db_locale }}"
+    state: present
+  become_user: postgres
+  tags: [postgresql]
+
+- name: Create application database user
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_db_user }}"
+    password: "{{ vault_postgresql_password }}"
+    db: "{{ postgresql_db_name }}"
+    priv: "ALL"
+    state: present
+  become_user: postgres
+  no_log: true
+  tags: [postgresql]
+
+- name: Revoke PUBLIC access on database
+  community.postgresql.postgresql_privs:
+    db: "{{ postgresql_db_name }}"
+    role: PUBLIC
+    type: database
+    privs: ALL
+    state: absent
+  become_user: postgres
+  tags: [postgresql]
+
+- name: Configure UFW rules for PostgreSQL
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    src: "{{ item.src | default(omit) }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ db_firewall_rules }}"
+  tags: [postgresql, firewall]
+
+- name: Create PostgreSQL log directory
+  ansible.builtin.file:
+    path: /var/log/postgresql
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"
+  tags: [postgresql]

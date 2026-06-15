@@ -1,0 +1,10 @@
+# =============================================================================
+# PostgreSQL Host-Based Authentication — Managed by Ansible
+# =============================================================================
+# WARNING: Do not edit manually. Changes will be overwritten.
+# =============================================================================
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+{% for entry in postgresql_hba_entries %}
+{{ entry.type }}    {{ entry.database }}    {{ entry.user }}    {{ entry.address | default('') }}    {{ entry.method }}
+{% endfor %}

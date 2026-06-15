@@ -1,0 +1,23 @@
+# =============================================================================
+# Production — Web Server Variables
+# =============================================================================
+---
+nginx_worker_processes: auto
+nginx_worker_connections: 4096
+nginx_keepalive_timeout: 65
+nginx_client_max_body_size: 25m
+nginx_server_name: "{{ domain }}"
+
+nginx_upstream_servers:
+  - "10.0.2.10:8080"
+  - "10.0.2.11:8080"
+
+# TLS (real certs in production)
+nginx_ssl_enabled: true
+nginx_ssl_certificate: /etc/ssl/certs/myapp.crt
+nginx_ssl_certificate_key: /etc/ssl/private/myapp.key
+
+# Additional firewall rules for web
+nginx_firewall_rules:
+  - { rule: allow, port: "80", proto: tcp, comment: "HTTP" }
+  - { rule: allow, port: "443", proto: tcp, comment: "HTTPS" }

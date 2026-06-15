@@ -1,0 +1,29 @@
+# =============================================================================
+# fail2ban Configuration — Managed by Ansible
+# =============================================================================
+# WARNING: Do not edit manually. Changes will be overwritten.
+# =============================================================================
+
+[DEFAULT]
+bantime    = {{ fail2ban_bantime }}
+findtime   = {{ fail2ban_findtime }}
+maxretry   = {{ fail2ban_maxretry }}
+banaction  = ufw
+backend    = systemd
+destemail  = admin@{{ domain | default('localhost') }}
+sender     = fail2ban@{{ domain | default('localhost') }}
+action     = %(action_mwl)s
+
+[sshd]
+enabled  = true
+port     = {{ ssh_port }}
+filter   = sshd
+logpath  = /var/log/auth.log
+maxretry = {{ fail2ban_maxretry }}
+
+[sshd-ddos]
+enabled  = true
+port     = {{ ssh_port }}
+filter   = sshd-ddos
+logpath  = /var/log/auth.log
+maxretry = 6

@@ -1,0 +1,86 @@
+# =============================================================================
+# Role: nginx — Tasks
+# =============================================================================
+---
+- name: Install NGINX
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: yes
+  tags: [nginx]
+
+- name: Create SSL directory
+  ansible.builtin.file:
+    path: /etc/ssl/private
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: nginx_ssl_enabled
+  tags: [nginx, ssl]
+
+- name: Generate self-signed SSL certificate (staging only)
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365
+    -newkey rsa:2048
+    -keyout {{ nginx_ssl_certificate_key }}
+    -out {{ nginx_ssl_certificate }}
+    -subj "/C=IN/ST=State/L=City/O=MyApp/CN={{ nginx_server_name }}"
+  args:
+    creates: "{{ nginx_ssl_certificate }}"
+  when:
+    - nginx_ssl_enabled
+    - env | default('staging') == 'staging'
+  tags: [nginx, ssl]
+
+- name: Deploy nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nginx -t -c %s"
+  notify: Reload NGINX
+  tags: [nginx]
+
+- name: Remove default NGINX site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload NGINX
+  tags: [nginx]
+
+- name: Deploy application vhost
+  ansible.builtin.template:
+    src: app-vhost.conf.j2
+    dest: /etc/nginx/sites-available/{{ app_name | default('myapp') }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload NGINX
+  tags: [nginx]
+
+- name: Enable application vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/{{ app_name | default('myapp') }}.conf
+    dest: /etc/nginx/sites-enabled/{{ app_name | default('myapp') }}.conf
+    state: link
+  notify: Reload NGINX
+  tags: [nginx]
+
+- name: Configure UFW rules for NGINX
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ nginx_firewall_rules }}"
+  tags: [nginx, firewall]
+
+- name: Ensure NGINX is running and enabled
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  tags: [nginx]

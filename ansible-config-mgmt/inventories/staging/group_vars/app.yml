@@ -1,0 +1,25 @@
+# =============================================================================
+# Staging — App Server Variables
+# =============================================================================
+---
+app_name: myapp
+app_user: myapp
+app_group: myapp
+app_home: /opt/myapp
+app_port: 8080
+app_env: staging
+app_version: latest
+app_artifact_url: "https://artifacts.myapp.internal/releases/{{ app_version }}/myapp.tar.gz"
+
+# JVM / Runtime settings (adjust per language)
+app_java_opts: "-Xms256m -Xmx512m -XX:+UseG1GC"
+app_log_dir: /var/log/myapp
+app_pid_file: /run/myapp/myapp.pid
+
+# Health check
+app_health_check_url: "http://localhost:{{ app_port }}/health"
+app_health_check_timeout: 30
+
+# Additional firewall rules for app
+app_firewall_rules:
+  - { rule: allow, port: "{{ app_port }}", proto: tcp, src: "192.168.56.10", comment: "App from Web" }

@@ -1,0 +1,50 @@
+# =============================================================================
+# SSH Server Configuration — Managed by Ansible
+# =============================================================================
+# WARNING: Do not edit manually. Changes will be overwritten.
+# =============================================================================
+
+Port {{ ssh_port }}
+AddressFamily inet
+ListenAddress 0.0.0.0
+
+# ---------- Authentication ----------
+PermitRootLogin {{ ssh_permit_root_login }}
+PasswordAuthentication {{ ssh_password_authentication }}
+ChallengeResponseAuthentication no
+UsePAM yes
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+MaxAuthTries {{ ssh_max_auth_tries }}
+MaxSessions 10
+
+# ---------- Security ----------
+PermitEmptyPasswords no
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+PermitTunnel no
+GatewayPorts no
+StrictModes yes
+HostbasedAuthentication no
+IgnoreRhosts yes
+
+# ---------- Session ----------
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+LoginGraceTime 60
+
+# ---------- Logging ----------
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# ---------- Subsystems ----------
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# ---------- Crypto (modern ciphers only) ----------
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# ---------- Banner ----------
+Banner /etc/issue.net

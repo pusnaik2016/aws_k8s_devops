@@ -1,0 +1,62 @@
+# =============================================================================
+# Role: common — Package Installation
+# =============================================================================
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [packages]
+
+- name: Upgrade all packages to latest version
+  ansible.builtin.apt:
+    upgrade: safe
+  tags: [packages, patch]
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+  tags: [packages]
+
+- name: Install unattended-upgrades for automatic security patching
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+  tags: [packages, security]
+
+- name: Enable unattended security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [packages, security]
+
+- name: Remove unnecessary packages (housekeeping)
+  ansible.builtin.apt:
+    autoremove: yes
+    purge: yes
+  tags: [packages]
+
+- name: Install logrotate
+  ansible.builtin.apt:
+    name: logrotate
+    state: present
+  tags: [packages, logging]
+
+- name: Deploy application log rotation config
+  ansible.builtin.template:
+    src: logrotate-app.conf.j2
+    dest: /etc/logrotate.d/myapp
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [packages, logging]

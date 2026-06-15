@@ -1,0 +1,86 @@
+# =============================================================================
+# Playbook: rollback.yml — Application Rollback
+# =============================================================================
+# Rolls back to a previous release by re-symlinking.
+# Usage:
+#   ansible-playbook -i inventories/<env>/hosts.ini playbooks/rollback.yml \
+#     --vault-password-file .vault-pass \
+#     -e "rollback_release=20260614T120000"
+# =============================================================================
+---
+- name: Rollback application
+  hosts: app
+  become: yes
+  gather_facts: yes
+  serial: 1
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+
+  tasks:
+    - name: Validate rollback_release is provided
+      ansible.builtin.assert:
+        that:
+          - rollback_release is defined
+          - rollback_release | length > 0
+        fail_msg: |
+          ❌ You must specify the release to rollback to.
+          Usage: -e "rollback_release=20260614T120000"
+          Available releases can be found in {{ app_home }}/releases/
+      tags: [rollback]
+
+    - name: Check if target release exists
+      ansible.builtin.stat:
+        path: "{{ app_home }}/releases/{{ rollback_release }}"
+      register: target_release
+      tags: [rollback]
+
+    - name: Fail if target release does not exist
+      ansible.builtin.fail:
+        msg: "Release {{ rollback_release }} not found in {{ app_home }}/releases/"
+      when: not target_release.stat.exists
+      tags: [rollback]
+
+    - name: Display rollback info
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════╗
+          ║  ROLLING BACK: {{ app_name }}
+          ║  TARGET:       {{ rollback_release }}
+          ║  HOST:         {{ inventory_hostname }}
+          ╚═══════════════════════════════════════════╝
+      tags: [rollback]
+
+    - name: Symlink to target release
+      ansible.builtin.file:
+        src: "{{ app_home }}/releases/{{ rollback_release }}"
+        dest: "{{ app_home }}/current"
+        state: link
+        force: yes
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+      tags: [rollback]
+
+    - name: Restart application
+      ansible.builtin.systemd:
+        name: "{{ app_name }}"
+        state: restarted
+      tags: [rollback]
+
+    - name: Wait for application to become healthy after rollback
+      ansible.builtin.uri:
+        url: "{{ app_health_check_url }}"
+        method: GET
+        status_code: 200
+      register: rollback_health
+      retries: 10
+      delay: 5
+      until: rollback_health.status == 200
+      failed_when: false
+      tags: [rollback]
+
+    - name: Rollback status
+      ansible.builtin.debug:
+        msg: >-
+          {{ '✅ Rollback successful — app healthy' if rollback_health.status == 200
+             else '⚠️ Rollback applied but health check failed — investigate!' }}
+      tags: [rollback]

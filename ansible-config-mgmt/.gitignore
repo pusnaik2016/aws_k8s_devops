@@ -1,0 +1,42 @@
+# =============================================================================
+# .gitignore — ansible-config-mgmt
+# =============================================================================
+
+# Vault password file (NEVER commit this)
+.vault-pass
+*.vault-pass
+
+# Retry files
+*.retry
+
+# Fact cache
+/tmp/ansible_facts_cache/
+
+# Vagrant
+.vagrant/
+*.box
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Python
+__pycache__/
+*.pyc
+.env

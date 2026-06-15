@@ -1,0 +1,23 @@
+# =============================================================================
+# Ansible Galaxy Requirements
+# =============================================================================
+# Install with:
+#   ansible-galaxy collection install -r requirements.yml
+#   ansible-galaxy role install -r requirements.yml
+# =============================================================================
+
+---
+collections:
+  - name: community.general
+    version: ">=7.0.0"
+    # Provides: ufw, timezone, ini_file, htpasswd modules
+
+  - name: community.postgresql
+    version: ">=3.0.0"
+    # Provides: postgresql_db, postgresql_user, postgresql_privs modules
+
+  - name: ansible.posix
+    version: ">=1.5.0"
+    # Provides: sysctl, synchronize, mount, at modules
+
+roles: []

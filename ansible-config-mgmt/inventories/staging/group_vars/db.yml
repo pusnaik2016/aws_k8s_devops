@@ -1,0 +1,31 @@
+# =============================================================================
+# Staging — Database Server Variables
+# =============================================================================
+---
+postgresql_version: "15"
+postgresql_port: 5432
+postgresql_listen_addresses: "*"
+postgresql_max_connections: 100
+postgresql_shared_buffers: "256MB"
+postgresql_effective_cache_size: "512MB"
+postgresql_work_mem: "4MB"
+postgresql_maintenance_work_mem: "64MB"
+postgresql_wal_level: replica
+postgresql_max_wal_senders: 3
+
+# Application database
+postgresql_db_name: myapp_staging
+postgresql_db_user: myapp
+postgresql_db_encoding: UTF8
+postgresql_db_locale: en_US.UTF-8
+
+# pg_hba — connection rules
+postgresql_hba_entries:
+  - { type: local, database: all, user: postgres, method: peer }
+  - { type: local, database: all, user: all, method: peer }
+  - { type: host, database: "{{ postgresql_db_name }}", user: "{{ postgresql_db_user }}", address: "192.168.56.11/32", method: md5 }
+  - { type: host, database: all, user: all, address: "127.0.0.1/32", method: md5 }
+
+# Additional firewall rules for DB
+db_firewall_rules:
+  - { rule: allow, port: "{{ postgresql_port }}", proto: tcp, src: "192.168.56.11", comment: "PostgreSQL from App" }

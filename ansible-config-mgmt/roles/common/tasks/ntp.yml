@@ -1,0 +1,32 @@
+# =============================================================================
+# Role: common — NTP Configuration
+# =============================================================================
+---
+- name: Install chrony (NTP)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+  tags: [ntp]
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+  tags: [ntp]
+
+- name: Configure chrony NTP servers
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+  when: ntp_servers is defined
+  tags: [ntp]
+
+- name: Ensure chrony is running and enabled
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: yes
+  tags: [ntp]

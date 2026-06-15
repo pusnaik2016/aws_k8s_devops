@@ -1,0 +1,17 @@
+# =============================================================================
+# Logrotate — Application Logs — Managed by Ansible
+# =============================================================================
+
+/var/log/myapp/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 {{ app_user | default('myapp') }} {{ app_group | default('myapp') }}
+    sharedscripts
+    postrotate
+        systemctl reload {{ app_name | default('myapp') }} > /dev/null 2>&1 || true
+    endscript
+}

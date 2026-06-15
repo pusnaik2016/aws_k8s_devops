@@ -1,0 +1,17 @@
+# =============================================================================
+# Role: myapp — Handlers
+# =============================================================================
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Restart MyApp
+  ansible.builtin.systemd:
+    name: "{{ app_name }}"
+    state: restarted
+
+- name: Stop MyApp
+  ansible.builtin.systemd:
+    name: "{{ app_name }}"
+    state: stopped

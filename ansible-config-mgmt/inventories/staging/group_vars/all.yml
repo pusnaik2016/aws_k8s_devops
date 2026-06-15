@@ -1,0 +1,55 @@
+# =============================================================================
+# Staging — Global Variables (all hosts)
+# =============================================================================
+---
+env: staging
+domain: staging.myapp.internal
+
+# ---------- System Baseline ----------
+ntp_timezone: Asia/Kolkata
+common_packages:
+  - vim
+  - curl
+  - wget
+  - htop
+  - net-tools
+  - unzip
+  - jq
+  - tree
+  - git
+  - dnsutils
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
+
+# ---------- SSH Hardening ----------
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_max_auth_tries: 3
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# ---------- Firewall (UFW) ----------
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+ufw_rules:
+  - { rule: allow, port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
+
+# ---------- fail2ban ----------
+fail2ban_bantime: 3600
+fail2ban_findtime: 600
+fail2ban_maxretry: 5
+
+# ---------- Users ----------
+deploy_user: deploy
+deploy_user_shell: /bin/bash
+deploy_user_groups:
+  - sudo
+  - adm
+
+# ---------- Backups ----------
+backup_enabled: true
+backup_s3_bucket: myapp-backups-staging
+backup_retention_days: 7
+backup_schedule: "0 2 * * *"       # 2 AM daily

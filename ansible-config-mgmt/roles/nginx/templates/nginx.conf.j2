@@ -1,0 +1,71 @@
+# =============================================================================
+# NGINX Main Configuration — Managed by Ansible
+# =============================================================================
+# WARNING: Do not edit manually. Changes will be overwritten.
+# =============================================================================
+
+user www-data;
+worker_processes {{ nginx_worker_processes }};
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+    multi_accept on;
+    use epoll;
+}
+
+http {
+    # ---------- Basic Settings ----------
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    types_hash_max_size 2048;
+    server_tokens off;
+    client_max_body_size {{ nginx_client_max_body_size }};
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # ---------- Logging ----------
+    log_format main '$remote_addr - $remote_user [$time_local] '
+                    '"$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent" '
+                    '$request_time $upstream_response_time';
+
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log warn;
+
+    # ---------- Gzip Compression ----------
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json
+               application/javascript application/xml+rss
+               application/atom+xml image/svg+xml;
+
+    # ---------- Security Headers ----------
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # ---------- Rate Limiting ----------
+    limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;
+
+    # ---------- Upstream ----------
+{% if nginx_upstream_servers | length > 0 %}
+    upstream app_backend {
+        least_conn;
+{% for server in nginx_upstream_servers %}
+        server {{ server }};
+{% endfor %}
+    }
+{% endif %}
+
+    # ---------- Virtual Hosts ----------
+    include /etc/nginx/sites-enabled/*;
+}

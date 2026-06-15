@@ -1,0 +1,107 @@
+# =============================================================================
+# Role: common — Security Hardening
+# =============================================================================
+---
+# -------------------- SSH Hardening --------------------
+- name: Deploy hardened sshd_config
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "sshd -t -f %s"
+  notify: Restart SSH
+  tags: [security, ssh]
+
+# -------------------- UFW Firewall --------------------
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  tags: [security, firewall]
+
+- name: Set UFW default incoming policy
+  community.general.ufw:
+    direction: incoming
+    policy: "{{ ufw_default_incoming }}"
+  tags: [security, firewall]
+
+- name: Set UFW default outgoing policy
+  community.general.ufw:
+    direction: outgoing
+    policy: "{{ ufw_default_outgoing }}"
+  tags: [security, firewall]
+
+- name: Configure UFW rules (global)
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    src: "{{ item.src | default(omit) }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_rules }}"
+  tags: [security, firewall]
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  tags: [security, firewall]
+
+# -------------------- fail2ban --------------------
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  tags: [security, fail2ban]
+
+- name: Deploy fail2ban configuration
+  ansible.builtin.template:
+    src: fail2ban.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+  tags: [security, fail2ban]
+
+- name: Ensure fail2ban is running and enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags: [security, fail2ban]
+
+# -------------------- Kernel Hardening --------------------
+- name: Apply sysctl security parameters
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+    - { name: "net.ipv4.ip_forward", value: "0" }
+    - { name: "net.ipv4.conf.all.send_redirects", value: "0" }
+    - { name: "net.ipv4.conf.default.send_redirects", value: "0" }
+    - { name: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { name: "net.ipv4.conf.default.accept_redirects", value: "0" }
+    - { name: "net.ipv4.conf.all.accept_source_route", value: "0" }
+    - { name: "net.ipv4.conf.default.accept_source_route", value: "0" }
+    - { name: "net.ipv4.conf.all.log_martians", value: "1" }
+    - { name: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1" }
+    - { name: "net.ipv4.tcp_syncookies", value: "1" }
+    - { name: "kernel.randomize_va_space", value: "2" }
+  tags: [security, sysctl]
+
+# -------------------- Disable Unused Services --------------------
+- name: Disable unnecessary services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop:
+    - avahi-daemon
+    - cups
+  failed_when: false
+  tags: [security]

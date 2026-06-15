@@ -1,0 +1,43 @@
+# =============================================================================
+# Playbook: deploy.yml — Application-Only Deployment
+# =============================================================================
+# Deploys ONLY the application (skips infra setup).
+# Usage:
+#   ansible-playbook -i inventories/<env>/hosts.ini playbooks/deploy.yml \
+#     --vault-password-file .vault-pass \
+#     -e "app_version=1.3.0"
+#
+# Deploy to specific host:
+#   ansible-playbook ... --limit app-prod-01
+# =============================================================================
+---
+- name: Deploy application
+  hosts: app
+  become: yes
+  gather_facts: yes
+  serial: 1                    # Rolling deployment
+  max_fail_percentage: 0       # Stop immediately on any failure
+  vars_files:
+    - ../vault/{{ env | default('staging') }}-secrets.yml
+
+  pre_tasks:
+    - name: Display deployment info
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════╗
+          ║  DEPLOYING: {{ app_name | default('myapp') }}
+          ║  VERSION:   {{ app_version | default('latest') }}
+          ║  ENV:       {{ env | default('staging') }}
+          ║  HOST:      {{ inventory_hostname }}
+          ╚═══════════════════════════════════════════╝
+      tags: [deploy]
+
+  roles:
+    - role: myapp
+      tags: [deploy]
+
+  post_tasks:
+    - name: Deployment summary
+      ansible.builtin.debug:
+        msg: "✅ Deployment complete on {{ inventory_hostname }}"
+      tags: [deploy]

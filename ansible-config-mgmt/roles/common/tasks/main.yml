@@ -1,0 +1,19 @@
+# =============================================================================
+# Role: common — Main Task Entrypoint
+# =============================================================================
+---
+- name: Include package installation tasks
+  ansible.builtin.include_tasks: packages.yml
+  tags: [common, packages]
+
+- name: Include user management tasks
+  ansible.builtin.include_tasks: users.yml
+  tags: [common, users]
+
+- name: Include NTP configuration tasks
+  ansible.builtin.include_tasks: ntp.yml
+  tags: [common, ntp]
+
+- name: Include security hardening tasks
+  ansible.builtin.include_tasks: security.yml
+  tags: [common, security]

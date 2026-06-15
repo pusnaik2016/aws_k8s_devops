@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Database Backup Script — Managed by Ansible
+# =============================================================================
+# Performs a compressed PostgreSQL dump and uploads to S3
+# Cleans up local backups older than retention period
+# =============================================================================
+set -euo pipefail
+
+# ---------- Configuration ----------
+BACKUP_DIR="{{ backup_dir }}"
+DB_NAME="{{ postgresql_db_name | default('myapp') }}"
+DB_USER="{{ postgresql_db_user | default('myapp') }}"
+S3_BUCKET="{{ backup_s3_bucket }}"
+RETENTION_DAYS="{{ backup_retention_days }}"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+HOSTNAME=$(hostname -s)
+BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_${HOSTNAME}_${TIMESTAMP}.sql.gz"
+LOG_PREFIX="[BACKUP $(date '+%Y-%m-%d %H:%M:%S')]"
+
+# ---------- Functions ----------
+log() {
+    echo "${LOG_PREFIX} $1"
+}
+
+cleanup() {
+    log "Cleaning local backups older than ${RETENTION_DAYS} days..."
+    find "${BACKUP_DIR}" -name "*.sql.gz" -mtime +${RETENTION_DAYS} -delete
+    log "Local cleanup complete."
+}
+
+# ---------- Main ----------
+log "Starting backup of database '${DB_NAME}'..."
+log "Backup file: ${BACKUP_FILE}"
+
+# Perform dump
+if sudo -u postgres pg_dump "${DB_NAME}" | gzip > "${BACKUP_FILE}"; then
+    FILESIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+    log "Database dump successful (${FILESIZE})."
+else
+    log "ERROR: Database dump failed!"
+    exit 1
+fi
+
+# Upload to S3
+log "Uploading to s3://${S3_BUCKET}/{{ env | default('staging') }}/db/..."
+if aws s3 cp "${BACKUP_FILE}" \
+    "s3://${S3_BUCKET}/{{ env | default('staging') }}/db/${DB_NAME}_${HOSTNAME}_${TIMESTAMP}.sql.gz" \
+    --storage-class STANDARD_IA \
+    --only-show-errors; then
+    log "S3 upload successful."
+else
+    log "ERROR: S3 upload failed!"
+    exit 1
+fi
+
+# Cleanup old local backups
+cleanup
+
+log "Backup completed successfully."
+exit 0

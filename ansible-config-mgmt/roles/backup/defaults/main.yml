@@ -1,0 +1,10 @@
+# =============================================================================
+# Role: backup — Default Variables
+# =============================================================================
+---
+backup_enabled: true
+backup_s3_bucket: myapp-backups
+backup_retention_days: 7
+backup_schedule: "0 2 * * *"
+backup_dir: /opt/backups
+backup_log_file: /var/log/backup.log

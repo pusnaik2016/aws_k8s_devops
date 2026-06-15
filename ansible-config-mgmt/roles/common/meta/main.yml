@@ -1,0 +1,21 @@
+# =============================================================================
+# Role: common — Role Metadata
+# =============================================================================
+---
+galaxy_info:
+  role_name: common
+  author: DevOps Team
+  description: Baseline server hardening — packages, SSH, firewall, fail2ban, NTP, users
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy     # 22.04
+        - noble     # 24.04
+  galaxy_tags:
+    - security
+    - hardening
+    - system
+
+dependencies: []
