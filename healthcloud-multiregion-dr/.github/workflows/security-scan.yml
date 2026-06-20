@@ -1,0 +1,60 @@
+# ============================================================================
+# Nightly Security Scan Pipeline
+# Container drift, compliance audit, DAST
+# ============================================================================
+name: Nightly Security Scan
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # 2 AM UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+jobs:
+  comprehensive-scan:
+    name: "🔒 Comprehensive Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Run 5-engine security scanner
+        run: |
+          python3 scripts/devops/sec_scanner.py --path . --format markdown | tee security-report.md
+
+      - name: Run compliance checker
+        run: |
+          python3 scripts/devops/compliance_checker.py --path . --format markdown | tee compliance-report.md
+
+      - name: Run Terraform validator
+        run: |
+          python3 scripts/devops/tf_helper.py --path ./terraform --format markdown | tee tf-report.md
+
+      - name: Run K8s diagnostics
+        run: |
+          python3 scripts/devops/k8s_helper.py --path ./kubernetes --format markdown | tee k8s-report.md
+
+      - name: Run DR validator
+        run: |
+          python3 scripts/devops/dr_validator.py --path ./terraform --format markdown | tee dr-report.md
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3  # v4.3.1
+        with:
+          name: security-reports
+          path: |
+            security-report.md
+            compliance-report.md
+            tf-report.md
+            k8s-report.md
+            dr-report.md
+          retention-days: 90
+
+      - name: Notify on failures
+        if: failure()
+        run: |
+          echo "::error::Security scan failed — review reports in artifacts"

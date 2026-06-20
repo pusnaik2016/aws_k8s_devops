@@ -1,0 +1,153 @@
+# ============================================================================
+# Istio Service Mesh — PeerAuthentication, AuthorizationPolicy, Gateway
+# ============================================================================
+---
+# Strict mTLS for all services in healthcloud-apps namespace
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-strict-mtls
+  namespace: healthcloud-apps
+spec:
+  mtls:
+    mode: STRICT
+---
+# Default deny-all authorization policy
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: healthcloud-apps
+spec:
+  {}
+---
+# Allow patient-service to be accessed by ingress gateway
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-patient-service
+  namespace: healthcloud-apps
+spec:
+  selector:
+    matchLabels:
+      app: patient-service
+  rules:
+    - from:
+        - source:
+            namespaces: ["healthcloud-istio"]
+        - source:
+            principals: ["cluster.local/ns/healthcloud-apps/sa/pharmacy-service-sa"]
+---
+# Allow imaging-service from patient-service only
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-imaging-service
+  namespace: healthcloud-apps
+spec:
+  selector:
+    matchLabels:
+      app: imaging-service
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/healthcloud-apps/sa/patient-service-sa"]
+---
+# Allow notification-service from all internal services
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-notification-service
+  namespace: healthcloud-apps
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  rules:
+    - from:
+        - source:
+            namespaces: ["healthcloud-apps"]
+---
+# Istio Gateway — HTTPS ingress
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: healthcloud-gateway
+  namespace: healthcloud-istio
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: healthcloud-tls-cert
+      hosts:
+        - "api.healthcloud.example.com"
+        - "*.healthcloud.example.com"
+---
+# VirtualService — route traffic to patient-service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: patient-service-vs
+  namespace: healthcloud-apps
+spec:
+  hosts:
+    - "api.healthcloud.example.com"
+  gateways:
+    - healthcloud-istio/healthcloud-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api/v1/patients
+      route:
+        - destination:
+            host: patient-service-svc
+            port:
+              number: 8080
+      timeout: 30s
+      retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+    - match:
+        - uri:
+            prefix: /api/v1/imaging
+      route:
+        - destination:
+            host: imaging-service-svc
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /api/v1/pharmacy
+      route:
+        - destination:
+            host: pharmacy-service-svc
+            port:
+              number: 8080
+---
+# DestinationRule — circuit breaker + connection pool
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: patient-service-dr
+  namespace: healthcloud-apps
+spec:
+  host: patient-service-svc
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DEFAULT
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50

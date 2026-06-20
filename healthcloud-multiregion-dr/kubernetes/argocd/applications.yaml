@@ -1,0 +1,133 @@
+# ============================================================================
+# ArgoCD — Application CRDs for Multi-Cluster GitOps
+# ============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: healthcloud
+  namespace: healthcloud-argocd
+spec:
+  description: "HealthCloud Multi-Region DR Platform"
+  sourceRepos:
+    - "https://github.com/healthcloud/healthcloud-multiregion-dr.git"
+  destinations:
+    - namespace: "healthcloud-apps"
+      server: "https://kubernetes.default.svc"  # AWS EKS (primary)
+      name: "aws-primary"
+    - namespace: "healthcloud-apps"
+      server: "https://aks-dr-cluster.hcp.eastus.azmk8s.io"  # Azure AKS (DR)
+      name: "azure-dr"
+    - namespace: "healthcloud-monitoring"
+      server: "*"
+    - namespace: "healthcloud-istio"
+      server: "*"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+  roles:
+    - name: admin
+      policies:
+        - p, proj:healthcloud:admin, applications, *, healthcloud/*, allow
+      groups:
+        - healthcloud-admins
+---
+# Primary cluster (AWS EKS) — all services
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: healthcloud-aws-apps
+  namespace: healthcloud-argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: healthcloud
+  source:
+    repoURL: "https://github.com/healthcloud/healthcloud-multiregion-dr.git"
+    targetRevision: main
+    path: kubernetes/apps
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: healthcloud-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# DR cluster (Azure AKS) — all services (warm standby)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: healthcloud-azure-dr-apps
+  namespace: healthcloud-argocd
+spec:
+  project: healthcloud
+  source:
+    repoURL: "https://github.com/healthcloud/healthcloud-multiregion-dr.git"
+    targetRevision: main
+    path: kubernetes/apps
+  destination:
+    server: "https://aks-dr-cluster.hcp.eastus.azmk8s.io"
+    namespace: healthcloud-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# Base infrastructure (both clusters)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: healthcloud-base
+  namespace: healthcloud-argocd
+spec:
+  project: healthcloud
+  source:
+    repoURL: "https://github.com/healthcloud/healthcloud-multiregion-dr.git"
+    targetRevision: main
+    path: kubernetes/base
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: healthcloud-apps
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+---
+# Istio configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: healthcloud-istio
+  namespace: healthcloud-argocd
+spec:
+  project: healthcloud
+  source:
+    repoURL: "https://github.com/healthcloud/healthcloud-multiregion-dr.git"
+    targetRevision: main
+    path: kubernetes/istio
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: healthcloud-istio
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

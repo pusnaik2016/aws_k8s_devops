@@ -1,0 +1,67 @@
+# ============================================================================
+# RBAC — ServiceAccounts, Roles, RoleBindings
+# ============================================================================
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: patient-service-sa
+  namespace: healthcloud-apps
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/healthcloud-patient-service-role"
+  labels:
+    app: patient-service
+    compliance: hipaa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: imaging-service-sa
+  namespace: healthcloud-apps
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/healthcloud-imaging-service-role"
+  labels:
+    app: imaging-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pharmacy-service-sa
+  namespace: healthcloud-apps
+  labels:
+    app: pharmacy-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service-sa
+  namespace: healthcloud-apps
+  labels:
+    app: notification-service
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: healthcloud-app-role
+  namespace: healthcloud-apps
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: patient-service-binding
+  namespace: healthcloud-apps
+subjects:
+  - kind: ServiceAccount
+    name: patient-service-sa
+    namespace: healthcloud-apps
+roleRef:
+  kind: Role
+  name: healthcloud-app-role
+  apiGroup: rbac.authorization.k8s.io

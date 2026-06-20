@@ -1,0 +1,154 @@
+# ============================================================================
+# Infrastructure CI/CD Pipeline
+# Terraform: tfsec → Checkov → Plan → Manual Approval → Apply
+# ============================================================================
+name: Infrastructure CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.5.7"
+  AWS_REGION: "us-east-1"
+  AZURE_REGION: "eastus"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: Security Scanning
+  # ─────────────────────────────────────────────────────────────────────────
+  security-scan:
+    name: "🔒 Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@b842aa3dfda4cb01b5d8d2fc12e23faf2cdbcffc  # v1.0.3
+        with:
+          soft_fail: true
+          format: sarif
+          out: tfsec-results.sarif
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@15f0f48f0017a9a0d5ecf59e2ee96a5dca3c8524  # v12.2584.0
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: true
+
+      - name: Run internal security scanner
+        run: python3 scripts/devops/sec_scanner.py --path ./terraform --type terraform --format markdown
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@1b1aada464948af03b950897e5eb522f92603cc2  # v3.24.9
+        with:
+          sarif_file: tfsec-results.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Terraform Validate & Plan
+  # ─────────────────────────────────────────────────────────────────────────
+  terraform-plan:
+    name: "📋 Terraform Plan"
+    needs: security-scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    environment: ${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@a1502cd9e758c50496cc9ac5308c4843296b0a3a  # v3.0.0
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Validate
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: |
+          terraform plan \
+            -var-file=terraform.tfvars \
+            -out=tfplan \
+            -no-color 2>&1 | tee plan-output.txt
+
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/environments/${{ matrix.environment }}/plan-output.txt', 'utf8');
+            const body = `## 📋 Terraform Plan — ${{ matrix.environment }}\n\`\`\`\n${plan.slice(0, 65000)}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: Apply (main branch only, manual approval)
+  # ─────────────────────────────────────────────────────────────────────────
+  terraform-apply:
+    name: "🚀 Terraform Apply"
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: [dev, staging, prod]
+    environment:
+      name: ${{ matrix.environment }}
+      url: https://${{ matrix.environment }}.healthcloud.example.com
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@a1502cd9e758c50496cc9ac5308c4843296b0a3a  # v3.0.0
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init & Apply
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform apply -var-file=terraform.tfvars -auto-approve
+
+      - name: Run compliance check
+        run: python3 scripts/devops/compliance_checker.py --path ./terraform --format markdown

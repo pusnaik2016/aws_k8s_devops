@@ -1,0 +1,36 @@
+# ============================================================================
+# Kubernetes Base — Namespaces
+# ============================================================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcloud-apps
+  labels:
+    app.kubernetes.io/part-of: healthcloud
+    compliance: hipaa
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcloud-monitoring
+  labels:
+    app.kubernetes.io/part-of: healthcloud
+    purpose: observability
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcloud-istio
+  labels:
+    app.kubernetes.io/part-of: healthcloud
+    purpose: service-mesh
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcloud-argocd
+  labels:
+    app.kubernetes.io/part-of: healthcloud
+    purpose: gitops
