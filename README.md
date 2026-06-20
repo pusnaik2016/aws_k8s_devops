@@ -36,11 +36,13 @@ aws_k8s_devops/
 ├── devops-debug-toolkit/                         # 🔧 **10-in-1 DevOps Automation Toolkit** — Scan, Debug, Optimiz
 ├── eks-gitops-quiz-app/                          # 🌐 Production-ready 3-tier application deployed on AWS EKS with
 ├── eks-multiregion-devsecops/                    # 🌐 Production-grade, multi-region AWS infrastructure for a Java
+├── healthcloud-multiregion-dr/                   # 📁 HIPAA-compliant healthcare platform with AWS (primary) + Azu
 ├── interview-prep-docs/                          # 📚 Project directory
 ├── iot-greengrass-edge-telemetry/                # 📡 **Production-grade IoT edge connectivity using AWS IoT Core 
 ├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
 ├── medcloud-global-platform/                     # 📁 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
 ├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
+├── multimodal-evidence-review/                   # 📁 Project directory
 └── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
 └── README.md                                     # ← You are here
 ```
