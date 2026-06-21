@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# FluentBit — Log Aggregation with PII Masking
+# ─────────────────────────────────────────────────────────────────────────────
+# HIPAA/GDPR: Mask PII (SSN, email, credit card) before shipping to CW
+# SOC2: 365-day retention in CloudWatch
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+  namespace: fluentbit
+  labels:
+    app: fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Daemon        Off
+        Log_Level     info
+        Parsers_File  parsers.conf
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+
+    [INPUT]
+        Name              tail
+        Tag               kube.*
+        Path              /var/log/containers/*.log
+        Parser            cri
+        DB                /var/log/flb_kube.db
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+        Refresh_Interval  10
+
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Kube_URL            https://kubernetes.default.svc:443
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        Kube_Tag_Prefix     kube.var.log.containers.
+        Merge_Log           On
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+        Labels              On
+        Annotations         Off
+
+    # GDPR/HIPAA: Mask PII fields
+    [FILTER]
+        Name          modify
+        Match         kube.*
+        Condition     Key_Value_Matches log .*\d{3}-\d{2}-\d{4}.*
+        Set           log [PII_MASKED_SSN]
+
+    [FILTER]
+        Name          lua
+        Match         kube.*
+        script        /fluent-bit/scripts/mask_pii.lua
+        call          mask_pii
+
+    # Route retail-apps logs
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*retail-apps*
+        region              ${AWS_REGION}
+        log_group_name      /eks/${CLUSTER_NAME}/retail-apps
+        log_stream_prefix   fluentbit-
+        auto_create_group   false
+        log_retention_days  365
+
+    # Route payment logs (separate for PCI audit)
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*payment*
+        region              ${AWS_REGION}
+        log_group_name      /eks/${CLUSTER_NAME}/payment
+        log_stream_prefix   fluentbit-
+        auto_create_group   false
+        log_retention_days  365
+
+    # Route istio logs
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*istio-system*
+        region              ${AWS_REGION}
+        log_group_name      /eks/${CLUSTER_NAME}/istio-system
+        log_stream_prefix   fluentbit-
+        auto_create_group   false
+
+  parsers.conf: |
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+
+    [PARSER]
+        Name        json
+        Format      json
+        Time_Key    timestamp
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+
+  mask_pii.lua: |
+    function mask_pii(tag, timestamp, record)
+      if record["log"] then
+        local log = record["log"]
+        -- Mask email addresses
+        log = string.gsub(log, "[%w%.%-]+@[%w%.%-]+%.%w+", "[EMAIL_REDACTED]")
+        -- Mask credit card numbers (13-19 digits)
+        log = string.gsub(log, "%d%d%d%d[%-%s]?%d%d%d%d[%-%s]?%d%d%d%d[%-%s]?%d%d%d%d", "[CC_REDACTED]")
+        -- Mask SSN
+        log = string.gsub(log, "%d%d%d%-%d%d%-%d%d%d%d", "[SSN_REDACTED]")
+        -- Mask phone numbers
+        log = string.gsub(log, "%+?%d?%d?%d?[%-%s]?%(?%d%d%d%)?[%-%s]?%d%d%d[%-%s]?%d%d%d%d", "[PHONE_REDACTED]")
+        record["log"] = log
+      end
+      return 1, timestamp, record
+    end

@@ -1,0 +1,259 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Istio — Strict mTLS + Gateway + Authorization Policies
+# ─────────────────────────────────────────────────────────────────────────────
+# PCI-DSS 4.1: Encrypt all traffic in transit
+# SOC2 CC6.1: Encryption controls
+# ─────────────────────────────────────────────────────────────────────────────
+
+# STRICT mTLS mesh-wide
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+---
+# Istio Gateway (external traffic entry point)
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: retail-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: retail-tls-cert
+        minProtocolVersion: TLSV1_2
+      hosts:
+        - "retail.example.com"
+        - "api.retail.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "retail.example.com"
+      tls:
+        httpsRedirect: true
+---
+# VirtualService: storefront-api
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: storefront-api
+  namespace: retail-apps
+spec:
+  hosts:
+    - "retail.example.com"
+  gateways:
+    - istio-system/retail-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api/products
+        - uri:
+            prefix: /api/search
+      route:
+        - destination:
+            host: storefront-api
+            port:
+              number: 8000
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: 5xx,reset,connect-failure
+---
+# VirtualService: order-service
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: order-service
+  namespace: retail-apps
+spec:
+  hosts:
+    - order-service
+  http:
+    - route:
+        - destination:
+            host: order-service
+            port:
+              number: 8000
+      timeout: 30s
+---
+# VirtualService: inventory-service
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: inventory-service
+  namespace: retail-apps
+spec:
+  hosts:
+    - inventory-service
+  http:
+    - route:
+        - destination:
+            host: inventory-service
+            port:
+              number: 8000
+      timeout: 10s
+---
+# VirtualService: payment-service (cross-namespace)
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: payment-service
+  namespace: payment
+spec:
+  hosts:
+    - payment-service
+  http:
+    - route:
+        - destination:
+            host: payment-service
+            port:
+              number: 8000
+      timeout: 30s
+      retries:
+        attempts: 2
+        perTryTimeout: 10s
+---
+# VirtualService: notification-service
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: notification-service
+  namespace: retail-apps
+spec:
+  hosts:
+    - notification-service
+  http:
+    - route:
+        - destination:
+            host: notification-service
+            port:
+              number: 8000
+      timeout: 15s
+---
+# ─── Authorization Policies (Zero-Trust) ────────────────────────────────────
+
+# Default: deny all in retail-apps
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: retail-apps
+spec:
+  {}  # Empty spec = deny all
+---
+# Default: deny all in payment
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: payment
+spec:
+  {}
+---
+# Allow: istio-ingress → storefront-api
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-storefront-ingress
+  namespace: retail-apps
+spec:
+  selector:
+    matchLabels:
+      app: storefront-api
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["istio-system"]
+      to:
+        - operation:
+            paths: ["/api/*", "/health/*"]
+---
+# Allow: storefront-api → order-service, inventory-service
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-order-from-storefront
+  namespace: retail-apps
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/retail-apps/sa/storefront-api"]
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-inventory-access
+  namespace: retail-apps
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/retail-apps/sa/storefront-api"
+              - "cluster.local/ns/retail-apps/sa/order-service"
+---
+# Allow: order-service → payment-service (cross-namespace)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-payment-from-orders
+  namespace: payment
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/retail-apps/sa/order-service"]
+      to:
+        - operation:
+            paths: ["/api/payments/*", "/health/*"]
+---
+# ─── Circuit Breaker (DestinationRule) ───────────────────────────────────────
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: payment-service-circuit-breaker
+  namespace: payment
+spec:
+  host: payment-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DEFAULT
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50

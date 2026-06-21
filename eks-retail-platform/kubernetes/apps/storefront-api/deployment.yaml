@@ -1,0 +1,123 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# storefront-api — Deployment + Service
+# Scaling: Native HPA scale-to-zero (K8s 1.36+)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront-api
+  namespace: retail-apps
+  labels:
+    app: storefront-api
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storefront-api
+  template:
+    metadata:
+      labels:
+        app: storefront-api
+        version: v1
+        sidecar.istio.io/inject: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      serviceAccountName: storefront-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: storefront-api
+          image: ${ECR_REGISTRY}/eks-retail/storefront-api:latest
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: APP_ENV
+              value: production
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-api-config
+                  key: db_host
+            - name: LOG_LEVEL
+              value: INFO
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: storefront-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront-api
+  namespace: retail-apps
+  labels:
+    app: storefront-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: storefront-api
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storefront-api-config
+  namespace: retail-apps
+data:
+  db_host: "${DB_ENDPOINT}"
+  db_name: "retaildb"
+  cache_ttl: "300"

@@ -1,0 +1,106 @@
+# PCI-DSS: Payment service runs on dedicated compliance nodes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: payment
+  labels:
+    app: payment-service
+    compliance: pci-dss
+spec:
+  replicas: 2  # PCI: never scale to zero
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        compliance: pci-dss
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: payment-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+        - key: compliance
+          value: pci-hipaa
+          effect: NoSchedule
+      nodeSelector:
+        compliance: pci-hipaa
+      containers:
+        - name: payment-service
+          image: ${ECR_REGISTRY}/eks-retail/payment-service:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: payment-config
+                  key: db_host
+            - name: ENCRYPTION_KEY_ARN
+              value: "${KMS_KEY_ARN}"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: payment-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: payment
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: payment-service
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-config
+  namespace: payment
+data:
+  db_host: "${DB_ENDPOINT}"

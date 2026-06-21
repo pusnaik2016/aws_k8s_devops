@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Security Scan Pipeline — Scheduled + On-Demand
+# ─────────────────────────────────────────────────────────────────────────────
+name: "Security Scan"
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Weekly Monday 6AM UTC
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+jobs:
+  # ─── Infrastructure Security Scan ───────────────────────────────────────
+  infra-scan:
+    name: "Infra Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tfsec Scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform/
+          format: sarif
+          soft_fail: true
+
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+
+      - name: Upload Results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # ─── Container Image Scan ──────────────────────────────────────────────
+  container-scan:
+    name: "Scan ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [storefront-api, order-service, inventory-service, payment-service, notification-service]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Scan Latest Image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: "${{ steps.ecr.outputs.registry }}/eks-retail/${{ matrix.service }}:latest"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"  # Don't fail on scheduled scans
+
+  # ─── K8s Manifest Scan ─────────────────────────────────────────────────
+  k8s-scan:
+    name: "K8s Manifest Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate K8s Manifests
+        run: |
+          find kubernetes/ -name "*.yaml" -type f | \
+            xargs kubeconform -strict -summary \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' || true
+
+      - name: Kubesec Scan
+        uses: controlplaneio/kubesec-action@v0.0.2
+        with:
+          input: kubernetes/apps/

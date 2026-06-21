@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: retail-apps
+  labels:
+    app: order-service
+    version: v1
+spec:
+  replicas: 0  # KEDA manages replicas (scale-to-zero)
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        version: v1
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: order-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: order-service
+          image: ${ECR_REGISTRY}/eks-retail/order-service:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SQS_QUEUE_URL
+              value: "${ORDER_QUEUE_URL}"
+            - name: SNS_NOTIFICATION_TOPIC
+              value: "${NOTIFICATION_TOPIC_ARN}"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: db_host
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: retail-apps
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: order-service
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+  namespace: retail-apps
+data:
+  db_host: "${DB_ENDPOINT}"
+  db_name: "retaildb"

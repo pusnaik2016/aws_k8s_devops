@@ -1,0 +1,9 @@
+output "order_queue_url" { value = aws_sqs_queue.order_queue.url }
+output "order_queue_arn" { value = aws_sqs_queue.order_queue.arn }
+output "notification_queue_url" { value = aws_sqs_queue.notification_queue.url }
+output "notification_queue_arn" { value = aws_sqs_queue.notification_queue.arn }
+output "notification_topic_arn" { value = aws_sns_topic.notifications.arn }
+output "order_events_topic_arn" { value = aws_sns_topic.order_events.arn }
+output "order_service_role_arn" { value = aws_iam_role.order_service.arn }
+output "notification_service_role_arn" { value = aws_iam_role.notification_service.arn }
+output "keda_operator_role_arn" { value = aws_iam_role.keda_operator.arn }

@@ -1,0 +1,197 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Infrastructure CI/CD Pipeline — Terraform Plan/Apply
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers on terraform/** changes
+# PR: validate + plan → manual approve → apply
+# ─────────────────────────────────────────────────────────────────────────────
+name: "Infrastructure Pipeline"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra-pipeline.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+
+env:
+  TF_VERSION: "1.9.0"
+  AWS_REGION: "us-east-1"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ─── Security Scan ──────────────────────────────────────────────────────
+  security-scan:
+    name: "Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform/
+          soft_fail: false
+
+      - name: Run checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+          soft_fail: false
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # ─── Terraform Validate ─────────────────────────────────────────────────
+  validate:
+    name: "Validate"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: terraform/
+        run: terraform fmt -check -recursive
+
+  # ─── Plan (Dev) ─────────────────────────────────────────────────────────
+  plan-dev:
+    name: "Plan Dev"
+    needs: [security-scan, validate]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Plan
+        working-directory: terraform/environments/dev
+        run: terraform plan -var-file=terraform.tfvars -out=tfplan -no-color 2>&1 | tee plan_output.txt
+
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/environments/dev/plan_output.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### 📋 Terraform Plan (Dev)\n<details><summary>Show Plan</summary>\n\n\`\`\`hcl\n${truncated}\n\`\`\`\n</details>`
+            });
+
+  # ─── Apply (Dev) ────────────────────────────────────────────────────────
+  apply-dev:
+    name: "Apply Dev"
+    needs: [plan-dev]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        run: terraform apply -var-file=terraform.tfvars -auto-approve
+
+  # ─── Plan + Apply (Staging) ─────────────────────────────────────────────
+  apply-staging:
+    name: "Apply Staging"
+    needs: [apply-dev]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init & Apply
+        working-directory: terraform/environments/staging
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform apply -var-file=terraform.tfvars -auto-approve
+
+  # ─── Plan + Apply (Prod — Manual Approval) ──────────────────────────────
+  apply-prod:
+    name: "Apply Prod"
+    needs: [apply-staging]
+    runs-on: ubuntu-latest
+    environment: production  # Requires manual approval
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init & Apply
+        working-directory: terraform/environments/prod
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform apply -var-file=terraform.tfvars -auto-approve

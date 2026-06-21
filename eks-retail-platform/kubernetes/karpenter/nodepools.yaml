@@ -1,0 +1,147 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Karpenter NodePools & EC2NodeClass
+# ─────────────────────────────────────────────────────────────────────────────
+# Default NodePool: General workloads (Graviton + Spot mix)
+# Compliance NodePool: PCI/HIPAA (On-Demand, Nitro, encrypted)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Default NodePool (General workloads) ────────────────────────────────────
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: default
+        workload-type: general
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64", "arm64"]
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["m7g", "m6i", "c7g", "c6i", "r7g", "r6i"]
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["medium", "large", "xlarge", "2xlarge"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+  limits:
+    cpu: "100"
+    memory: 400Gi
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 60s
+  weight: 50
+---
+# ─── PCI-Compliant NodePool (Payment workloads) ─────────────────────────────
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: pci-compliant
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: pci-compliant
+        compliance: pci-hipaa
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]         # No Spot for PCI workloads
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["m6i", "c6i", "r6i"] # Nitro (HW encryption)
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["large", "xlarge", "2xlarge"]
+      taints:
+        - key: compliance
+          value: pci-hipaa
+          effect: NoSchedule
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: pci-compliant
+  limits:
+    cpu: "32"
+    memory: 128Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 300s            # Conservative for PCI
+  weight: 10
+---
+# ─── EC2NodeClass: Default ───────────────────────────────────────────────────
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiSelectorTerms:
+    - alias: bottlerocket@latest
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "${KARPENTER_NODE_ROLE}"
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1
+    httpTokens: required              # IMDSv2 only (security best practice)
+  tags:
+    ManagedBy: karpenter
+    Compliance: "SOC2"
+---
+# ─── EC2NodeClass: PCI-Compliant ─────────────────────────────────────────────
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: pci-compliant
+spec:
+  amiSelectorTerms:
+    - alias: bottlerocket@latest
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "${KARPENTER_NODE_ROLE}"
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        encrypted: true               # PCI-DSS: encrypt volumes
+        kmsKeyId: "${KMS_KEY_ARN}"
+        deleteOnTermination: true
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1
+    httpTokens: required
+  tags:
+    ManagedBy: karpenter
+    Compliance: "PCI-DSS,HIPAA"

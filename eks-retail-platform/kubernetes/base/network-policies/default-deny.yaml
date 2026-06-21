@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Default Deny NetworkPolicy — All Namespaces
+# ─────────────────────────────────────────────────────────────────────────────
+# PCI-DSS Req 1.3: Deny all ingress/egress by default
+# Each service explicitly allows what it needs
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: retail-apps
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: payment
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

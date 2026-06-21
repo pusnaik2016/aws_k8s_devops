@@ -1,0 +1,431 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Application CI/CD Pipeline — Build, Scan, Push, Deploy
+# ─────────────────────────────────────────────────────────────────────────────
+# Includes: SonarCloud SAST, SCA (OWASP + Safety), Trivy container scan
+# DORA metrics tracking via deployment events
+# Matrix build for all microservices
+# ─────────────────────────────────────────────────────────────────────────────
+name: "Application Pipeline"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/**"
+      - ".github/workflows/app-pipeline.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/**"
+
+env:
+  AWS_REGION: "us-east-1"
+  ECR_REGISTRY: ""  # Set in job
+  SONAR_ORG: ${{ vars.SONAR_ORG }}
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  security-events: write
+  deployments: write
+
+jobs:
+  # ─── Detect Changed Services ────────────────────────────────────────────
+  detect-changes:
+    name: "Detect Changes"
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+      deploy_start: ${{ steps.timer.outputs.start }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record pipeline start (DORA Lead Time)
+        id: timer
+        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Detect changed services
+        id: detect
+        run: |
+          SERVICES='[]'
+          for svc in storefront-api order-service inventory-service payment-service notification-service; do
+            if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "apps/$svc/"; then
+              SERVICES=$(echo $SERVICES | jq -c ". + [\"$svc\"]")
+            fi
+          done
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "app-pipeline.yml"; then
+            SERVICES='["storefront-api","order-service","inventory-service","payment-service","notification-service"]'
+          fi
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Building: $SERVICES"
+
+  # ─── SAST: SonarCloud Static Analysis ──────────────────────────────────
+  sast-sonarcloud:
+    name: "SAST — SonarCloud"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for SonarCloud blame
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies for coverage
+        run: |
+          for svc in $(echo '${{ needs.detect-changes.outputs.services }}' | jq -r '.[]'); do
+            pip install -r apps/$svc/requirements.txt
+          done
+          pip install pytest pytest-cov pytest-asyncio httpx
+
+      - name: Run tests with coverage
+        run: |
+          for svc in $(echo '${{ needs.detect-changes.outputs.services }}' | jq -r '.[]'); do
+            cd apps/$svc
+            python -m pytest tests/ --cov=src --cov-report=xml:coverage.xml \
+              --junitxml=test-results.xml -v || true
+            cd ../..
+          done
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ env.SONAR_ORG }}
+            -Dsonar.projectKey=eks-retail-platform
+            -Dsonar.sources=apps/
+            -Dsonar.tests=apps/
+            -Dsonar.test.inclusions=**/tests/**
+            -Dsonar.python.coverage.reportPaths=apps/*/coverage.xml
+            -Dsonar.qualitygate.wait=true
+
+  # ─── SCA: Software Composition Analysis ────────────────────────────────
+  sca-dependency-scan:
+    name: "SCA — ${{ matrix.service }}"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # OWASP Dependency-Check
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "${{ matrix.service }}"
+          path: "apps/${{ matrix.service }}"
+          format: "HTML,SARIF"
+          args: >
+            --enableExperimental
+            --failOnCVSS 7
+
+      - name: Upload OWASP SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/dependency-check-report.sarif
+          category: "sca-owasp-${{ matrix.service }}"
+
+      # Python Safety — scan for known vulnerabilities in dependencies
+      - name: Install Safety
+        run: pip install safety
+
+      - name: Safety Dependency Scan
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          safety check -r requirements.txt \
+            --output json > safety-report.json || true
+          echo "## Safety Report for ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          safety check -r requirements.txt --output text >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Upload Safety Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-report-${{ matrix.service }}
+          path: apps/${{ matrix.service }}/safety-report.json
+
+      # pip-audit — alternative SCA scanner
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: pip-audit Scan
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          pip-audit -r requirements.txt --format=json --output=pip-audit.json || true
+
+      - name: Upload pip-audit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-${{ matrix.service }}
+          path: apps/${{ matrix.service }}/pip-audit.json
+
+  # ─── Unit Tests ─────────────────────────────────────────────────────────
+  test:
+    name: "Test ${{ matrix.service }}"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        working-directory: apps/${{ matrix.service }}
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx pytest-cov
+
+      - name: Run Tests with Coverage
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --cov=src --cov-report=xml:coverage.xml \
+            --junitxml=test-results.xml || true
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: |
+            apps/${{ matrix.service }}/test-results.xml
+            apps/${{ matrix.service }}/coverage.xml
+
+  # ─── Build & Scan (Container) ──────────────────────────────────────────
+  build:
+    name: "Build ${{ matrix.service }}"
+    needs: [detect-changes, test, sast-sonarcloud, sca-dependency-scan]
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="${{ github.sha }}"
+          echo "tag=${TAG:0:8}" >> $GITHUB_OUTPUT
+          echo "registry=${{ steps.ecr-login.outputs.registry }}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          docker build \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t ${{ steps.tag.outputs.registry }}/eks-retail/${{ matrix.service }}:${{ steps.tag.outputs.tag }} \
+            -t ${{ steps.tag.outputs.registry }}/eks-retail/${{ matrix.service }}:latest .
+
+      # PCI-DSS 6.6: Container vulnerability scanning
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: "${{ steps.tag.outputs.registry }}/eks-retail/${{ matrix.service }}:${{ steps.tag.outputs.tag }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: "trivy-${{ matrix.service }}"
+
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ steps.tag.outputs.registry }}/eks-retail/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          docker push ${{ steps.tag.outputs.registry }}/eks-retail/${{ matrix.service }}:latest
+
+  # ─── Deploy (Update K8s manifests for ArgoCD) ──────────────────────────
+  deploy:
+    name: "Deploy ${{ matrix.service }}"
+    needs: [detect-changes, build]
+    if: github.ref == 'refs/heads/main' && needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # DORA: Create GitHub Deployment (tracks deployment frequency)
+      - name: Create GitHub Deployment
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'dev',
+              description: `Deploy ${{ matrix.service }}`,
+              auto_merge: false,
+              required_contexts: [],
+              payload: {
+                service: '${{ matrix.service }}',
+                image_tag: '${{ github.sha }}'.substring(0, 8)
+              }
+            });
+            core.setOutput('deployment_id', deployment.data.id);
+
+      - name: Update K8s Manifest
+        run: |
+          TAG="${{ github.sha }}"
+          TAG="${TAG:0:8}"
+          REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          NS="retail-apps"
+          if [ "${{ matrix.service }}" = "payment-service" ]; then NS="payment"; fi
+          sed -i "s|image: .*eks-retail/${{ matrix.service }}:.*|image: ${REGISTRY}/eks-retail/${{ matrix.service }}:${TAG}|g" \
+            kubernetes/apps/${{ matrix.service }}/deployment.yaml
+
+      - name: Commit & Push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add kubernetes/apps/${{ matrix.service }}/deployment.yaml
+          git diff --staged --quiet || \
+            git commit -m "deploy(${{ matrix.service }}): update image to ${{ github.sha }}" && \
+            git push
+
+      # DORA: Mark deployment as successful
+      - name: Update Deployment Status (Success)
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'success',
+              description: '${{ matrix.service }} deployed successfully',
+              environment_url: 'https://retail.example.com'
+            });
+
+      # DORA: Mark deployment as failed
+      - name: Update Deployment Status (Failure)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'failure',
+              description: '${{ matrix.service }} deployment failed'
+            });
+
+  # ─── DORA Metrics Collection ───────────────────────────────────────────
+  dora-metrics:
+    name: "DORA Metrics"
+    needs: [detect-changes, deploy]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculate DORA Metrics
+        id: dora
+        env:
+          DEPLOY_START: ${{ needs.detect-changes.outputs.deploy_start }}
+        run: |
+          DEPLOY_END=$(date +%s)
+          # ─── Lead Time for Changes (commit → deploy) ───────────────
+          LEAD_TIME=$((DEPLOY_END - DEPLOY_START))
+          LEAD_TIME_MIN=$((LEAD_TIME / 60))
+          echo "lead_time_seconds=$LEAD_TIME" >> $GITHUB_OUTPUT
+          echo "lead_time_minutes=$LEAD_TIME_MIN" >> $GITHUB_OUTPUT
+
+          # ─── Deployment Frequency ──────────────────────────────────
+          # Count deployments in last 7 days
+          DEPLOY_COUNT=$(gh api repos/${{ github.repository }}/deployments \
+            --jq "[.[] | select(.created_at > \"$(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ)\")] | length" 2>/dev/null || echo "N/A")
+          echo "deploy_count_7d=$DEPLOY_COUNT" >> $GITHUB_OUTPUT
+
+          # ─── Change Failure Rate ───────────────────────────────────
+          TOTAL_DEPLOYS=$(gh api repos/${{ github.repository }}/deployments \
+            --jq 'length' 2>/dev/null || echo "0")
+          FAILED_DEPLOYS=$(gh api repos/${{ github.repository }}/deployments \
+            --jq '[.[] | select(.payload.status == "failure")] | length' 2>/dev/null || echo "0")
+          if [ "$TOTAL_DEPLOYS" -gt 0 ]; then
+            CFR=$(echo "scale=2; $FAILED_DEPLOYS * 100 / $TOTAL_DEPLOYS" | bc 2>/dev/null || echo "N/A")
+          else
+            CFR="N/A"
+          fi
+          echo "change_failure_rate=$CFR" >> $GITHUB_OUTPUT
+
+          echo "## 📊 DORA Metrics Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Elite Target |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Lead Time for Changes** | ${LEAD_TIME_MIN} min | < 60 min |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployment Frequency** | ${DEPLOY_COUNT}/week | Multiple/day |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Change Failure Rate** | ${CFR}% | < 15% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Services Deployed** | ${{ needs.detect-changes.outputs.services }} | — |" >> $GITHUB_STEP_SUMMARY
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish DORA metrics to CloudWatch for dashboarding
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Publish DORA to CloudWatch
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "EKSRetail/DORA" \
+            --metric-data '[
+              {"MetricName": "LeadTimeSeconds", "Value": ${{ steps.dora.outputs.lead_time_seconds }}, "Unit": "Seconds"},
+              {"MetricName": "DeploymentFrequency7d", "Value": ${{ steps.dora.outputs.deploy_count_7d || 0 }}, "Unit": "Count"}
+            ]' 2>/dev/null || echo "CloudWatch publish skipped"

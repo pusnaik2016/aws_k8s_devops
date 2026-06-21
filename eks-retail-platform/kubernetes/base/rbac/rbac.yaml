@@ -1,0 +1,115 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# RBAC — Least-Privilege Service Accounts & Roles
+# ─────────────────────────────────────────────────────────────────────────────
+# PCI-DSS Req 7: Restrict access by business need-to-know
+# SOC2 CC6.3: Logical access controls
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Service Accounts for each microservice
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: storefront-api
+  namespace: retail-apps
+  annotations:
+    eks.amazonaws.com/role-arn: "" # Set via Terraform output
+  labels:
+    app: storefront-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: order-service
+  namespace: retail-apps
+  annotations:
+    eks.amazonaws.com/role-arn: "" # IRSA for SQS access
+  labels:
+    app: order-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-service
+  namespace: retail-apps
+  labels:
+    app: inventory-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-service
+  namespace: payment
+  labels:
+    app: payment-service
+    compliance: pci-dss
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service
+  namespace: retail-apps
+  annotations:
+    eks.amazonaws.com/role-arn: "" # IRSA for SQS/SES access
+  labels:
+    app: notification-service
+---
+# ClusterRole for read-only monitoring (devs)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: retail-platform-viewer
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["keda.sh"]
+    resources: ["scaledobjects", "triggerauthentications"]
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRole for platform team (manage deployments, not RBAC)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: retail-platform-admin
+rules:
+  - apiGroups: ["", "apps", "autoscaling", "batch", "networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["keda.sh"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["karpenter.sh", "karpenter.k8s.aws"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: retail-platform-viewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-platform-viewer
+subjects:
+  - kind: Group
+    name: retail-developers
+    apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: retail-platform-admin-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-platform-admin
+subjects:
+  - kind: Group
+    name: platform-team
+    apiGroup: rbac.authorization.k8s.io
