@@ -1,0 +1,50 @@
+# ==============================================================================
+# Kubernetes Ingress — ALB Integration for Netflix Clone
+# ==============================================================================
+# AWS ALB Ingress Controller creates an internet-facing ALB in public subnets
+# and forwards HTTPS traffic to Netflix Clone pods in private subnets.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netflix-clone-ingress
+  namespace: netflix-clone
+  labels:
+    app: netflix-clone
+    managed-by: argocd
+  annotations:
+    kubernetes.io/ingress.class: alb
+
+    # ALB scheme — internet-facing
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # Target type — pod IPs directly
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # Listen on HTTPS (port 443)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+
+    # Health check configuration — Nginx /healthz endpoint
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-port: "80"
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+
+    # Tags for the ALB
+    alb.ingress.kubernetes.io/tags: "Project=netflix-devsecops,ManagedBy=argocd"
+
+    # Group name — share ALB across Ingress resources
+    alb.ingress.kubernetes.io/group.name: netflix-clone
+
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netflix-clone
+                port:
+                  number: 80

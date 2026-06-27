@@ -1,0 +1,11 @@
+# ==============================================================================
+# Kubernetes Namespace — Netflix Clone Application
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netflix-clone
+  labels:
+    app: netflix-clone
+    managed-by: argocd
+    project: netflix-devsecops

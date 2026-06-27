@@ -1,0 +1,48 @@
+# ==============================================================================
+# Example Terraform Variable Values — Netflix Clone DevSecOps
+# ==============================================================================
+# Copy to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+# ==============================================================================
+
+aws_region   = "us-east-1"
+project_name = "netflix-devsecops"
+
+# --- SSH Access ---
+key_pair_name    = "devsecops-key"
+allowed_ssh_cidr = "0.0.0.0/0"        # 🚨 Restrict to your IP: "YOUR_IP/32"
+
+# --- Networking (Multi-AZ) ---
+vpc_cidr             = "10.0.0.0/16"
+availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+private_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+single_nat_gateway   = true            # true = ~$32/mo, false = ~$96/mo (HA)
+
+# --- EKS (Private Cluster) ---
+eks_cluster_version    = "1.29"
+eks_node_instance_type = "t3.medium"   # 2 vCPU, 4GB RAM
+eks_node_min_size      = 2
+eks_node_desired_size  = 2
+eks_node_max_size      = 4
+
+# --- Bastion Host ---
+bastion_instance_type = "t3.micro"     # ~$8/month (stop when not in use)
+
+# --- GitHub OIDC ---
+github_org  = "your-github-org"        # GitHub org or username
+github_repo = "netflix-clone-devsecops" # GitHub repository name
+
+# --- Domain & DNS ---
+domain_name         = "example.com"    # Replace with your domain
+create_route53_zone = true
+
+# --- WAF ---
+waf_rate_limit = 2000                  # Requests per 5-min per IP
+
+# --- Application ---
+app_name = "netflix-clone"
+
+# --- Compliance & Security Monitoring ---
+security_alert_email      = ""         # e.g. "security-team@example.com"
+waf_block_alarm_threshold = 100

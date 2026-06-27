@@ -1,0 +1,49 @@
+# ==============================================================================
+# ArgoCD Application — Netflix Clone GitOps Configuration
+# ==============================================================================
+# ArgoCD monitors the Git manifest repository for changes. When the GitHub
+# Actions CD workflow updates deployment.yaml with a new image tag, ArgoCD
+# auto-syncs the cluster.
+#
+# Apply with: kubectl apply -f application.yaml -n argocd
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: netflix-clone
+  namespace: argocd
+  labels:
+    project: netflix-devsecops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Source Repository — K8s manifests location
+  source:
+    repoURL: https://github.com/your-org/netflix-clone-k8s-manifests.git
+    targetRevision: main
+    path: k8s-manifests
+
+  # Destination — target cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: netflix-clone
+
+  # Sync Policy — automated with self-heal and prune
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+      - ApplyOutOfSyncOnly=true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

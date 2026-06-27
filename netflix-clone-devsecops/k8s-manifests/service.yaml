@@ -1,0 +1,24 @@
+# ==============================================================================
+# Kubernetes Service — Netflix Clone (EKS Production)
+# ==============================================================================
+# ClusterIP service for internal routing. ALB handles external access.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netflix-clone
+  namespace: netflix-clone
+  labels:
+    app: netflix-clone
+    managed-by: argocd
+spec:
+  type: ClusterIP
+
+  selector:
+    app: netflix-clone
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP

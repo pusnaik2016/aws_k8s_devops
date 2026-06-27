@@ -1,0 +1,119 @@
+# ==============================================================================
+# Kubernetes Deployment — Netflix Clone (EKS Production)
+# ==============================================================================
+# Production features:
+#   - ECR image reference (private registry via VPC Endpoint)
+#   - Rolling update strategy for zero-downtime deployments
+#   - topologySpreadConstraints for multi-AZ pod distribution
+#   - Liveness/readiness probes on /healthz (Nginx endpoint)
+#   - Resource limits and requests for QoS
+#   - Security context (non-root nginx user, no privilege escalation)
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netflix-clone
+  namespace: netflix-clone
+  labels:
+    app: netflix-clone
+    version: v1
+    managed-by: argocd
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: netflix-clone
+
+  # Zero-downtime rolling update strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: netflix-clone
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/healthz"
+    spec:
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 101
+
+      # -----------------------------------------------------------------------
+      # Topology Spread Constraints — Distribute pods across AZs
+      # -----------------------------------------------------------------------
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: netflix-clone
+
+      containers:
+        - name: netflix-clone
+          # ===================================================================
+          # Container Image — ECR reference
+          # ===================================================================
+          # Updated by GitHub Actions CD workflow via sed.
+          # Format: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>
+          # ===================================================================
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/netflix-devsecops/netflix-clone:latest
+
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 80
+              protocol: TCP
+              name: http
+
+          # Liveness probe — restart pod if unhealthy
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe — remove from service if not ready
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Resource limits for scheduling and QoS
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+
+          env:
+            - name: APP_ENVIRONMENT
+              value: "production"
+
+          # Container-level security context (nginx user = UID 101)
+          securityContext:
+            runAsUser: 101
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always

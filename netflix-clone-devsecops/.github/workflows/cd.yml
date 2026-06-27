@@ -1,0 +1,216 @@
+# ==============================================================================
+# GitHub Actions — CD Pipeline (Continuous Delivery via GitOps)
+# ==============================================================================
+# Triggered by the CI pipeline after a successful image push to ECR.
+# Implements the GitOps deployment pattern:
+#
+#   1. Checkout the Kubernetes manifest repository
+#   2. Update deployment.yaml with the new ECR image tag
+#   3. Commit and push the change to GitHub
+#   4. ArgoCD auto-detects the Git change and deploys to EKS
+#
+# GitOps Principle:
+#   This pipeline does NOT run kubectl. It only changes Git state.
+#   ArgoCD (running inside EKS) is the only actor that touches the cluster.
+#
+# Required GitHub Secrets:
+#   AWS_ACCOUNT_ID       — AWS account ID for ECR image URL
+#   MANIFEST_REPO_TOKEN  — PAT with write access to the manifest repository
+# ==============================================================================
+
+name: CD Pipeline — GitOps Deploy
+
+# =============================================================================
+# Trigger: Dispatched by CI pipeline or manually from GitHub UI
+# =============================================================================
+on:
+  repository_dispatch:
+    types: [deploy]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (commit SHA)'
+        required: true
+        default: 'latest'
+
+# =============================================================================
+# Permissions
+# =============================================================================
+permissions:
+  contents: write      # Required for committing manifest changes
+  deployments: read    # Required for DORA metrics
+
+# =============================================================================
+# Environment Variables
+# =============================================================================
+env:
+  MANIFEST_REPO: ${{ vars.MANIFEST_REPO || 'your-org/netflix-clone-k8s-manifests' }}
+  MANIFEST_BRANCH: 'main'
+  ECR_REPOSITORY: 'netflix-devsecops/netflix-clone'
+
+# =============================================================================
+# Jobs
+# =============================================================================
+jobs:
+
+  # ===========================================================================
+  # Job: Update Kubernetes Manifests
+  # ===========================================================================
+  update-manifest:
+    name: Update K8s Manifests → ArgoCD Sync
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # -----------------------------------------------------------------------
+      # Step 1: Determine the image tag
+      # -----------------------------------------------------------------------
+      - name: "🏷️ Determine image tag"
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.image_tag }}"
+          else
+            TAG="${{ github.event.inputs.image_tag }}"
+          fi
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Deploying image tag: ${TAG}"
+
+      # -----------------------------------------------------------------------
+      # Step 2: Checkout manifest repository
+      # -----------------------------------------------------------------------
+      - name: "🔄 Checkout manifest repository"
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MANIFEST_REPO }}
+          ref: ${{ env.MANIFEST_BRANCH }}
+          token: ${{ secrets.MANIFEST_REPO_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 3: Update deployment manifest with new ECR image tag
+      # -----------------------------------------------------------------------
+      - name: "✏️ Update deployment manifest"
+        run: |
+          ECR_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION || 'us-east-1' }}.amazonaws.com/${{ env.ECR_REPOSITORY }}"
+          NEW_TAG="${{ steps.tag.outputs.image_tag }}"
+
+          echo "📋 Current image reference:"
+          grep "image:" k8s-manifests/deployment.yaml || true
+
+          # Replace the image tag in deployment.yaml
+          sed -i "s|image: .*netflix-clone:.*|image: ${ECR_IMAGE}:${NEW_TAG}|g" k8s-manifests/deployment.yaml
+
+          echo ""
+          echo "✅ Updated image reference:"
+          grep "image:" k8s-manifests/deployment.yaml
+
+      # -----------------------------------------------------------------------
+      # Step 4: Commit and push manifest changes
+      # -----------------------------------------------------------------------
+      - name: "📤 Commit and push"
+        run: |
+          git config user.name "GitHub Actions CD"
+          git config user.email "github-actions-cd@devsecops.local"
+
+          git add k8s-manifests/deployment.yaml
+
+          # Check if there are actual changes to commit
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes detected — image tag already up to date"
+            exit 0
+          fi
+
+          TAG="${{ steps.tag.outputs.image_tag }}"
+          git commit -m "chore(deploy): update netflix-clone image to ${TAG} [skip ci]
+
+          Triggered by: ${{ github.event_name }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          git push origin ${{ env.MANIFEST_BRANCH }}
+
+      # -----------------------------------------------------------------------
+      # Step 5: Deployment notification
+      # -----------------------------------------------------------------------
+      - name: "🚀 Deployment notification"
+        run: |
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║  🚀 GitOps Deployment Initiated                            ║"
+          echo "║                                                              ║"
+          echo "║  Image Tag: ${{ steps.tag.outputs.image_tag }}               ║"
+          echo "║  Target:    netflix-clone namespace on Private EKS          ║"
+          echo "║  Method:    ArgoCD auto-sync (~3 min polling)               ║"
+          echo "║                                                              ║"
+          echo "║  Monitor:                                                    ║"
+          echo "║  → ArgoCD UI via ALB                                        ║"
+          echo "║  → kubectl get pods -n netflix-clone (from bastion)          ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+
+  # ============================================================================
+  # DORA Metrics — Track Deployment Frequency & Change Failure Rate
+  # ============================================================================
+  dora-deploy-track:
+    name: 📊 DORA - Record Deployment
+    needs: [update-manifest]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: read
+      contents: read
+    steps:
+      - name: Track deployment frequency and change failure rate
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const deployResult = '${{ needs.update-manifest.result }}';
+
+              const deployments = await github.rest.repos.listDeployments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                environment: 'production',
+                per_page: 30
+              });
+
+              const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+              const recentDeploys = deployments.data.filter(
+                d => new Date(d.created_at) > oneWeekAgo
+              );
+
+              let failures = 0;
+              for (const dep of recentDeploys) {
+                const statuses = await github.rest.repos.listDeploymentStatuses({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: dep.id,
+                  per_page: 1
+                });
+                if (statuses.data.length > 0 && statuses.data[0].state === 'failure') {
+                  failures++;
+                }
+              }
+
+              const frequency = recentDeploys.length;
+              const changeFailureRate = frequency > 0
+                ? ((failures / frequency) * 100).toFixed(1)
+                : '0.0';
+
+              core.summary
+                .addHeading('📊 DORA Metrics Summary', 3)
+                .addTable([
+                  [{data: 'Metric', header: true}, {data: 'Value', header: true}],
+                  ['Deployment Frequency (7d)', `${frequency} deployments`],
+                  ['Change Failure Rate (7d)', `${changeFailureRate}%`],
+                  ['Current Deploy', deployResult === 'success' ? '✅ SUCCESS' : '❌ FAILURE']
+                ])
+                .write();
+
+              console.log(`📊 ===== DORA METRICS SUMMARY =====`);
+              console.log(`📊 Deployment Frequency (7d): ${frequency} deployments`);
+              console.log(`📊 Change Failure Rate (7d): ${changeFailureRate}%`);
+              console.log(`📊 Current Deploy: ${deployResult.toUpperCase()}`);
+              console.log(`📊 ==================================`);
+            } catch (error) {
+              core.warning(`DORA metrics tracking failed: ${error.message}`);
+            }

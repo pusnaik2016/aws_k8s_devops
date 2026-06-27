@@ -1,0 +1,150 @@
+# ==============================================================================
+# DORA Metrics Report — Weekly Performance Summary
+# ==============================================================================
+# Generates a weekly DORA (DevOps Research and Assessment) metrics report
+# tracking the four key metrics:
+#   1. Deployment Frequency
+#   2. Lead Time for Changes
+#   3. Change Failure Rate
+#   4. Mean Time to Recovery (MTTR)
+# ==============================================================================
+name: "📊 DORA Metrics Report"
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 8AM UTC
+  workflow_dispatch:
+
+permissions:
+  deployments: read
+  contents: read
+  issues: write
+
+jobs:
+  dora-report:
+    name: Generate DORA Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate DORA metrics report
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const now = new Date();
+            const oneWeekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            const oneMonthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+            // Get recent deployments
+            const deployments = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: 'production',
+              per_page: 100
+            });
+
+            const weeklyDeploys = deployments.data.filter(
+              d => new Date(d.created_at) > oneWeekAgo
+            );
+            const monthlyDeploys = deployments.data.filter(
+              d => new Date(d.created_at) > oneMonthAgo
+            );
+
+            // Calculate change failure rate
+            let weeklyFailures = 0;
+            let monthlyFailures = 0;
+            for (const dep of monthlyDeploys) {
+              const statuses = await github.rest.repos.listDeploymentStatuses({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: dep.id,
+                per_page: 1
+              });
+              if (statuses.data.length > 0 && statuses.data[0].state === 'failure') {
+                monthlyFailures++;
+                if (new Date(dep.created_at) > oneWeekAgo) weeklyFailures++;
+              }
+            }
+
+            // Calculate lead times
+            let totalLeadTime = 0;
+            let leadTimeCount = 0;
+            for (const dep of weeklyDeploys.slice(0, 10)) {
+              try {
+                const commit = await github.rest.repos.getCommit({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: dep.sha
+                });
+                const commitTime = new Date(commit.data.commit.committer.date);
+                const deployTime = new Date(dep.created_at);
+                totalLeadTime += (deployTime - commitTime) / 60000;
+                leadTimeCount++;
+              } catch (e) { /* skip */ }
+            }
+
+            const avgLeadTime = leadTimeCount > 0
+              ? Math.round(totalLeadTime / leadTimeCount)
+              : 'N/A';
+            const weeklyFailureRate = weeklyDeploys.length > 0
+              ? ((weeklyFailures / weeklyDeploys.length) * 100).toFixed(1)
+              : '0.0';
+            const monthlyFailureRate = monthlyDeploys.length > 0
+              ? ((monthlyFailures / monthlyDeploys.length) * 100).toFixed(1)
+              : '0.0';
+
+            const classify = (metric, value) => {
+              if (metric === 'frequency') {
+                if (value >= 7) return '🟢 Elite (daily+)';
+                if (value >= 1) return '🟡 High (weekly)';
+                return '🔴 Low';
+              }
+              if (metric === 'leadTime') {
+                if (value !== 'N/A' && value < 60) return '🟢 Elite (<1hr)';
+                if (value !== 'N/A' && value < 1440) return '🟡 High (<1day)';
+                return '🔴 Low';
+              }
+              if (metric === 'failureRate') {
+                if (parseFloat(value) < 15) return '🟢 Elite (<15%)';
+                if (parseFloat(value) < 30) return '🟡 Medium';
+                return '🔴 High (>30%)';
+              }
+              return '⚪ Unknown';
+            };
+
+            const body = `## 📊 DORA Metrics Report — Week of ${now.toISOString().split('T')[0]}
+
+            ### Key Metrics
+
+            | Metric | Value | Classification |
+            |:-------|:------|:---------------|
+            | **Deployment Frequency** (7d) | ${weeklyDeploys.length} deploys | ${classify('frequency', weeklyDeploys.length)} |
+            | **Deployment Frequency** (30d) | ${monthlyDeploys.length} deploys | — |
+            | **Lead Time for Changes** (avg) | ${avgLeadTime} min | ${classify('leadTime', avgLeadTime)} |
+            | **Change Failure Rate** (7d) | ${weeklyFailureRate}% | ${classify('failureRate', weeklyFailureRate)} |
+            | **Change Failure Rate** (30d) | ${monthlyFailureRate}% | ${classify('failureRate', monthlyFailureRate)} |
+
+            ### DORA Performance Levels
+
+            | Level | Deploy Frequency | Lead Time | Change Failure Rate | MTTR |
+            |:------|:----------------|:----------|:-------------------|:-----|
+            | 🟢 Elite | Multiple/day | <1 hour | <15% | <1 hour |
+            | 🟡 High | Weekly-Monthly | 1 day-1 week | 16-30% | <1 day |
+            | 🟠 Medium | Monthly-6 months | 1-6 months | 16-30% | <1 week |
+            | 🔴 Low | >6 months | >6 months | >30% | >6 months |
+
+            ---
+            > 🔄 Auto-generated weekly by DORA report workflow | Run ID: \`${{ github.run_id }}\`
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 DORA Report — ${now.toISOString().split('T')[0]}`,
+              body: body,
+              labels: ['dora-metrics', 'automated']
+            });
+
+            core.summary
+              .addHeading('📊 DORA Weekly Report Generated', 3)
+              .addRaw(`Report created as GitHub Issue`)
+              .write();

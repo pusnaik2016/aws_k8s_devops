@@ -1,0 +1,420 @@
+/* ==============================================================================
+   Netflix Clone — Dark Theme Styles
+   ==============================================================================
+   Netflix-inspired dark theme with red accent color. Uses the Inter font
+   loaded from Google Fonts in index.html.
+   ============================================================================== */
+
+/* --- CSS Variables (Design Tokens) --- */
+:root {
+  --netflix-red: #e50914;
+  --netflix-red-hover: #f40612;
+  --netflix-black: #111111;
+  --netflix-dark: #141414;
+  --netflix-gray: #808080;
+  --netflix-light-gray: #b3b3b3;
+  --netflix-white: #e5e5e5;
+  --gradient-fade: linear-gradient(
+    180deg,
+    transparent,
+    rgba(37, 37, 37, 0.61),
+    #111
+  );
+  --font-primary: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* --- Reset & Base --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--netflix-black);
+  color: var(--netflix-white);
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==============================================================================
+   Navigation Bar
+   ============================================================================== */
+.nav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  padding: 20px 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: var(--transition-smooth);
+}
+
+.nav__black {
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+.nav__logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--netflix-red);
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  list-style: none;
+}
+
+.nav__link {
+  color: var(--netflix-light-gray);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.nav__link:hover {
+  color: #fff;
+}
+
+.nav__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--netflix-red), #b20710);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* ==============================================================================
+   Banner (Hero Section)
+   ============================================================================== */
+.banner {
+  position: relative;
+  color: #fff;
+  height: 80vh;
+  min-height: 500px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 36px 120px;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.banner::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: var(--gradient-fade);
+  pointer-events: none;
+}
+
+.banner__contents {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+}
+
+.banner__title {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+  text-shadow: 2px 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+.banner__description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--netflix-light-gray);
+  max-width: 480px;
+  margin-bottom: 24px;
+  text-shadow: 1px 2px 4px rgba(0, 0, 0, 0.5);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.banner__buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.banner__button {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--font-primary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.banner__button--play {
+  background: #fff;
+  color: #000;
+}
+
+.banner__button--play:hover {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.banner__button--info {
+  background: rgba(109, 109, 110, 0.7);
+  color: #fff;
+}
+
+.banner__button--info:hover {
+  background: rgba(109, 109, 110, 0.4);
+}
+
+.banner--fadeBottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: var(--gradient-fade);
+}
+
+/* ==============================================================================
+   Movie Rows
+   ============================================================================== */
+.app__rows {
+  margin-top: -80px;
+  position: relative;
+  z-index: 2;
+}
+
+.row {
+  margin-bottom: 28px;
+  padding: 0 36px;
+}
+
+.row__title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+
+.row__posters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 20px 0;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.row__posters::-webkit-scrollbar {
+  display: none;
+}
+
+.row__poster {
+  max-height: 150px;
+  width: auto;
+  border-radius: 4px;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    box-shadow 0.35s ease;
+  flex-shrink: 0;
+}
+
+.row__poster:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.row__posterLarge {
+  max-height: 280px;
+  border-radius: 6px;
+}
+
+.row__posterLarge:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+}
+
+/* YouTube Trailer Embed */
+.row__trailer {
+  padding: 20px 36px 0;
+}
+
+.row__trailer iframe {
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ==============================================================================
+   Footer
+   ============================================================================== */
+.app__footer {
+  margin-top: auto;
+  padding: 40px 36px;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app__footer p {
+  color: var(--netflix-gray);
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+
+.app__footer-highlight {
+  color: var(--netflix-red);
+  font-weight: 600;
+}
+
+.app__footer-sub {
+  font-size: 0.75rem;
+  color: var(--netflix-gray);
+  opacity: 0.7;
+}
+
+/* ==============================================================================
+   Loading State
+   ============================================================================== */
+.row__loading {
+  display: flex;
+  gap: 8px;
+  padding: 20px 0;
+}
+
+.row__loading-card {
+  width: 166px;
+  height: 100px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.row__loading-card--large {
+  width: 166px;
+  height: 280px;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ==============================================================================
+   Responsive Design
+   ============================================================================== */
+@media (max-width: 768px) {
+  .nav {
+    padding: 15px 20px;
+  }
+
+  .nav__logo {
+    font-size: 1.4rem;
+  }
+
+  .nav__links {
+    gap: 16px;
+  }
+
+  .nav__link {
+    font-size: 0.8rem;
+  }
+
+  .banner {
+    height: 60vh;
+    min-height: 400px;
+    padding: 0 20px 80px;
+  }
+
+  .banner__title {
+    font-size: 2rem;
+  }
+
+  .banner__description {
+    font-size: 0.9rem;
+  }
+
+  .row {
+    padding: 0 20px;
+  }
+
+  .row__title {
+    font-size: 1.1rem;
+  }
+
+  .row__poster {
+    max-height: 120px;
+  }
+
+  .row__posterLarge {
+    max-height: 220px;
+  }
+
+  .app__footer {
+    padding: 30px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .banner__title {
+    font-size: 1.5rem;
+  }
+
+  .banner__buttons {
+    flex-direction: column;
+  }
+
+  .banner__button {
+    justify-content: center;
+  }
+}
