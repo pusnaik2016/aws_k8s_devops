@@ -1,0 +1,23 @@
+{
+  "type": "struct",
+  "fields": [
+    {"name": "event_id", "type": "string", "nullable": false},
+    {"name": "event_type", "type": "string", "nullable": true},
+    {"name": "event_timestamp", "type": "string", "nullable": true},
+    {"name": "customer_id", "type": "string", "nullable": true},
+    {"name": "ssn", "type": "string", "nullable": true, "metadata": {"pii": true, "tokenized": true}},
+    {"name": "email", "type": "string", "nullable": true, "metadata": {"pii": true, "tokenized": true}},
+    {"name": "credit_card_number", "type": "string", "nullable": true, "metadata": {"pci": true, "tokenized": true}},
+    {"name": "phone_number", "type": "string", "nullable": true, "metadata": {"pii": true, "tokenized": true}},
+    {"name": "patient_id", "type": "string", "nullable": true, "metadata": {"hipaa": true, "tokenized": true}},
+    {"name": "mrn", "type": "string", "nullable": true, "metadata": {"hipaa": true, "tokenized": true}},
+    {"name": "amount", "type": "double", "nullable": true},
+    {"name": "currency", "type": "string", "nullable": true},
+    {"name": "status", "type": "string", "nullable": true},
+    {"name": "_ingestion_timestamp", "type": "timestamp", "nullable": false},
+    {"name": "_source_file", "type": "string", "nullable": true},
+    {"name": "_medallion_layer", "type": "string", "nullable": false},
+    {"name": "_transformation_timestamp", "type": "timestamp", "nullable": false},
+    {"name": "_record_hash", "type": "string", "nullable": false}
+  ]
+}

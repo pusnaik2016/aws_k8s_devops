@@ -1,0 +1,11 @@
+{
+  "type": "struct",
+  "fields": [
+    {"name": "date", "type": "date", "nullable": false},
+    {"name": "record_count", "type": "long", "nullable": false},
+    {"name": "source_file_count", "type": "long", "nullable": true},
+    {"name": "unique_records", "type": "long", "nullable": true},
+    {"name": "_medallion_layer", "type": "string", "nullable": false},
+    {"name": "_aggregation_timestamp", "type": "timestamp", "nullable": false}
+  ]
+}

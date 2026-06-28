@@ -1,0 +1,108 @@
+# =============================================================================
+# Databricks Asset Bundle — Medallion Security Pipeline
+# =============================================================================
+# Multi-cloud deployment manifest for Active-Passive Pilot Light
+# AWS Primary → Active, Azure DR → Passive (paused schedules)
+# =============================================================================
+
+bundle:
+  name: medallion-security-pipeline
+
+# =============================================================================
+# Central Asset Declarations
+# =============================================================================
+resources:
+  jobs:
+    medallion_etl_orchestration:
+      name: "Medallion_Secure_ETL"
+      description: "Production medallion pipeline — Bronze → Silver → Gold with PII tokenization"
+      max_concurrent_runs: 1
+      email_notifications:
+        on_failure:
+          - platform-alerts@company.com
+      tags:
+        compliance: "hipaa-soc2-pci"
+        pipeline: "medallion-etl"
+
+      schedule:
+        quartz_cron_expression: "0 0 */2 * * ?"  # Every 2 hours
+        timezone_id: "UTC"
+
+      tasks:
+        # Task 1: Bronze Ingestion (Raw → Bronze)
+        - task_key: "Ingest_Bronze_Landing"
+          existing_cluster_id: ${var.pyspark_cluster_id}
+          notebook_task:
+            notebook_path: ./src/bronze_ingestion.py
+            base_parameters:
+              storage_path: ${var.storage_path_prefix}
+              secret_scope: ${var.secret_scope}
+          timeout_seconds: 3600
+
+        # Task 2: Silver Transformation (Bronze → Silver with PII tokenization)
+        - task_key: "Process_Silver_Cleanse"
+          depends_on:
+            - task_key: "Ingest_Bronze_Landing"
+          existing_cluster_id: ${var.pyspark_cluster_id}
+          notebook_task:
+            notebook_path: ./src/silver_transformation.py
+            base_parameters:
+              storage_path: ${var.storage_path_prefix}
+              secret_scope: ${var.secret_scope}
+          timeout_seconds: 7200
+
+        # Task 3: Gold Aggregation (Silver → Gold)
+        - task_key: "Aggregate_Gold_Analytics"
+          depends_on:
+            - task_key: "Process_Silver_Cleanse"
+          existing_cluster_id: ${var.pyspark_cluster_id}
+          notebook_task:
+            notebook_path: ./src/gold_aggregation.py
+            base_parameters:
+              storage_path: ${var.storage_path_prefix}
+              secret_scope: ${var.secret_scope}
+          timeout_seconds: 3600
+
+# =============================================================================
+# Compliance Isolation Profiles — Environment Targets
+# =============================================================================
+targets:
+  # -------------------------------------------------------------------------
+  # Primary Secure AWS Workflow (ACTIVE)
+  # -------------------------------------------------------------------------
+  aws_production:
+    mode: production
+    workspace:
+      host: https://aws-prod.cloud.databricks.com
+    variables:
+      pyspark_cluster_id: "aws-prod-cluster-id"
+      secret_scope: "aws-sm-scope"
+      storage_path_prefix: "s3://medallion-platform-production"
+
+    # Override schedule to run actively
+    resources:
+      jobs:
+        medallion_etl_orchestration:
+          schedule:
+            pause_status: UNPAUSED
+
+  # -------------------------------------------------------------------------
+  # Disaster Recovery Passive Azure Workflow (STANDBY)
+  # -------------------------------------------------------------------------
+  azure_dr_standby:
+    mode: production
+    workspace:
+      host: https://azure-dr.azuredatabricks.net
+    variables:
+      pyspark_cluster_id: "azure-dr-cluster-id"
+      secret_scope: "azure-kv-scope"
+      storage_path_prefix: "abfss://bronze@medallionplatformdrstandbydl.dfs.core.windows.net"
+
+    # PILOT LIGHT: Schedule paused — activated only during DR failover
+    resources:
+      jobs:
+        medallion_etl_orchestration:
+          schedule:
+            pause_status: PAUSED
+          tags:
+            dr_status: "standby"
