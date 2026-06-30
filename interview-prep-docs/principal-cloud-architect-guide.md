@@ -1,27 +1,27 @@
 # The Principal Cloud Architect — Comprehensive Role Guide
 
-> **Role Level**: Principal / Staff-Level Individual Contributor (IC5–IC7)  
-> **Reporting Line**: CTO, VP Engineering, or Chief Architect  
-> **Scope**: Enterprise-wide technology strategy, customer-facing technical leadership  
+> **Role Level**: Principal / Staff-Level Individual Contributor (IC5–IC7)
+> **Reporting Line**: CTO, VP Engineering, or Chief Architect
+> **Scope**: Enterprise-wide technology strategy, customer-facing technical leadership
 > **Influence**: Organization-wide — spans engineering, delivery, sales, and executive leadership
 
 ---
 
 ## Table of Contents
 
-1. [Role Identity & Positioning](#1-role-identity--positioning)
+1. [Role Identity &amp; Positioning](#1-role-identity--positioning)
 2. [Daily Responsibilities](#2-daily-responsibilities)
 3. [Technical Responsibilities](#3-technical-responsibilities)
 4. [Working with Customers](#4-working-with-customers)
-5. [Working with Peers (Fellow Architects & Engineers)](#5-working-with-peers)
-6. [Working with Senior Delivery & Program Management](#6-working-with-senior-delivery--program-management)
+5. [Working with Peers (Fellow Architects &amp; Engineers)](#5-working-with-peers)
+6. [Working with Senior Delivery &amp; Program Management](#6-working-with-senior-delivery--program-management)
 7. [Working with the CTO](#7-working-with-the-cto)
-8. [Working with Directors & VPs](#8-working-with-directors--vps)
-9. [Professional Decorum & Executive Presence](#9-professional-decorum--executive-presence)
+8. [Working with Directors &amp; VPs](#8-working-with-directors--vps)
+9. [Professional Decorum &amp; Executive Presence](#9-professional-decorum--executive-presence)
 10. [Architecture Governance](#10-architecture-governance)
-11. [Thought Leadership & Industry Presence](#11-thought-leadership--industry-presence)
+11. [Thought Leadership &amp; Industry Presence](#11-thought-leadership--industry-presence)
 12. [Anti-Patterns to Avoid](#12-anti-patterns-to-avoid)
-13. [Performance Metrics & Success Indicators](#13-performance-metrics--success-indicators)
+13. [Performance Metrics &amp; Success Indicators](#13-performance-metrics--success-indicators)
 14. [Career Growth Beyond Principal](#14-career-growth-beyond-principal)
 
 ---
@@ -30,13 +30,13 @@
 
 ### What a Principal Cloud Architect IS
 
-| Dimension | Description |
-|-----------|-------------|
-| **Technical Authority** | The final escalation point for cloud architecture decisions across the organization |
-| **Strategic Advisor** | Translates business objectives into technology strategy and multi-year roadmaps |
-| **Trusted Advisor** | The person customers, executives, and engineering teams trust to make the right call |
-| **Force Multiplier** | Makes entire teams more effective through architectural guidance, patterns, and standards |
-| **Bridge Builder** | Connects customer needs ↔ engineering capability ↔ business outcomes |
+| Dimension                     | Description                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------- |
+| **Technical Authority** | The final escalation point for cloud architecture decisions across the organization       |
+| **Strategic Advisor**   | Translates business objectives into technology strategy and multi-year roadmaps           |
+| **Trusted Advisor**     | The person customers, executives, and engineering teams trust to make the right call      |
+| **Force Multiplier**    | Makes entire teams more effective through architectural guidance, patterns, and standards |
+| **Bridge Builder**      | Connects customer needs ↔ engineering capability ↔ business outcomes                    |
 
 ### What a Principal Cloud Architect is NOT
 
@@ -48,15 +48,15 @@
 
 ### The Principal vs. Senior Architect Distinction
 
-| Attribute | Senior Architect | Principal Architect |
-|-----------|-----------------|---------------------|
-| Scope | Single project / account | Organization-wide / multi-account |
-| Decision authority | Within project boundaries | Cross-project, sets precedent |
-| Customer interaction | Technical workshops | C-level strategy sessions |
-| Influence | Direct team | Indirect influence across org |
-| Time horizon | 6–12 months | 2–5 years |
-| Output | Architecture documents | Standards, patterns, technology strategy |
-| Failure mode | Bad design | Wrong strategic direction for the org |
+| Attribute            | Senior Architect          | Principal Architect                      |
+| -------------------- | ------------------------- | ---------------------------------------- |
+| Scope                | Single project / account  | Organization-wide / multi-account        |
+| Decision authority   | Within project boundaries | Cross-project, sets precedent            |
+| Customer interaction | Technical workshops       | C-level strategy sessions                |
+| Influence            | Direct team               | Indirect influence across org            |
+| Time horizon         | 6–12 months              | 2–5 years                               |
+| Output               | Architecture documents    | Standards, patterns, technology strategy |
+| Failure mode         | Bad design                | Wrong strategic direction for the org    |
 
 ---
 
@@ -118,13 +118,13 @@
 
 ### Time Allocation (Target)
 
-| Activity | % of Time | Description |
-|----------|-----------|-------------|
-| **Customer-facing** | 25–30% | Workshops, QBRs, strategy sessions, incident reviews |
-| **Deep technical work** | 25–30% | Reference architectures, PoCs, code reviews, standards |
-| **Internal collaboration** | 20–25% | Design reviews, CTO syncs, delivery support, mentoring |
-| **Thought leadership** | 10–15% | Blog posts, conference talks, internal Lunch & Learns |
-| **Administrative** | 5–10% | RFP responses, vendor evaluations, process governance |
+| Activity                         | % of Time | Description                                            |
+| -------------------------------- | --------- | ------------------------------------------------------ |
+| **Customer-facing**        | 25–30%   | Workshops, QBRs, strategy sessions, incident reviews   |
+| **Deep technical work**    | 25–30%   | Reference architectures, PoCs, code reviews, standards |
+| **Internal collaboration** | 20–25%   | Design reviews, CTO syncs, delivery support, mentoring |
+| **Thought leadership**     | 10–15%   | Blog posts, conference talks, internal Lunch & Learns  |
+| **Administrative**         | 5–10%    | RFP responses, vendor evaluations, process governance  |
 
 > [!IMPORTANT]
 > **Guard your deep work time fiercely.** Block 2–3 hours daily for uninterrupted technical work. A Principal who is 100% in meetings loses technical credibility within 6 months.
@@ -135,14 +135,14 @@
 
 ### 3.1 Architecture Ownership
 
-| Responsibility | Deliverable | Cadence |
-|---------------|-------------|---------|
-| **Cloud Landing Zone Design** | Multi-account/subscription strategy, networking topology, identity federation | Per engagement + annual review |
-| **Reference Architectures** | Reusable patterns (microservices, data lakehouse, DR, zero-trust) | Quarterly updates |
-| **Technology Radar** | Evaluate, trial, adopt, hold recommendations for cloud services | Quarterly |
-| **Architecture Decision Records (ADRs)** | Document key decisions with context, options, and rationale | Per significant decision |
-| **Well-Architected Reviews** | Security, reliability, performance, cost, operational excellence assessments | Quarterly per account |
-| **Threat Modeling** | STRIDE/DREAD analysis for new architectures | Per new system design |
+| Responsibility                                 | Deliverable                                                                   | Cadence                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------ |
+| **Cloud Landing Zone Design**            | Multi-account/subscription strategy, networking topology, identity federation | Per engagement + annual review |
+| **Reference Architectures**              | Reusable patterns (microservices, data lakehouse, DR, zero-trust)             | Quarterly updates              |
+| **Technology Radar**                     | Evaluate, trial, adopt, hold recommendations for cloud services               | Quarterly                      |
+| **Architecture Decision Records (ADRs)** | Document key decisions with context, options, and rationale                   | Per significant decision       |
+| **Well-Architected Reviews**             | Security, reliability, performance, cost, operational excellence assessments  | Quarterly per account          |
+| **Threat Modeling**                      | STRIDE/DREAD analysis for new architectures                                   | Per new system design          |
 
 ### 3.2 Technical Domains You Must Own
 
@@ -188,14 +188,14 @@
 > [!TIP]
 > A Principal Architect who cannot demonstrate hands-on capability loses credibility with engineering teams. You don't need to write production code daily, but you must be able to.
 
-| Activity | Frequency | Purpose |
-|----------|-----------|---------|
-| **Prototype / PoC development** | Monthly | Validate architecture decisions before committing teams |
-| **Infrastructure-as-Code review** | Weekly | Ensure Terraform/Pulumi patterns align with standards |
-| **Security architecture review** | Per new service | Threat model, compliance mapping, encryption design |
-| **Performance benchmarking** | Per critical path | Validate capacity planning assumptions |
-| **Incident RCA participation** | As needed | Identify systemic architecture failures |
-| **Open source contribution** | Quarterly | Maintain technical credibility and industry presence |
+| Activity                                | Frequency         | Purpose                                                 |
+| --------------------------------------- | ----------------- | ------------------------------------------------------- |
+| **Prototype / PoC development**   | Monthly           | Validate architecture decisions before committing teams |
+| **Infrastructure-as-Code review** | Weekly            | Ensure Terraform/Pulumi patterns align with standards   |
+| **Security architecture review**  | Per new service   | Threat model, compliance mapping, encryption design     |
+| **Performance benchmarking**      | Per critical path | Validate capacity planning assumptions                  |
+| **Incident RCA participation**    | As needed         | Identify systemic architecture failures                 |
+| **Open source contribution**      | Quarterly         | Maintain technical credibility and industry presence    |
 
 ### 3.4 Key Technical Artifacts You Produce
 
@@ -216,17 +216,18 @@
 
 ### 4.1 Customer Engagement Principles
 
-| Principle | Description |
-|-----------|-------------|
-| **Be the Trusted Advisor** | Customers should feel you have their best interest at heart, not your company's sales target |
-| **Speak Business First, Technology Second** | Lead with outcomes ("reduce incident response by 60%"), not features ("we'll use Kubernetes") |
-| **Never Bluff** | If you don't know, say "I'll research that and get back to you by [date]" — and actually follow through |
-| **Manage Expectations Honestly** | Under-promise, over-deliver. Never set expectations you can't meet |
-| **Be Vendor-Neutral When Advising** | Recommend the best solution, even if it's not your company's product |
+| Principle                                         | Description                                                                                              |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Be the Trusted Advisor**                  | Customers should feel you have their best interest at heart, not your company's sales target             |
+| **Speak Business First, Technology Second** | Lead with outcomes ("reduce incident response by 60%"), not features ("we'll use Kubernetes")            |
+| **Never Bluff**                             | If you don't know, say "I'll research that and get back to you by [date]" — and actually follow through |
+| **Manage Expectations Honestly**            | Under-promise, over-deliver. Never set expectations you can't meet                                       |
+| **Be Vendor-Neutral When Advising**         | Recommend the best solution, even if it's not your company's product                                     |
 
 ### 4.2 Customer Meeting Types & How to Behave
 
 #### Discovery / Initial Engagement
+
 ```
 PURPOSE:    Understand the customer's business, pain points, and aspirations
 YOUR ROLE:  Active listener, strategic questioner
@@ -247,6 +248,7 @@ DON'T:
 ```
 
 #### Architecture Workshop (Whiteboard Session)
+
 ```
 PURPOSE:    Co-design the target architecture with the customer's team
 YOUR ROLE:  Facilitator, not dictator
@@ -268,6 +270,7 @@ DON'T:
 ```
 
 #### Quarterly Business Review (QBR)
+
 ```
 PURPOSE:    Review progress, value delivered, and upcoming roadmap
 YOUR ROLE:  Strategic partner, not project reporter
@@ -294,6 +297,7 @@ DON'T:
 ```
 
 #### Incident / Escalation Call
+
 ```
 PURPOSE:    Technical crisis requiring immediate architecture guidance
 YOUR ROLE:  Calm technical authority, rapid decision-maker
@@ -328,13 +332,13 @@ DON'T:
 
 ### 5.1 Fellow Architects & Senior Engineers
 
-| Behavior | Why It Matters |
-|----------|---------------|
-| **Seek their input before finalizing designs** | Builds buy-in and catches blind spots |
-| **Give credit publicly, give feedback privately** | Psychological safety drives innovation |
-| **Share your reference architectures openly** | Rising tide lifts all boats |
-| **Disagree constructively in design reviews** | "I see a different tradeoff here..." not "That's wrong" |
-| **Advocate for their promotions** | A Principal who hoards credit is toxic |
+| Behavior                                                | Why It Matters                                          |
+| ------------------------------------------------------- | ------------------------------------------------------- |
+| **Seek their input before finalizing designs**    | Builds buy-in and catches blind spots                   |
+| **Give credit publicly, give feedback privately** | Psychological safety drives innovation                  |
+| **Share your reference architectures openly**     | Rising tide lifts all boats                             |
+| **Disagree constructively in design reviews**     | "I see a different tradeoff here..." not "That's wrong" |
+| **Advocate for their promotions**                 | A Principal who hoards credit is toxic                  |
 
 ### 5.2 Design Review Etiquette
 
@@ -361,12 +365,12 @@ WHEN YOUR WORK IS BEING REVIEWED:
 
 As a Principal, you are expected to actively mentor:
 
-| Mentee Level | Your Approach | Frequency |
-|-------------|---------------|-----------|
-| Junior Engineers | Assign stretch tasks, review their designs, recommend learning paths | Monthly |
-| Senior Engineers | Pair on complex problems, introduce to customers, sponsor for conferences | Bi-weekly |
-| Senior Architects | Co-design challenging architectures, delegate customer-facing opportunities | Weekly |
-| Aspiring Principals | Share the "invisible work" (stakeholder management, strategic thinking), be their advocate | Weekly |
+| Mentee Level        | Your Approach                                                                              | Frequency |
+| ------------------- | ------------------------------------------------------------------------------------------ | --------- |
+| Junior Engineers    | Assign stretch tasks, review their designs, recommend learning paths                       | Monthly   |
+| Senior Engineers    | Pair on complex problems, introduce to customers, sponsor for conferences                  | Bi-weekly |
+| Senior Architects   | Co-design challenging architectures, delegate customer-facing opportunities                | Weekly    |
+| Aspiring Principals | Share the "invisible work" (stakeholder management, strategic thinking), be their advocate | Weekly    |
 
 > [!TIP]
 > **The best measure of a Principal Architect is how many architects they've developed.** Track this intentionally.
@@ -379,13 +383,13 @@ As a Principal, you are expected to actively mentor:
 
 The relationship between the Principal Architect and Senior Delivery Manager is one of the most critical in any engagement. When it works well, projects succeed. When it breaks down, everything fails.
 
-| Your Role (Architecture) | Their Role (Delivery) | Collaboration Point |
-|--------------------------|----------------------|---------------------|
-| Define WHAT to build and WHY | Define WHEN, HOW MUCH, and WHO | Joint planning sessions |
-| Set technical quality bar | Set delivery timeline and milestones | Trade-off discussions |
-| Identify technical risks | Identify delivery/resource risks | Shared risk register |
-| Approve architecture changes | Approve scope changes | Change control board |
-| Ensure non-functional requirements | Ensure functional requirements | Joint acceptance criteria |
+| Your Role (Architecture)           | Their Role (Delivery)                | Collaboration Point       |
+| ---------------------------------- | ------------------------------------ | ------------------------- |
+| Define WHAT to build and WHY       | Define WHEN, HOW MUCH, and WHO       | Joint planning sessions   |
+| Set technical quality bar          | Set delivery timeline and milestones | Trade-off discussions     |
+| Identify technical risks           | Identify delivery/resource risks     | Shared risk register      |
+| Approve architecture changes       | Approve scope changes                | Change control board      |
+| Ensure non-functional requirements | Ensure functional requirements       | Joint acceptance criteria |
 
 ### 6.2 How to Interact with Delivery Leads
 
@@ -437,14 +441,14 @@ Example:
 
 The CTO is your **strategic partner and sponsor**. You are their technical eyes and ears across the organization and customer base.
 
-| What the CTO Needs from You | How to Deliver It |
-|-----------------------------|-------------------|
+| What the CTO Needs from You              | How to Deliver It                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
 | **Technology landscape awareness** | Monthly briefings on cloud service evolution, competitor moves, customer trends |
-| **Strategic recommendations** | Proactive proposals, not reactive responses. "We should invest in X because..." |
-| **Honest technical assessment** | Tell them what they need to hear, not what they want to hear |
-| **Customer intelligence** | Aggregate patterns from customer engagements into strategic insights |
-| **Risk visibility** | Escalate systemic risks early with data, not opinions |
-| **Organizational capability gaps** | Identify skill gaps and recommend training/hiring investments |
+| **Strategic recommendations**      | Proactive proposals, not reactive responses. "We should invest in X because..." |
+| **Honest technical assessment**    | Tell them what they need to hear, not what they want to hear                    |
+| **Customer intelligence**          | Aggregate patterns from customer engagements into strategic insights            |
+| **Risk visibility**                | Escalate systemic risks early with data, not opinions                           |
+| **Organizational capability gaps** | Identify skill gaps and recommend training/hiring investments                   |
 
 ### 7.2 CTO Meeting Etiquette
 
@@ -506,13 +510,13 @@ HOW TO PROPOSE A STRATEGIC INITIATIVE:
 
 ### 8.1 Understanding Their Priorities
 
-| Stakeholder | Primary Concern | What They Need from You |
-|-------------|----------------|------------------------|
-| **Engineering Director** | Team productivity, delivery velocity, technical debt | Architectural guardrails that enable speed, not slow teams down |
-| **VP of Sales** | Pipeline, deal closure, competitive differentiation | Technical credibility in pre-sales, reference architectures that win deals |
-| **VP of Delivery** | Margin, utilization, customer satisfaction | Accurate technical estimates, reusable accelerators, risk mitigation |
-| **VP of Product** | Roadmap, market fit, customer adoption | Technology feasibility assessment, innovation input, competitive analysis |
-| **CISO / VP Security** | Risk posture, compliance, audit readiness | Compliance architecture patterns, threat models, security guardrails |
+| Stakeholder                    | Primary Concern                                      | What They Need from You                                                    |
+| ------------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Engineering Director** | Team productivity, delivery velocity, technical debt | Architectural guardrails that enable speed, not slow teams down            |
+| **VP of Sales**          | Pipeline, deal closure, competitive differentiation  | Technical credibility in pre-sales, reference architectures that win deals |
+| **VP of Delivery**       | Margin, utilization, customer satisfaction           | Accurate technical estimates, reusable accelerators, risk mitigation       |
+| **VP of Product**        | Roadmap, market fit, customer adoption               | Technology feasibility assessment, innovation input, competitive analysis  |
+| **CISO / VP Security**   | Risk posture, compliance, audit readiness            | Compliance architecture patterns, threat models, security guardrails       |
 
 ### 8.2 How to Communicate with Executives
 
@@ -547,13 +551,13 @@ EXAMPLE — Reporting to VP Engineering:
 
 ### 8.3 Navigating Organizational Politics
 
-| Situation | How to Handle |
-|-----------|--------------|
-| **Two directors disagree on technology choice** | Present objective evaluation criteria. Let the data decide, not opinions. Offer to facilitate a structured decision meeting |
-| **A VP asks you to cut corners on security** | Quantify the risk in business terms: "This creates a $2M audit liability." Propose alternatives that balance speed and compliance |
-| **You're asked to staff a project you know is under-resourced** | Document the risk formally. Propose phased delivery. Don't silently accept and hope for the best |
-| **Credit for your work goes to someone else** | Let it go in the moment. Ensure your contributions are visible through your own deliverables (ADRs, reference architectures, published standards) |
-| **You disagree with the CTO's direction** | Disagree privately with data. Once the decision is made, commit fully. Don't undermine the decision in hallway conversations |
+| Situation                                                             | How to Handle                                                                                                                                     |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Two directors disagree on technology choice**                 | Present objective evaluation criteria. Let the data decide, not opinions. Offer to facilitate a structured decision meeting                       |
+| **A VP asks you to cut corners on security**                    | Quantify the risk in business terms: "This creates a $2M audit liability." Propose alternatives that balance speed and compliance                 |
+| **You're asked to staff a project you know is under-resourced** | Document the risk formally. Propose phased delivery. Don't silently accept and hope for the best                                                  |
+| **Credit for your work goes to someone else**                   | Let it go in the moment. Ensure your contributions are visible through your own deliverables (ADRs, reference architectures, published standards) |
+| **You disagree with the CTO's direction**                       | Disagree privately with data. Once the decision is made, commit fully. Don't undermine the decision in hallway conversations                      |
 
 ---
 
@@ -561,13 +565,13 @@ EXAMPLE — Reporting to VP Engineering:
 
 ### 9.1 Communication Standards
 
-| Channel | Response Time | Tone | Content Rules |
-|---------|--------------|------|---------------|
-| **Email** | Same business day | Professional, concise | Subject lines that summarize the ask. Bullet points over paragraphs |
-| **Slack/Teams** | 2 hours (business hours) | Conversational but professional | Use threads. Don't dump walls of text |
-| **Meetings** | Be early (2 min before) | Authoritative but approachable | Camera on. Mute when not speaking. Limit screen-sharing to key moments |
-| **Customer calls** | Join 1 min early | Polished, prepared, confident | No multi-tasking (visible or audible). Full attention |
-| **Presentations** | N/A | Executive-caliber | Maximum 10 words per slide. Rehearsed delivery. Know your material cold |
+| Channel                  | Response Time            | Tone                            | Content Rules                                                           |
+| ------------------------ | ------------------------ | ------------------------------- | ----------------------------------------------------------------------- |
+| **Email**          | Same business day        | Professional, concise           | Subject lines that summarize the ask. Bullet points over paragraphs     |
+| **Slack/Teams**    | 2 hours (business hours) | Conversational but professional | Use threads. Don't dump walls of text                                   |
+| **Meetings**       | Be early (2 min before)  | Authoritative but approachable  | Camera on. Mute when not speaking. Limit screen-sharing to key moments  |
+| **Customer calls** | Join 1 min early         | Polished, prepared, confident   | No multi-tasking (visible or audible). Full attention                   |
+| **Presentations**  | N/A                      | Executive-caliber               | Maximum 10 words per slide. Rehearsed delivery. Know your material cold |
 
 ### 9.2 In-Person & Virtual Meeting Behavior
 
@@ -620,23 +624,23 @@ EMAIL TO AN EXECUTIVE:
 
 ### 9.4 Handling Difficult Situations
 
-| Situation | Professional Response |
-|-----------|---------------------|
-| **Customer asks a question you can't answer** | "That's an excellent question. I want to give you an accurate answer, so let me research it and get back to you by [specific date]." |
-| **Someone challenges your architecture publicly** | "That's a valid perspective. Let me walk through the tradeoffs I considered..." (Then engage on the merits, not the emotion) |
-| **A project is failing and you're called in late** | Assess without blame. "Let's focus on where we are and what we can do from here." Document the root cause privately |
-| **You made a mistake** | Own it immediately. "I made an error in the capacity estimate. Here's the impact and here's my plan to correct it." |
-| **You're asked to do something unethical** | Escalate through proper channels. Document in writing. Never compromise your professional integrity |
+| Situation                                                | Professional Response                                                                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Customer asks a question you can't answer**      | "That's an excellent question. I want to give you an accurate answer, so let me research it and get back to you by [specific date]." |
+| **Someone challenges your architecture publicly**  | "That's a valid perspective. Let me walk through the tradeoffs I considered..." (Then engage on the merits, not the emotion)         |
+| **A project is failing and you're called in late** | Assess without blame. "Let's focus on where we are and what we can do from here." Document the root cause privately                  |
+| **You made a mistake**                             | Own it immediately. "I made an error in the capacity estimate. Here's the impact and here's my plan to correct it."                  |
+| **You're asked to do something unethical**         | Escalate through proper channels. Document in writing. Never compromise your professional integrity                                  |
 
 ### 9.5 Dress Code & Professional Appearance
 
-| Context | Dress Code | Notes |
-|---------|-----------|-------|
-| Internal meetings | Smart casual | Clean, pressed. No graphic tees |
-| Customer meetings (virtual) | Business casual minimum | Solid colors on camera. Good lighting. Professional background |
-| Customer meetings (in-person) | Match customer's culture | Financial services = suit. Tech startup = smart casual |
-| Conference speaking | Business casual to business | You represent your organization. Dress one level above the audience |
-| Executive meetings | Business professional | When in doubt, overdress |
+| Context                       | Dress Code                  | Notes                                                               |
+| ----------------------------- | --------------------------- | ------------------------------------------------------------------- |
+| Internal meetings             | Smart casual                | Clean, pressed. No graphic tees                                     |
+| Customer meetings (virtual)   | Business casual minimum     | Solid colors on camera. Good lighting. Professional background      |
+| Customer meetings (in-person) | Match customer's culture    | Financial services = suit. Tech startup = smart casual              |
+| Conference speaking           | Business casual to business | You represent your organization. Dress one level above the audience |
+| Executive meetings            | Business professional       | When in doubt, overdress                                            |
 
 ---
 
@@ -693,6 +697,7 @@ ARB CHARTER:
 ### 11.1 Why It Matters
 
 A Principal Architect is a **public representative** of their organization's technical capability. Your visibility directly impacts:
+
 - **Customer trust** — They want to know they're working with a recognized expert
 - **Talent attraction** — Engineers want to work with known architects
 - **Sales pipeline** — Thought leadership generates inbound interest
@@ -700,26 +705,26 @@ A Principal Architect is a **public representative** of their organization's tec
 
 ### 11.2 Thought Leadership Activities
 
-| Activity | Frequency | Impact |
-|----------|-----------|--------|
-| **Blog posts** (personal or corporate) | Monthly | Establishes expertise, SEO for your org |
-| **Conference talks** (re:Invent, KubeCon, etc.) | 2–4 per year | Industry recognition, customer confidence |
-| **Internal Lunch & Learns** | Monthly | Knowledge sharing, mentoring |
-| **Open source contributions** | Quarterly | Technical credibility with engineering teams |
-| **Certifications** | Annual | Validates current knowledge (AWS SA Pro, CKA, etc.) |
-| **White papers / case studies** | Quarterly | Sales enablement, customer reference material |
-| **Podcast / webinar appearances** | Quarterly | Broader reach, networking |
+| Activity                                              | Frequency     | Impact                                              |
+| ----------------------------------------------------- | ------------- | --------------------------------------------------- |
+| **Blog posts** (personal or corporate)          | Monthly       | Establishes expertise, SEO for your org             |
+| **Conference talks** (re:Invent, KubeCon, etc.) | 2–4 per year | Industry recognition, customer confidence           |
+| **Internal Lunch & Learns**                     | Monthly       | Knowledge sharing, mentoring                        |
+| **Open source contributions**                   | Quarterly     | Technical credibility with engineering teams        |
+| **Certifications**                              | Annual        | Validates current knowledge (AWS SA Pro, CKA, etc.) |
+| **White papers / case studies**                 | Quarterly     | Sales enablement, customer reference material       |
+| **Podcast / webinar appearances**               | Quarterly     | Broader reach, networking                           |
 
 ### 11.3 Certifications to Maintain
 
-| Certification | Priority | Renewal |
-|--------------|----------|---------|
-| AWS Solutions Architect — Professional | Must Have | 3 years |
-| Azure Solutions Architect Expert | Must Have | 1 year |
-| Certified Kubernetes Administrator (CKA) | Strongly Recommended | 2 years |
-| HashiCorp Terraform Associate/Pro | Recommended | 2 years |
-| TOGAF (if enterprise-focused) | Nice to Have | N/A |
-| Security specialty (AWS/Azure) | Recommended | 2–3 years |
+| Certification                            | Priority             | Renewal    |
+| ---------------------------------------- | -------------------- | ---------- |
+| AWS Solutions Architect — Professional  | Must Have            | 3 years    |
+| Azure Solutions Architect Expert         | Must Have            | 1 year     |
+| Certified Kubernetes Administrator (CKA) | Strongly Recommended | 2 years    |
+| HashiCorp Terraform Associate/Pro        | Recommended          | 2 years    |
+| TOGAF (if enterprise-focused)            | Nice to Have         | N/A        |
+| Security specialty (AWS/Azure)           | Recommended          | 2–3 years |
 
 ---
 
@@ -730,25 +735,25 @@ A Principal Architect is a **public representative** of their organization's tec
 
 ### 12.1 Technical Anti-Patterns
 
-| Anti-Pattern | Why It's Harmful | Correct Behavior |
-|-------------|------------------|-----------------|
-| **Ivory Tower Architect** | Designing in isolation, mandating without context | Co-design with teams. Understand their constraints |
-| **Résumé-Driven Architecture** | Choosing tech to learn, not to solve the problem | Select boring technology that works. Innovate where it matters |
-| **Over-Engineering** | Building for Netflix scale when you have 100 users | Right-size the architecture. Design for today, plan for tomorrow |
-| **Analysis Paralysis** | Spending weeks evaluating when a decision is needed now | Set a decision deadline. "Good enough now" beats "perfect later" |
-| **Technology Zealotry** | "Kubernetes for everything!" | Every tool has a sweet spot. Match the tool to the problem |
-| **Ignoring Operations** | Beautiful design that's impossible to maintain | Include the ops team in design. If you can't run it, don't build it |
+| Anti-Pattern                           | Why It's Harmful                                        | Correct Behavior                                                    |
+| -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Ivory Tower Architect**        | Designing in isolation, mandating without context       | Co-design with teams. Understand their constraints                  |
+| **Résumé-Driven Architecture** | Choosing tech to learn, not to solve the problem        | Select boring technology that works. Innovate where it matters      |
+| **Over-Engineering**             | Building for Netflix scale when you have 100 users      | Right-size the architecture. Design for today, plan for tomorrow    |
+| **Analysis Paralysis**           | Spending weeks evaluating when a decision is needed now | Set a decision deadline. "Good enough now" beats "perfect later"    |
+| **Technology Zealotry**          | "Kubernetes for everything!"                            | Every tool has a sweet spot. Match the tool to the problem          |
+| **Ignoring Operations**          | Beautiful design that's impossible to maintain          | Include the ops team in design. If you can't run it, don't build it |
 
 ### 12.2 Interpersonal Anti-Patterns
 
-| Anti-Pattern | Why It's Harmful | Correct Behavior |
-|-------------|------------------|-----------------|
-| **Credit Hoarding** | Demoralizes teams, creates resentment | Publicly attribute success to the team |
-| **Knowledge Hoarding** | Creates bus factor = 1, limits org capability | Document everything. Mentor actively |
-| **Passive-Aggressive Feedback** | Destroys psychological safety | Direct, kind, specific feedback in private |
-| **Hero Culture** | Burnout, single point of failure | Build resilient teams, not indispensable individuals |
-| **Title Pulling** | "I'm the Principal, so do it my way" | Influence through evidence and expertise, not authority |
-| **Avoiding Conflict** | Bad decisions go unchallenged | Constructive disagreement is your responsibility |
+| Anti-Pattern                          | Why It's Harmful                              | Correct Behavior                                        |
+| ------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| **Credit Hoarding**             | Demoralizes teams, creates resentment         | Publicly attribute success to the team                  |
+| **Knowledge Hoarding**          | Creates bus factor = 1, limits org capability | Document everything. Mentor actively                    |
+| **Passive-Aggressive Feedback** | Destroys psychological safety                 | Direct, kind, specific feedback in private              |
+| **Hero Culture**                | Burnout, single point of failure              | Build resilient teams, not indispensable individuals    |
+| **Title Pulling**               | "I'm the Principal, so do it my way"          | Influence through evidence and expertise, not authority |
+| **Avoiding Conflict**           | Bad decisions go unchallenged                 | Constructive disagreement is your responsibility        |
 
 ---
 
@@ -756,17 +761,17 @@ A Principal Architect is a **public representative** of their organization's tec
 
 ### 13.1 How You Are Evaluated
 
-| Category | Metric | Target |
-|----------|--------|--------|
-| **Architecture Quality** | % of designs passing ARB first review | > 85% |
-| **Customer Satisfaction** | NPS / CSAT from architecture engagements | > 4.5/5 |
-| **Delivery Impact** | Reduction in delivery rework due to architecture issues | > 50% reduction |
-| **Knowledge Multiplication** | Number of architects mentored / promoted | ≥ 2 per year |
-| **Reusable Assets** | Reference architectures, accelerators published | ≥ 4 per year |
-| **Thought Leadership** | Conference talks, blog posts, white papers | ≥ 6 per year |
-| **Revenue Influence** | Deals influenced by your technical credibility | Tracked quarterly |
-| **Innovation** | PoCs that become production patterns | ≥ 2 per year |
-| **Standards Adoption** | % of projects following your published standards | > 90% |
+| Category                           | Metric                                                  | Target            |
+| ---------------------------------- | ------------------------------------------------------- | ----------------- |
+| **Architecture Quality**     | % of designs passing ARB first review                   | > 85%             |
+| **Customer Satisfaction**    | NPS / CSAT from architecture engagements                | > 4.5/5           |
+| **Delivery Impact**          | Reduction in delivery rework due to architecture issues | > 50% reduction   |
+| **Knowledge Multiplication** | Number of architects mentored / promoted                | ≥ 2 per year     |
+| **Reusable Assets**          | Reference architectures, accelerators published         | ≥ 4 per year     |
+| **Thought Leadership**       | Conference talks, blog posts, white papers              | ≥ 6 per year     |
+| **Revenue Influence**        | Deals influenced by your technical credibility          | Tracked quarterly |
+| **Innovation**               | PoCs that become production patterns                    | ≥ 2 per year     |
+| **Standards Adoption**       | % of projects following your published standards        | > 90%             |
 
 ### 13.2 What "Exceeds Expectations" Looks Like
 
@@ -807,14 +812,14 @@ A Principal Architect is a **public representative** of their organization's tec
 
 ### 14.2 Skills to Develop for the Next Level
 
-| Skill | Current (Principal) | Next Level (Distinguished/VP) |
-|-------|--------------------|-----------------------------|
-| **Strategic thinking** | 2-5 year roadmaps | Industry-shaping, 5-10 year vision |
-| **Influence scope** | Organization-wide | Industry-wide, board-level |
-| **Business acumen** | Understands P&L impact | Drives P&L decisions |
-| **External presence** | Conference speaker | Keynote speaker, published author |
-| **Organizational design** | Recommends team structures | Designs engineering organizations |
-| **Board communication** | Prepares materials for CTO | Presents directly to the board |
+| Skill                           | Current (Principal)        | Next Level (Distinguished/VP)      |
+| ------------------------------- | -------------------------- | ---------------------------------- |
+| **Strategic thinking**    | 2-5 year roadmaps          | Industry-shaping, 5-10 year vision |
+| **Influence scope**       | Organization-wide          | Industry-wide, board-level         |
+| **Business acumen**       | Understands P&L impact     | Drives P&L decisions               |
+| **External presence**     | Conference speaker         | Keynote speaker, published author  |
+| **Organizational design** | Recommends team structures | Designs engineering organizations  |
+| **Board communication**   | Prepares materials for CTO | Presents directly to the board     |
 
 ---
 
