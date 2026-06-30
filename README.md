@@ -41,6 +41,7 @@ aws_k8s_devops/
 ├── interview-prep-docs/                          # 📚 Project directory
 ├── iot-greengrass-edge-telemetry/                # 📡 **Production-grade IoT edge connectivity using AWS IoT Core 
 ├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
+├── medallion-multicloud-platform/                # 🏗️ **Active-Passive Pilot Light** | AWS Primary → Azure Disaste
 ├── medcloud-global-platform/                     # 📁 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
 ├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
 ├── netflix-clone-devsecops/                      # 🛡️ A production-grade Netflix Clone application deployed on AWS
