@@ -43,6 +43,7 @@ aws_k8s_devops/
 ├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
 ├── medcloud-global-platform/                     # 📁 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
 ├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
+├── netflix-clone-devsecops/                      # 🛡️ A production-grade Netflix Clone application deployed on AWS
 └── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
 └── README.md                                     # ← You are here
 ```
