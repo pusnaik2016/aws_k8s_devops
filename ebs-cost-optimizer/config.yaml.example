@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# EBS Cost Optimizer – configuration example
+# Copy to config.yaml and adjust for your environment.
+# ---------------------------------------------------------------------------
+
+# Tags that EVERY volume must carry.
+# Volumes missing any of these will be flagged as "untagged" in the report.
+mandatory_tags:
+  - Environment
+  - Owner
+  - Project
+  - CostCenter
+
+# Tags added automatically to every volume that doesn't already have them.
+default_tags:
+  ManagedBy: ebs-cost-optimizer
+
+# Tag propagation: copy matching tags from the attached EC2 instance.
+# Runs before applying default_tags so instance values take precedence.
+tag_propagation:
+  enabled: true
+  keys:
+    - Environment
+    - Owner
+    - Project
+    - CostCenter
+    - Name
+
+# Cleanup settings (used by the `cleanup` command).
+cleanup:
+  # Create a snapshot before deleting any volume.
+  snapshot_before_delete: true
+
+  # Only consider a volume for deletion if it has been unattached for at
+  # least this many days (0 = delete all unattached volumes immediately).
+  min_unattached_days: 14
+
+  # Automatically add this tag to the snapshot so it is identifiable.
+  snapshot_tag:
+    CreatedBy: ebs-cost-optimizer-cleanup
+
+# Reporting
+report:
+  # Include volumes that are already fully tagged in the output.
+  include_compliant: false
+
+  # Currency for cost estimates.
+  currency: USD
