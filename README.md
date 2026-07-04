@@ -30,11 +30,11 @@ aws_k8s_devops/
 │
 ├── ansible-config-mgmt/                          # 📁 **Automated infrastructure provisioning, security hardening,
 ├── aws-cost-anomaly-detector/                    # 🔍 **Intelligent AWS cost monitoring for ~$2/month** — powered 
-├── aws-landing-zone-aft/                        # 🏛️ **AWS Landing Zone** — Control Tower AFT, multi-account, SSO+MFA, SCPs, Policy-as-Code
 ├── bedrock-agent-memory-system/                  # 🤖 **Build AI Agents That Actually Remember** — A production-gr
 ├── bedrock-rag-chatbot/                          # 🤖 **Author:** Pushparaj Naik
 ├── claude-code-devops-workflows/                 # 🤖 **"Stop babysitting your automation. Configure your AI agent
 ├── devops-debug-toolkit/                         # 🔧 **10-in-1 DevOps Automation Toolkit** — Scan, Debug, Optimiz
+├── ebs-cost-optimizer/                           # 🔍 Scan, tag, and clean up Amazon EBS volumes to enforce cost-a
 ├── eks-gitops-quiz-app/                          # 🌐 Production-ready 3-tier application deployed on AWS EKS with
 ├── eks-multiregion-devsecops/                    # 🌐 Production-grade, multi-region AWS infrastructure for a Java
 ├── eks-retail-platform/                          # 🌐 Production-grade Kubernetes platform on AWS EKS with dual au
@@ -42,18 +42,11 @@ aws_k8s_devops/
 ├── interview-prep-docs/                          # 📚 Project directory
 ├── iot-greengrass-edge-telemetry/                # 📡 **Production-grade IoT edge connectivity using AWS IoT Core 
 ├── java-eks-devsecops-pipeline/                  # 🌐 **End-to-end CI/CD pipeline** using GitHub Actions, private 
-<<<<<<< HEAD
-├── medcloud-global-platform/                     # 🏥 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
-├── medallion-multicloud-platform/                # 📊 **Enterprise Multi-Cloud Medallion Data Platform** — Active-P
-=======
 ├── medallion-multicloud-platform/                # 🏗️ **Active-Passive Pilot Light** | AWS Primary → Azure Disaste
 ├── medcloud-global-platform/                     # 📁 **Multi-Cloud Healthcare & Medical E-Commerce Platform** — A
->>>>>>> ed3213c7c7be561e2172f72ce2063ebaa0b1e159
 ├── multicloud-clearing-engine/                   # 🏗️ This system implements a **three-cloud active/standby/compli
 ├── netflix-clone-devsecops/                      # 🛡️ A production-grade Netflix Clone application deployed on AWS
-├── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
-├── docs/                                         # 📄 Portfolio documentation (PDFs)
-├── scripts/                                      # 🔧 Utility scripts
+└── omnichannel-ai-support-platform/              # 🤖 **Next-gen, self-healing customer service system** — Generat
 └── README.md                                     # ← You are here
 ```
 
