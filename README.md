@@ -28,6 +28,7 @@ Each project is self-contained with its own README, Terraform modules, CI/CD pip
 ```
 aws_k8s_devops/
 │
+├── Exam Readiness Questions/                     # 📁 Project directory
 ├── ansible-config-mgmt/                          # 📁 **Automated infrastructure provisioning, security hardening,
 ├── aws-cost-anomaly-detector/                    # 🔍 **Intelligent AWS cost monitoring for ~$2/month** — powered 
 ├── bedrock-agent-memory-system/                  # 🤖 **Build AI Agents That Actually Remember** — A production-gr
